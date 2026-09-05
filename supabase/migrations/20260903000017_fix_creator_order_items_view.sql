@@ -1,0 +1,17 @@
+-- ============================================================
+-- 0017: creator_order_items ビューの RLS 不整合修正
+-- DESIGN.md では security_invoker = true としていたが、これだと
+-- ビュー内の join 先である orders テーブルの RLS
+-- （orders_select_buyer / orders_admin_all のみ、クリエイター向けの
+--   ポリシーが存在しない）がそのまま実行者（クリエイター）に適用され、
+-- クリエイターが自分の作品の注文明細を一件も参照できなくなる
+-- （studio/sales の売上サマリが常に ¥0 になる）バグがあった。
+--
+-- security_invoker = false（デフォルト）にすることで、ビューは
+-- 所有者（マイグレーション実行ロール）の権限で評価され、orders の
+-- RLS をバイパスする。ビュー自体が where oi.creator_id = auth.uid()
+-- で絞り込み、購入者の住所列も含めていないため、意図した「自分の
+-- 作品が含まれる注文明細のみ閲覧可・住所は見せない」という設計は
+-- 引き続き担保される。
+-- ============================================================
+alter view public.creator_order_items set (security_invoker = false);

@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/close-payouts", "schedule": "0 18 1 * *" }
+  ]
+}
