@@ -1,0 +1,1620 @@
+<title>Oshinest 画面フロー</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<style>
+  :root {
+    /* Figma「推し活2」のデザイントークン */
+    --brand: #0096fa;
+    --brand-ink: #0077c8;
+    --surface: #ffffff;
+    --ground: #f5f7fb;
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --line: #e4e7ed;
+    --star-off: #d9dbe0;
+
+    /* ビューアのシェル（額縁）＝設計図の紙 */
+    --shell: #12161c;
+    --shell-2: #1b212a;
+    --shell-line: #2c3542;
+    --shell-ink: #e8ecf2;
+    --shell-muted: #8a94a4;
+
+    --font: "Inter", "Noto Sans JP", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --scale: 1;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--shell);
+    color: var(--shell-ink);
+    font-family: var(--font);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ═══════════ ビューアのシェル ═══════════ */
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 14px 24px;
+    background: rgba(18, 22, 28, 0.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--shell-line);
+    flex-wrap: wrap;
+  }
+
+  .brandmark {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    margin-right: auto;
+  }
+  .brandmark b {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--brand);
+  }
+  .brandmark span {
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--shell-muted);
+  }
+
+  .screen-select {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--shell-ink);
+    background: var(--shell-2);
+    border: 1px solid var(--shell-line);
+    border-radius: 8px;
+    padding: 8px 12px;
+    min-width: 260px;
+  }
+  .screen-select:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  .step-nav { display: flex; gap: 6px; }
+  .stepbtn {
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--shell-ink);
+    background: var(--shell-2);
+    border: 1px solid var(--shell-line);
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+  }
+  .stepbtn:hover { border-color: var(--brand); color: var(--brand); }
+  .stepbtn:disabled { opacity: 0.35; cursor: default; border-color: var(--shell-line); color: var(--shell-ink); }
+  .stepbtn:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+
+  .zoom-readout {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--shell-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ═══════════ ステージ ═══════════ */
+
+  main { padding: 28px 24px 80px; }
+
+  .stage-head {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    max-width: 1270px;
+    margin: 0 auto 14px;
+    flex-wrap: wrap;
+  }
+  .stage-head h1 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .stage-head .nodeid {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    color: var(--shell-muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .stage-head .note {
+    flex-basis: 100%;
+    font-size: 13px;
+    color: var(--shell-muted);
+    line-height: 1.6;
+    max-width: 68ch;
+  }
+
+  .stage-wrap {
+    max-width: 1270px;
+    margin: 0 auto;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid var(--shell-line);
+    background: var(--surface);
+  }
+  .stage {
+    width: 1270px;
+    transform: scale(var(--scale));
+    transform-origin: top left;
+  }
+
+  .screen { display: none; }
+  .screen.is-active { display: block; }
+
+  /* 矢印由来の遷移ボタン群 */
+  .exits {
+    max-width: 1270px;
+    margin: 22px auto 0;
+    border-top: 1px solid var(--shell-line);
+    padding-top: 18px;
+  }
+  .exits-label {
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--shell-muted);
+    margin-bottom: 12px;
+  }
+  .exit-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  .exit {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--shell-ink);
+    background: var(--shell-2);
+    border: 1px solid var(--shell-line);
+    border-radius: 10px;
+    padding: 12px 18px;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+  }
+  .exit .arrow { color: var(--brand); font-size: 15px; }
+  .exit .via {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--shell-muted);
+    padding-left: 10px;
+    border-left: 1px solid var(--shell-line);
+  }
+  .exit:hover { border-color: var(--brand); background: #182430; }
+  .exit:hover .via { color: var(--shell-ink); }
+  .exit:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .exit.is-back { color: var(--shell-muted); }
+  .exit.is-back .arrow { color: var(--shell-muted); }
+
+  .exit-none { font-size: 13px; color: var(--shell-muted); }
+
+  /* ═══════════ フロー図 ═══════════ */
+
+  .flow {
+    max-width: 1270px;
+    margin: 0 auto;
+    padding: 4px 0 0;
+  }
+  .flow-intro {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--shell-muted);
+    max-width: 68ch;
+    margin: 0 0 30px;
+  }
+  .flow-intro b { color: var(--shell-ink); font-weight: 600; }
+
+  .lane { margin-bottom: 34px; }
+  .lane-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .lane-head h2 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .lane-head .rule { flex: 1; height: 1px; background: var(--shell-line); }
+  .lane-head .count { font-size: 11px; color: var(--shell-muted); font-variant-numeric: tabular-nums; }
+
+  .chain {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    flex-wrap: wrap;
+    row-gap: 14px;
+  }
+
+  .node {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-start;
+    text-align: left;
+    font-family: var(--font);
+    background: var(--shell-2);
+    border: 1px solid var(--shell-line);
+    border-radius: 10px;
+    padding: 13px 16px;
+    min-width: 158px;
+    cursor: pointer;
+    color: var(--shell-ink);
+    transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  }
+  .node:hover { border-color: var(--brand); background: #182430; transform: translateY(-1px); }
+  .node:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .node .n-title { font-size: 13.5px; font-weight: 600; }
+  .node .n-meta { font-size: 10.5px; color: var(--shell-muted); font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+  .node.is-entry { border-color: var(--brand); }
+  .node.is-entry .n-meta { color: var(--brand); }
+
+  .link {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    color: var(--shell-muted);
+    font-size: 16px;
+    align-self: center;
+  }
+
+  .branch {
+    display: flex;
+    align-items: flex-start;
+    gap: 0;
+    margin-top: 14px;
+    padding-left: 34px;
+    border-left: 1px solid var(--shell-line);
+    margin-left: 46px;
+    padding-top: 4px;
+    flex-wrap: wrap;
+    row-gap: 14px;
+  }
+  .branch-label {
+    align-self: center;
+    font-size: 11px;
+    color: var(--shell-muted);
+    padding-right: 12px;
+  }
+
+  /* ═══════════════════════════════════════
+     以下、Figma デザインの再現
+     色・サイズ・角丸はすべて Figma の値
+     ═══════════════════════════════════════ */
+
+  .fig {
+    width: 1270px;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--font);
+    line-height: normal;
+  }
+  .fig p, .fig h1, .fig h2, .fig h3 { margin: 0; }
+
+  /* Header */
+  .f-header {
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 14px 28px;
+  }
+  .f-logo { font-size: 19.4px; font-weight: 700; color: var(--brand); white-space: nowrap; }
+  .f-title { font-size: 19px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+  .f-search {
+    flex: 1;
+    background: var(--ground);
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-size: 12.3px;
+    color: var(--muted);
+  }
+  .f-nav { display: flex; align-items: center; gap: 17.6px; font-size: 12.3px; color: var(--ink); white-space: nowrap; }
+
+  /* Body */
+  .f-body { background: var(--surface); display: flex; gap: 21px; align-items: flex-start; padding: 21px 28px; }
+
+  /* Sidebar */
+  .f-sidebar {
+    background: var(--surface);
+    border: 0.9px solid var(--line);
+    border-radius: 7px;
+    padding: 17.6px;
+    width: 211.7px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 17.6px;
+  }
+  .f-sgroup { display: flex; flex-direction: column; gap: 8.8px; }
+  .f-sgroup h3 { font-size: 12.3px; font-weight: 600; color: var(--ink); }
+  .f-sgroup p { font-size: 11.5px; color: var(--muted); }
+
+  /* Main content */
+  .f-main { display: flex; flex-direction: column; gap: 14px; flex: 1; min-width: 0; }
+  .f-sortbar { display: flex; align-items: center; justify-content: space-between; }
+  .f-sortbar .t { font-size: 14px; font-weight: 600; color: var(--ink); }
+  .f-sortbar .s { font-size: 11.5px; color: var(--muted); }
+
+  .f-cardrow { display: flex; gap: 14px; }
+  .f-workcard {
+    background: var(--surface);
+    border: 0.9px solid var(--line);
+    border-radius: 7px;
+    padding: 10.6px;
+    width: 229.3px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    text-align: left;
+    font-family: var(--font);
+    color: inherit;
+  }
+  .f-thumb { background: var(--ground); border-radius: 5.3px; height: 141px; width: 100%; }
+  .f-workcard .name { font-size: 11.5px; color: var(--ink); }
+  .f-workcard .price { font-size: 12.3px; font-weight: 700; color: var(--brand); }
+
+  /* Cards / panels */
+  .f-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8.5px;
+    padding: 21px;
+    display: flex;
+    flex-direction: column;
+    gap: 12.7px;
+  }
+  .f-card > h3 { font-size: 17px; font-weight: 700; color: var(--ink); }
+
+  .f-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; font-size: 13.8px; }
+  .f-row .k { color: var(--muted); }
+  .f-row .v { color: var(--ink); font-weight: 600; }
+
+  /* Inputs */
+  .f-field { display: flex; flex-direction: column; gap: 6.3px; }
+  .f-field label { font-size: 12.8px; font-weight: 600; color: var(--ink); }
+  .f-input {
+    background: var(--ground);
+    border-radius: 4.2px;
+    padding: 10.5px 12.7px;
+    font-size: 12.8px;
+    color: var(--muted);
+  }
+  .f-input.tall { min-height: 84.7px; }
+
+  /* Buttons */
+  .f-btn {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 8.5px;
+    padding: 14.8px 24px;
+    font-family: var(--font);
+    font-size: 15.9px;
+    font-weight: 600;
+    text-align: center;
+    cursor: default;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .f-btn.block { width: 100%; }
+  .f-btn.sm { font-size: 13.8px; padding: 10.6px 21px; }
+  .f-btn.ghost { background: var(--surface); color: var(--ink); border: 1px solid var(--line); }
+
+  /* 遷移するボタン（Figmaの矢印が出ている操作） */
+  .is-link { cursor: pointer; position: relative; }
+  .is-link:hover { filter: brightness(1.06); }
+  .f-btn.is-link:focus-visible,
+  .f-workcard.is-link:focus-visible,
+  .f-navlink:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .f-workcard.is-link { cursor: pointer; }
+  .f-workcard.is-link:hover { border-color: var(--brand); }
+  .f-navlink {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: var(--font);
+    font-size: inherit;
+    color: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--brand);
+    text-underline-offset: 3px;
+  }
+  .f-navlink:hover { color: var(--brand); }
+
+  /* Badges */
+  .f-badge {
+    background: var(--ground);
+    color: var(--muted);
+    border-radius: 999px;
+    padding: 3px 7.4px;
+    font-size: 8.9px;
+    display: inline-block;
+  }
+  .f-badge.solid { background: var(--brand); color: #fff; font-weight: 600; font-size: 12.7px; padding: 6.4px 12.7px; }
+  .f-badge.pill-sm { font-size: 11.6px; padding: 4.2px 10.5px; background: var(--brand); color: #fff; font-weight: 600; }
+
+  .f-avatar { width: 59px; height: 59px; border-radius: 999px; background: var(--ground); border: 1px solid var(--line); flex: none; }
+  .f-avatar.sm { width: 23.6px; height: 23.6px; }
+  .f-avatar.lg { width: 100.8px; height: 100.8px; }
+
+  .f-stars { display: flex; gap: 2px; font-size: 11.7px; font-weight: 700; color: var(--brand); }
+  .f-stars.big { font-size: 21px; gap: 4px; }
+  .f-stars .off { color: var(--star-off); }
+
+  /* Tables */
+  .f-thead, .f-trow {
+    display: flex;
+    align-items: center;
+    gap: 8.5px;
+    padding: 12.7px 17px;
+    font-size: 12.7px;
+  }
+  .f-thead { background: var(--ground); color: var(--muted); font-weight: 600; }
+  .f-trow { background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+  .f-thead .c1, .f-trow .c1 { width: 423px; flex: none; }
+  .f-thead .c2, .f-trow .c2 { width: 158.8px; flex: none; }
+  .f-thead .c3, .f-trow .c3 { width: 158.8px; flex: none; }
+  .f-thead .c4, .f-trow .c4 { width: 264.6px; flex: none; }
+
+  .f-stat {
+    background: var(--surface);
+    border: 0.9px solid var(--line);
+    border-radius: 7.3px;
+    padding: 18.3px;
+    width: 256.8px;
+    flex: none;
+    display: flex;
+    flex-direction: column;
+    gap: 7.3px;
+  }
+  .f-stat .k { font-size: 11.9px; color: var(--muted); }
+  .f-stat .v { font-size: 22px; font-weight: 700; color: var(--brand); font-variant-numeric: tabular-nums; }
+
+  .f-histrow {
+    background: var(--ground);
+    border-radius: 4.2px;
+    padding: 10.6px 12.7px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .f-outline-btn {
+    border: 1px solid var(--brand);
+    color: var(--brand);
+    background: none;
+    border-radius: 6px;
+    padding: 5.3px 10.6px;
+    font-family: var(--font);
+    font-size: 10.6px;
+    font-weight: 600;
+  }
+</style>
+
+<div class="topbar">
+  <div class="brandmark">
+    <b>Oshinest</b>
+    <span>画面フロー・プロトタイプ</span>
+  </div>
+  <label class="zoom-readout" for="screenSelect">画面</label>
+  <select class="screen-select" id="screenSelect"></select>
+  <div class="step-nav">
+    <button class="stepbtn" id="prevBtn" type="button">← 前</button>
+    <button class="stepbtn" id="nextBtn" type="button">次 →</button>
+  </div>
+  <span class="zoom-readout" id="zoomReadout">100%</span>
+</div>
+
+<main>
+  <div class="stage-head">
+    <h1 id="stageTitle">画面フロー</h1>
+    <span class="nodeid" id="stageNode"></span>
+    <p class="note" id="stageNote"></p>
+  </div>
+
+  <!-- ══════════ フロー図 ══════════ -->
+  <section class="screen is-active" id="s-flow">
+    <div class="flow">
+      <p class="flow-intro">
+        Figma「推し活2」に描かれた<b>矢印</b>を、そのまま画面遷移として組み直したものです。
+        カードを選ぶと実際の画面が開き、各画面の下に<b>その画面から伸びている矢印</b>が
+        ボタンとして並びます。デザインは Figma の値をそのまま使っています（ブランドカラー #0096fa、
+        余白・角丸・文字サイズすべて実寸）。
+      </p>
+
+      <div class="lane">
+        <div class="lane-head">
+          <h2>買う人の導線</h2>
+          <div class="rule"></div>
+          <span class="count">7 画面</span>
+        </div>
+        <div class="chain">
+          <button class="node is-entry" data-goto="top" type="button">
+            <span class="n-title">Top Page</span>
+            <span class="n-meta">起点・未ログイン</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="login" type="button">
+            <span class="n-title">ログイン・新規登録</span>
+            <span class="n-meta">44:427 → 46:122</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="home" type="button">
+            <span class="n-title">ログイン後 Top</span>
+            <span class="n-meta">46:362</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="detail" type="button">
+            <span class="n-title">作品詳細</span>
+            <span class="n-meta">60:8</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="cart" type="button">
+            <span class="n-title">カート</span>
+            <span class="n-meta">48:748</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="checkout" type="button">
+            <span class="n-title">決済</span>
+            <span class="n-meta">48:796 ・ 終点</span>
+          </button>
+        </div>
+        <div class="branch">
+          <span class="branch-label">作品詳細から分岐</span>
+          <button class="node" data-goto="custom" type="button">
+            <span class="n-title">オーダーメイド相談</span>
+            <span class="n-meta">48:900</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="review" type="button">
+            <span class="n-title">メッセージ・レビュー投稿</span>
+            <span class="n-meta">61:132</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="lane">
+        <div class="lane-head">
+          <h2>作る人の導線</h2>
+          <div class="rule"></div>
+          <span class="count">8 画面</span>
+        </div>
+        <div class="chain">
+          <button class="node is-entry" data-goto="mypage" type="button">
+            <span class="n-title">マイページ</span>
+            <span class="n-meta">61:235・作る人の起点</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="works" type="button">
+            <span class="n-title">作品管理</span>
+            <span class="n-meta">48:541</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="post" type="button">
+            <span class="n-title">作品投稿 STEP 1</span>
+            <span class="n-meta">48:842</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="thumb" type="button">
+            <span class="n-title">作品投稿 STEP 2</span>
+            <span class="n-meta">51:949・サムネイル選択</span>
+          </button>
+        </div>
+        <div class="branch">
+          <span class="branch-label">マイページから分岐</span>
+          <button class="node" data-goto="dashboard" type="button">
+            <span class="n-title">売上ダッシュボード</span>
+            <span class="n-meta">47:488</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="profile" type="button">
+            <span class="n-title">プロフィール編集</span>
+            <span class="n-meta">48:654</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="public" type="button">
+            <span class="n-title">公開プロフィール</span>
+            <span class="n-meta">61:77</span>
+          </button>
+          <span class="link">→</span>
+          <button class="node" data-goto="review" type="button">
+            <span class="n-title">メッセージ</span>
+            <span class="n-meta">61:132</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="stage-wrap" id="stageWrap" hidden>
+    <div class="stage" id="stage">
+
+      <!-- ══════════ Top Page ══════════ -->
+      <section class="screen" id="s-top">
+        <div class="fig">
+          <div class="f-header">
+            <p class="f-logo">Oshinest</p>
+            <div class="f-search">推しぬい・作品を検索</div>
+            <div class="f-nav">
+              <button class="f-navlink" data-goto="login" type="button">ログイン</button>
+              <button class="f-navlink" data-goto="login" type="button">新規会員登録</button>
+            </div>
+          </div>
+          <div class="f-body">
+            <aside class="f-sidebar">
+              <div class="f-sgroup">
+                <h3>カテゴリ</h3>
+                <p>☐ 台座</p><p>☐ 家具</p><p>☐ 背景</p><p>☐ 小物</p><p>☐ ケース</p>
+              </div>
+              <div class="f-sgroup">
+                <h3>対応ぬいサイズ</h3>
+                <p>☐ 10cm</p><p>☐ 15cm</p><p>☐ 20cm</p><p>☐ その他</p>
+              </div>
+              <div class="f-sgroup">
+                <h3>世界観タグ</h3>
+                <p>☐ 和風</p><p>☐ レトロ</p><p>☐ サイバー</p><p>☐ ゴシック</p>
+              </div>
+            </aside>
+            <div class="f-main">
+              <div class="f-sortbar">
+                <p class="t">作品一覧（248件）</p>
+                <p class="s">新着順 ▾</p>
+              </div>
+              <div class="f-cardrow">
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">ゴシック台座 Sサイズ</p><p class="price">¥1800</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">和風背景パネル</p><p class="price">¥2000</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">サイバー小物セット</p><p class="price">¥2200</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">レトロケース</p><p class="price">¥2400</p></div>
+              </div>
+              <div class="f-cardrow">
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">花冠アクセサリー</p><p class="price">¥2600</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">木製ベンチ</p><p class="price">¥2800</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">ミニチュア本棚</p><p class="price">¥3000</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">ランタン台座</p><p class="price">¥3200</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ ログイン・新規登録 ══════════ -->
+      <section class="screen" id="s-login">
+        <div class="fig">
+          <div style="display:flex; gap:42.3px; padding:63.5px; background:var(--surface); align-items:flex-start;">
+            <div class="f-card" style="width:381px; gap:19px; padding:33.9px; border-radius:12.7px;">
+              <p class="f-logo" style="font-size:21.2px;">Oshinest</p>
+              <p style="font-size:19px; font-weight:700; color:var(--ink);">ログイン</p>
+              <div class="f-field">
+                <label>メールアドレス</label>
+                <div class="f-input">you@example.com</div>
+              </div>
+              <div class="f-field">
+                <label>パスワード</label>
+                <div class="f-input">••••••••</div>
+              </div>
+              <button class="f-btn block is-link" data-goto="home" type="button">ログイン</button>
+              <p style="font-size:12.7px; color:var(--muted);">アカウントをお持ちでない方は新規登録へ →</p>
+            </div>
+            <div class="f-card" style="width:381px; gap:19px; padding:33.9px; border-radius:12.7px;">
+              <p class="f-logo" style="font-size:21.2px;">Oshinest</p>
+              <p style="font-size:19px; font-weight:700; color:var(--ink);">新規登録</p>
+              <div class="f-field">
+                <label>表示名</label>
+                <div class="f-input">例：yumeko_craft</div>
+              </div>
+              <div class="f-field">
+                <label>メールアドレス</label>
+                <div class="f-input">you@example.com</div>
+              </div>
+              <div class="f-field">
+                <label>パスワード</label>
+                <div class="f-input">8文字以上</div>
+              </div>
+              <button class="f-btn block is-link" data-goto="home" type="button">アカウントを作成する</button>
+              <p style="font-size:12.7px; color:var(--muted);">すでにアカウントをお持ちの方はログインへ →</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ ログイン後 Top ══════════ -->
+      <section class="screen" id="s-home">
+        <div class="fig">
+          <div class="f-header">
+            <p class="f-logo">Oshinest</p>
+            <div class="f-search" style="flex:none; width:746px;">推しぬい・作品を検索</div>
+            <div class="f-nav">
+              <button class="f-navlink" data-goto="post" type="button">作品を投稿する</button>
+              <button class="f-navlink" data-goto="works" type="button">マイショップ</button>
+              <span>マイぬい</span>
+              <span>通知</span>
+              <button class="f-navlink" data-goto="mypage" type="button">マイページ</button>
+            </div>
+          </div>
+          <div class="f-body">
+            <aside class="f-sidebar">
+              <div class="f-sgroup">
+                <h3>カテゴリ</h3>
+                <p>☐ 台座</p><p>☐ 家具</p><p>☐ 背景</p><p>☐ 小物</p><p>☐ ケース</p>
+              </div>
+              <div class="f-sgroup">
+                <h3>対応ぬいサイズ</h3>
+                <p>☐ 10cm</p><p>☐ 15cm</p><p>☐ 20cm</p><p>☐ その他</p>
+              </div>
+              <div class="f-sgroup">
+                <h3>世界観タグ</h3>
+                <p>☐ 和風</p><p>☐ レトロ</p><p>☐ サイバー</p><p>☐ ゴシック</p>
+              </div>
+            </aside>
+            <div class="f-main">
+              <div class="f-sortbar">
+                <p class="t">作品一覧（248件）</p>
+                <p class="s">新着順 ▾</p>
+              </div>
+              <div class="f-cardrow">
+                <button class="f-workcard is-link" data-goto="detail" type="button"><div class="f-thumb"></div><p class="name">ゴシック台座 Sサイズ</p><p class="price">¥1800</p></button>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">和風背景パネル</p><p class="price">¥2000</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">サイバー小物セット</p><p class="price">¥2200</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">レトロケース</p><p class="price">¥2400</p></div>
+              </div>
+              <div class="f-cardrow">
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">花冠アクセサリー</p><p class="price">¥2600</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">木製ベンチ</p><p class="price">¥2800</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">ミニチュア本棚</p><p class="price">¥3000</p></div>
+                <div class="f-workcard"><div class="f-thumb"></div><p class="name">ランタン台座</p><p class="price">¥3200</p></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 作品詳細 ══════════ -->
+      <section class="screen" id="s-detail">
+        <div class="fig">
+          <div class="f-header" style="padding:11.8px 23.6px;">
+            <p class="f-logo" style="font-size:14.8px;">Osinest</p>
+          </div>
+          <div style="background:var(--surface); display:flex; gap:23.6px; padding:17.7px 23.6px; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; gap:8.9px; width:516.7px; flex:none;">
+              <div style="background:var(--surface); border:0.7px solid var(--line); border-radius:5.9px; height:369px;"></div>
+              <div style="display:flex; gap:5.9px;">
+                <div style="border:0.7px solid var(--line); border-radius:4.4px; height:66.4px; width:94.5px;"></div>
+                <div style="border:0.7px solid var(--line); border-radius:4.4px; height:66.4px; width:94.5px;"></div>
+                <div style="border:0.7px solid var(--line); border-radius:4.4px; height:66.4px; width:94.5px;"></div>
+                <div style="border:0.7px solid var(--line); border-radius:4.4px; height:66.4px; width:94.5px;"></div>
+                <div style="border:0.7px solid var(--line); border-radius:4.4px; height:66.4px; width:94.5px;"></div>
+              </div>
+            </div>
+            <div class="f-card" style="width:280.5px; gap:11.8px; padding:14.8px; border-radius:5.9px;">
+              <p style="font-size:14.8px; font-weight:700; color:var(--ink);">ゴシック台座 Sサイズ</p>
+              <div style="display:flex; align-items:center; gap:5.9px;">
+                <span class="f-avatar sm"></span>
+                <p style="font-size:9.6px; color:var(--muted);">クリエイター：yumeko_craft</p>
+              </div>
+              <p style="font-size:17.7px; font-weight:700; color:var(--brand);">¥1,800（税込）</p>
+              <div style="display:flex; flex-wrap:wrap; gap:5.9px;">
+                <span class="f-badge">フィラメント: PLA(白)</span>
+                <span class="f-badge">対応15cm</span>
+                <span class="f-badge">ゴシック</span>
+              </div>
+              <button class="f-btn block is-link" data-goto="cart" style="font-size:11.1px; padding:10.3px; border-radius:5.9px;" type="button">カートに追加する</button>
+              <div style="display:flex; flex-direction:column; gap:5.9px;">
+                <p style="font-size:10.3px; font-weight:600; color:var(--ink);">Q&amp;A</p>
+                <p style="font-size:8.9px; color:var(--muted);">Q. フィラメントの色は変更できますか？</p>
+                <p style="font-size:8.9px; color:var(--muted);">A. 対応可能です。ご相談ください。</p>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:17.7px; padding:23.6px;">
+            <p style="font-size:14.8px; font-weight:700; color:var(--ink);">レビュー（189件） ★4.8</p>
+            <div style="display:flex; gap:17.7px;">
+              <div class="f-card" style="flex:1; gap:8.9px; padding:14.8px; border-radius:6.7px;">
+                <div style="display:flex; align-items:center; gap:7.4px;">
+                  <span class="f-avatar sm"></span>
+                  <p style="font-size:10.3px; font-weight:600; color:var(--ink);">mochi_fan</p>
+                </div>
+                <div class="f-stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+                <p style="font-size:9.6px; color:var(--muted);">台座の質感がとても良く、推しぬいがより一層映えました！仕上がりも丁寧です。</p>
+              </div>
+              <div class="f-card" style="flex:1; gap:8.9px; padding:14.8px; border-radius:6.7px;">
+                <div style="display:flex; align-items:center; gap:7.4px;">
+                  <span class="f-avatar sm"></span>
+                  <p style="font-size:10.3px; font-weight:600; color:var(--ink);">sora_1224</p>
+                </div>
+                <div class="f-stars"><span>★</span><span>★</span><span>★</span><span>★</span><span class="off">★</span></div>
+                <p style="font-size:9.6px; color:var(--muted);">サイズ感もぴったりで満足しています。到着まで少し時間がかかりましたが待つ価値ありでした。</p>
+              </div>
+              <div class="f-card" style="flex:1; gap:8.9px; padding:14.8px; border-radius:6.7px;">
+                <div style="display:flex; align-items:center; gap:7.4px;">
+                  <span class="f-avatar sm"></span>
+                  <p style="font-size:10.3px; font-weight:600; color:var(--ink);">nui_collector</p>
+                </div>
+                <div class="f-stars"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+                <p style="font-size:9.6px; color:var(--muted);">色味の相談にも丁寧に対応してくれて安心して購入できました。リピートしたいです。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ カート ══════════ -->
+      <section class="screen" id="s-cart">
+        <div class="fig">
+          <div class="f-header" style="padding:16.9px 33.9px;">
+            <p class="f-logo" style="font-size:21.2px;">Oshinest</p>
+          </div>
+          <div style="background:var(--surface); display:flex; gap:25.4px; padding:25.4px 33.9px; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; gap:16.9px; width:804.3px; flex:none;">
+              <p style="font-size:21.2px; font-weight:700; color:var(--ink);">カート（3点）</p>
+              <div class="f-card" style="flex-direction:row; align-items:center; gap:16.9px; padding:16.9px;">
+                <div style="background:var(--ground); border-radius:6.4px; width:95.3px; height:95.3px; flex:none;"></div>
+                <div style="display:flex; flex-direction:column; gap:4.2px; width:359.8px;">
+                  <p style="font-size:14.8px; font-weight:600; color:var(--ink);">ゴシック台座 Sサイズ</p>
+                  <p style="font-size:12.7px; color:var(--muted);">クリエイター：yumeko_craft</p>
+                  <p style="font-size:12.7px; color:var(--muted);">フィラメント：PLA / 白</p>
+                </div>
+                <div style="background:var(--ground); border-radius:4.2px; padding:6.4px 12.7px; font-size:13.8px; color:var(--ink);">数量：1</div>
+                <p style="font-size:15.9px; font-weight:700; color:var(--brand); margin-left:auto;">¥1,800</p>
+              </div>
+              <div class="f-card" style="flex-direction:row; align-items:center; gap:16.9px; padding:16.9px;">
+                <div style="background:var(--ground); border-radius:6.4px; width:95.3px; height:95.3px; flex:none;"></div>
+                <div style="display:flex; flex-direction:column; gap:4.2px; width:359.8px;">
+                  <p style="font-size:14.8px; font-weight:600; color:var(--ink);">和風背景パネル</p>
+                  <p style="font-size:12.7px; color:var(--muted);">クリエイター：sakura_mono</p>
+                  <p style="font-size:12.7px; color:var(--muted);">フィラメント：PETG / 黒</p>
+                </div>
+                <div style="background:var(--ground); border-radius:4.2px; padding:6.4px 12.7px; font-size:13.8px; color:var(--ink);">数量：2</div>
+                <p style="font-size:15.9px; font-weight:700; color:var(--brand); margin-left:auto;">¥2,000</p>
+              </div>
+              <div class="f-card" style="flex-direction:row; align-items:center; gap:16.9px; padding:16.9px;">
+                <div style="background:var(--ground); border-radius:6.4px; width:95.3px; height:95.3px; flex:none;"></div>
+                <div style="display:flex; flex-direction:column; gap:4.2px; width:359.8px;">
+                  <p style="font-size:14.8px; font-weight:600; color:var(--ink);">ランタン台座</p>
+                  <p style="font-size:12.7px; color:var(--muted);">クリエイター：night_forge</p>
+                  <p style="font-size:12.7px; color:var(--muted);">フィラメント：PLA / ゴールド</p>
+                </div>
+                <div style="background:var(--ground); border-radius:4.2px; padding:6.4px 12.7px; font-size:13.8px; color:var(--ink);">数量：1</div>
+                <p style="font-size:15.9px; font-weight:700; color:var(--brand); margin-left:auto;">¥3,200</p>
+              </div>
+            </div>
+            <div class="f-card" style="width:381px; gap:14.8px; padding:25.4px;">
+              <h3>お支払い金額</h3>
+              <div class="f-row"><span class="k">小計</span><span class="v">¥10,800</span></div>
+              <div class="f-row"><span class="k">送料</span><span class="v">¥600</span></div>
+              <div class="f-row"><span class="k">合計（税込）</span><span style="font-size:19px; font-weight:700; color:var(--brand);">¥11,400</span></div>
+              <button class="f-btn block is-link" data-goto="checkout" type="button">レジに進む</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 決済 ══════════ -->
+      <section class="screen" id="s-checkout">
+        <div class="fig">
+          <div class="f-header" style="padding:16.9px 33.9px;">
+            <p class="f-title">Oshinest － ご注文手続き</p>
+          </div>
+          <div style="background:var(--surface); display:flex; gap:25.4px; padding:25.4px 33.9px; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; gap:16.9px; width:740.8px; flex:none;">
+              <div class="f-card">
+                <h3>配送先住所</h3>
+                <div class="f-input" style="color:var(--ink); padding:12.7px 16.9px;">● 髙尾脩愛　〒920-xxxx 石川県野々市市〇〇 1-2-3</div>
+              </div>
+              <div class="f-card">
+                <h3>お支払い方法（Stripe）</h3>
+                <div style="display:flex; gap:12.7px;">
+                  <div class="f-field" style="flex:1;">
+                    <label style="font-weight:400; font-size:12.7px; color:var(--muted);">カード番号</label>
+                    <div style="background:var(--ground); border-radius:4.2px; height:16.9px;"></div>
+                  </div>
+                  <div class="f-field" style="flex:1;">
+                    <label style="font-weight:400; font-size:12.7px; color:var(--muted);">有効期限</label>
+                    <div style="background:var(--ground); border-radius:4.2px; height:16.9px;"></div>
+                  </div>
+                  <div class="f-field" style="flex:1;">
+                    <label style="font-weight:400; font-size:12.7px; color:var(--muted);">CVC</label>
+                    <div style="background:var(--ground); border-radius:4.2px; height:16.9px;"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="f-card">
+                <h3>印刷・配送に関する注記</h3>
+                <p style="font-size:12.7px; color:var(--muted);">ご注文後、運営にて3Dプリント・検品を行い発送いたします。発送準備までにお時間をいただく場合があります。</p>
+              </div>
+            </div>
+            <div class="f-card" style="width:423.3px; gap:14.8px; padding:25.4px;">
+              <h3>注文内容</h3>
+              <div class="f-row"><span class="k">ゴシック台座 Sサイズ ×1</span><span class="v">¥1,800</span></div>
+              <div class="f-row"><span class="k">和風背景パネル ×2</span><span class="v">¥4,000</span></div>
+              <div class="f-row"><span class="k">ランタン台座 ×1</span><span class="v">¥3,200</span></div>
+              <div class="f-row">
+                <span style="font-size:15.9px; font-weight:700; color:var(--ink);">合計（税込・送料込）</span>
+                <span style="font-size:21.2px; font-weight:700; color:var(--brand);">¥11,400</span>
+              </div>
+              <button class="f-btn block" type="button">¥11,400を支払う</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ オーダーメイド相談 ══════════ -->
+      <section class="screen" id="s-custom">
+        <div class="fig">
+          <div style="background:var(--surface); display:flex; flex-direction:column; gap:27.1px; padding:43.4px 54.3px;">
+            <p style="font-size:29.9px; font-weight:700; color:var(--ink);">オーダーメイド相談</p>
+            <div style="display:flex; align-items:center; gap:16.3px;">
+              <span class="f-avatar" style="width:54.3px; height:54.3px;"></span>
+              <div style="display:flex; flex-direction:column; gap:2.7px;">
+                <p style="font-size:19px; font-weight:600; color:var(--ink);">相談先クリエイター：yumeko_craft</p>
+                <p style="font-size:16.3px; color:var(--muted);">参考作品：ゴシック台座 Sサイズ</p>
+              </div>
+            </div>
+            <div class="f-field" style="width:814.1px; gap:8.1px;">
+              <label style="font-size:17.6px;">ご相談内容</label>
+              <div class="f-input" style="font-size:17.6px; padding:13.6px 16.3px; border-radius:5.4px;">サイズ・カラー・世界観など、ご希望を詳しくお書きください</div>
+            </div>
+            <div class="f-field" style="width:814.1px; gap:8.1px;">
+              <label style="font-size:17.6px;">ご希望の対応ぬいサイズ</label>
+              <div class="f-input" style="font-size:17.6px; padding:13.6px 16.3px; border-radius:5.4px;">15cm</div>
+            </div>
+            <div class="f-field" style="width:814.1px; gap:8.1px;">
+              <label style="font-size:17.6px;">ご予算目安</label>
+              <div class="f-input" style="font-size:17.6px; padding:13.6px 16.3px; border-radius:5.4px;">¥3,000〜¥5,000</div>
+            </div>
+            <div class="f-field" style="width:814.1px; gap:8.1px;">
+              <label style="font-size:17.6px;">納期のご希望</label>
+              <div class="f-input" style="font-size:17.6px; padding:13.6px 16.3px; border-radius:5.4px;">特になし</div>
+            </div>
+            <button class="f-btn is-link" data-goto="review" style="font-size:20.4px; padding:19px 43.4px; border-radius:10.9px; align-self:flex-start;" type="button">相談を送信する</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ マイページ ══════════ -->
+      <section class="screen" id="s-mypage">
+        <div class="fig">
+          <div class="f-header" style="padding:16.9px 33.9px;">
+            <p class="f-logo" style="font-size:21.2px;">Osinest</p>
+          </div>
+          <div style="background:var(--surface); display:flex; gap:25.4px; padding:25.4px 33.9px; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; gap:16.9px; width:402.2px; flex:none;">
+              <div class="f-card">
+                <h3>プロフィール設定</h3>
+                <div style="display:flex; align-items:center; gap:12.7px;">
+                  <span class="f-avatar"></span>
+                  <div style="display:flex; flex-direction:column; gap:4.2px;">
+                    <p style="font-size:15.9px; font-weight:600; color:var(--ink);">yumeko_craft</p>
+                    <p style="font-size:12.7px; color:var(--muted);">推しぬい愛好家 / クリエイター</p>
+                  </div>
+                </div>
+                <button class="f-navlink is-link" data-goto="works" style="font-size:15.9px; font-weight:600; color:#3178fa; text-align:left;" type="button">クリエイターページ</button>
+                <div class="f-row"><span class="k">メールアドレス</span><span class="v">yumeko@example.com</span></div>
+                <div class="f-row"><span class="k">SNS連携</span><span class="v">X (Twitter) 連携済み</span></div>
+              </div>
+              <div class="f-card">
+                <h3>配送先住所・振込先口座</h3>
+                <div class="f-row"><span class="k">配送先住所</span><span class="v">石川県金沢市〇〇 1-2-3</span></div>
+                <div class="f-row"><span class="k">振込先口座</span><span class="v">登録済み（下4桁 ****）</span></div>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:16.9px; width:804.3px; flex:none;">
+              <div class="f-card">
+                <h3>マイぬいサイズ</h3>
+                <div style="display:flex; gap:8.5px;">
+                  <span class="f-badge solid">15cm</span>
+                  <span class="f-badge solid">20cm</span>
+                </div>
+              </div>
+              <div class="f-card">
+                <h3>購入履歴</h3>
+                <div class="f-histrow">
+                  <div style="display:flex; align-items:center; gap:12.7px;">
+                    <p style="font-size:12.7px; color:var(--muted);">#OS10231</p>
+                    <p style="font-size:13.8px; font-weight:600; color:var(--ink);">ゴシック台座 Sサイズ</p>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:16.9px;">
+                    <p style="font-size:12.7px; color:var(--muted);">発送済み</p>
+                    <button class="f-outline-btn is-link" data-goto="review" type="button">受け取り評価</button>
+                    <p style="font-size:13.8px; font-weight:600; color:var(--brand);">¥1,800</p>
+                  </div>
+                </div>
+                <div class="f-histrow">
+                  <div style="display:flex; align-items:center; gap:12.7px;">
+                    <p style="font-size:12.7px; color:var(--muted);">#OS10225</p>
+                    <p style="font-size:13.8px; font-weight:600; color:var(--ink);">和風背景パネル</p>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:16.9px;">
+                    <p style="font-size:12.7px; color:var(--muted);">取引完了</p>
+                    <p style="font-size:13.8px; font-weight:600; color:var(--brand);">¥2,000</p>
+                  </div>
+                </div>
+              </div>
+              <div class="f-card">
+                <h3>販売（データ提供）履歴</h3>
+                <p style="font-size:12.7px; color:var(--muted);">クリエイター申請をすると、投稿した作品の販売履歴がここに表示されます。</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 売上ダッシュボード ══════════ -->
+      <section class="screen" id="s-dashboard">
+        <div class="fig">
+          <div class="f-header" style="padding:14.7px 29.4px;">
+            <p class="f-title" style="font-size:16.5px;">Oshinest － クリエイターダッシュボード</p>
+          </div>
+          <div style="background:var(--surface); display:flex; flex-direction:column; gap:18.3px; padding:22px 29.4px;">
+            <p style="font-size:18.3px; font-weight:700; color:var(--ink);">売上サマリー</p>
+            <div style="display:flex; gap:14.7px;">
+              <div class="f-stat"><span class="k">振込可能額</span><span class="v">¥48,200</span></div>
+              <div class="f-stat"><span class="k">今月の売上</span><span class="v">¥62,000</span></div>
+              <div class="f-stat"><span class="k">販売件数（累計）</span><span class="v">134件</span></div>
+            </div>
+            <button class="f-btn sm" style="align-self:flex-start; font-size:12.8px; padding:11px 22px; border-radius:7.3px;" type="button">振込を申請する</button>
+            <p style="font-size:16.5px; font-weight:700; color:var(--ink);">振込履歴</p>
+            <div style="width:843.8px;">
+              <div class="f-thead" style="font-size:11px; padding:11px 14.7px; gap:7.3px;">
+                <span style="width:180px;">申請日</span><span style="width:180px;">金額</span><span style="width:180px;">ステータス</span><span>処理日</span>
+              </div>
+              <div class="f-trow" style="font-size:11px; padding:11px 14.7px; gap:7.3px;">
+                <span style="width:180px;">2026/08/01</span><span style="width:180px;">¥35,000</span><span style="width:180px;">支払済み</span><span>2026/08/05</span>
+              </div>
+              <div class="f-trow" style="font-size:11px; padding:11px 14.7px; gap:7.3px;">
+                <span style="width:180px;">2026/07/01</span><span style="width:180px;">¥28,500</span><span style="width:180px;">支払済み</span><span>2026/07/05</span>
+              </div>
+              <div class="f-trow" style="font-size:11px; padding:11px 14.7px; gap:7.3px;">
+                <span style="width:180px;">2026/09/01</span><span style="width:180px;">¥48,200</span><span style="width:180px;">処理中</span><span>―</span>
+              </div>
+            </div>
+            <p style="font-size:16.5px; font-weight:700; color:var(--ink);">人気作品ランキング</p>
+            <div style="display:flex; flex-direction:column; gap:8px; width:843.8px;">
+              <div class="f-trow" style="border-radius:3.7px; padding:9.2px 14.7px; justify-content:space-between; font-size:11.9px;">
+                <span style="font-weight:600;">ゴシック台座 Sサイズ</span><span style="color:var(--muted);">42件販売</span>
+              </div>
+              <div class="f-trow" style="border-radius:3.7px; padding:9.2px 14.7px; justify-content:space-between; font-size:11.9px;">
+                <span style="font-weight:600;">ランタン台座</span><span style="color:var(--muted);">31件販売</span>
+              </div>
+              <div class="f-trow" style="border-radius:3.7px; padding:9.2px 14.7px; justify-content:space-between; font-size:11.9px;">
+                <span style="font-weight:600;">和風背景パネル</span><span style="color:var(--muted);">24件販売</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 作品管理 ══════════ -->
+      <section class="screen" id="s-works">
+        <div class="fig">
+          <div class="f-header" style="padding:16.9px 33.9px;">
+            <p class="f-title">Osinest － 作品管理</p>
+          </div>
+          <div style="background:var(--surface); display:flex; flex-direction:column; gap:16.9px; padding:25.4px 33.9px;">
+            <div style="display:flex; align-items:center; justify-content:space-between;">
+              <p style="font-size:21.2px; font-weight:700; color:var(--ink);">投稿済み作品（12件）</p>
+              <button class="f-btn sm is-link" data-goto="post" type="button">＋ 新規作品を投稿</button>
+            </div>
+            <div>
+              <div class="f-thead">
+                <span class="c1">作品</span><span class="c2">価格</span><span class="c3">ステータス</span><span class="c4">操作</span>
+              </div>
+              <div class="f-trow">
+                <span class="c1">ゴシック台座 Sサイズ</span><span class="c2">¥1,800</span><span class="c3">公開中</span><span class="c4">編集 ｜ 非公開にする ｜ 削除</span>
+              </div>
+              <div class="f-trow">
+                <span class="c1">和風背景パネル</span><span class="c2">¥2,000</span><span class="c3">公開中</span><span class="c4">編集 ｜ 非公開にする ｜ 削除</span>
+              </div>
+              <div class="f-trow">
+                <span class="c1">サイバー小物セット</span><span class="c2">¥2,200</span><span class="c3">下書き</span><span class="c4">編集 ｜ 公開する ｜ 削除</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 作品投稿 STEP1 ══════════ -->
+      <section class="screen" id="s-post">
+        <div class="fig">
+          <div style="background:var(--surface); display:flex; flex-direction:column; gap:18.4px; padding:29.5px 36.8px;">
+            <p style="font-size:20.3px; font-weight:700; color:var(--ink);">作品を投稿する</p>
+            <div style="background:var(--surface); border:0.9px solid var(--line); border-radius:7.4px; padding:36.8px 18.4px; display:flex; flex-direction:column; gap:7.4px; align-items:center; justify-content:center; height:128.9px;">
+              <p style="font-size:12.9px; font-weight:600; color:var(--ink);">STLファイルをドラッグ＆ドロップ、またはクリックしてアップロード（非公開）</p>
+              <p style="font-size:11.1px; color:var(--muted);">対応形式：.stl（最大200MB）</p>
+            </div>
+            <div style="display:flex; gap:18.4px;">
+              <div class="f-field" style="flex:1;">
+                <label style="font-size:12px;">指定フィラメント（素材）</label>
+                <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">PLA / PETG / ABS を選択</div>
+              </div>
+              <div class="f-field" style="flex:1;">
+                <label style="font-size:12px;">指定フィラメント（カラー）</label>
+                <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">カラーを選択</div>
+              </div>
+            </div>
+            <div class="f-field" style="width:552.5px;">
+              <label style="font-size:12px;">作品名</label>
+              <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">例：ゴシック台座 Sサイズ</div>
+            </div>
+            <div class="f-field" style="width:552.5px;">
+              <label style="font-size:12px;">説明文</label>
+              <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">作品の特徴や使用方法を入力</div>
+            </div>
+            <div style="display:flex; gap:18.4px;">
+              <div class="f-field" style="flex:1;">
+                <label style="font-size:12px;">販売希望価格（円）</label>
+                <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">1800</div>
+              </div>
+              <div class="f-field" style="flex:1;">
+                <label style="font-size:12px;">在庫上限枠</label>
+                <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">10</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:18.4px;">
+              <div class="f-field" style="flex:1;">
+                <label style="font-size:12px;">カテゴリ</label>
+                <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">台座 / 家具 / 背景 / 小物 / ケース</div>
+              </div>
+              <div class="f-field" style="flex:1;">
+                <label style="font-size:12px;">対応ぬいサイズ</label>
+                <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">10cm / 15cm / 20cm / その他</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:40px; align-items:flex-start;">
+              <div class="f-field" style="width:552.5px;">
+                <label style="font-size:12px;">世界観タグ</label>
+                <div class="f-input" style="font-size:12px; padding:9.2px 11px; border-radius:3.7px;">和風 / レトロ / サイバー / ゴシック</div>
+              </div>
+              <div class="f-sgroup" style="width:176.4px;">
+                <h3>オーダーメイド</h3>
+                <p>☐ フィラメントカラー変更</p>
+                <p>☐ 配置反転</p>
+                <p>☐ 設置用スタントホール</p>
+                <p>☐ その他ご相談</p>
+              </div>
+            </div>
+            <button class="f-btn is-link" data-goto="thumb" style="font-size:13.8px; padding:12.9px 29.5px; border-radius:7.4px; align-self:flex-start;" type="button">次へ</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 作品投稿 STEP2 ══════════ -->
+      <section class="screen" id="s-thumb">
+        <div class="fig">
+          <div style="background:var(--surface); display:flex; flex-direction:column; gap:25.4px; padding:40.6px 50.8px;">
+            <div style="display:flex; align-items:center; gap:10.2px; font-size:15.2px;">
+              <p style="font-weight:600; color:var(--brand);">STEP 2 / 2</p>
+              <p style="color:var(--muted);">－ サムネイル選択・公開</p>
+            </div>
+            <p style="font-size:27.9px; font-weight:700; color:var(--ink);">サムネイル画像を選択してください</p>
+            <p style="font-size:16.5px; color:var(--muted);">アップロードした画像の中から、作品一覧に表示するサムネイルを1枚選んでください。最初にアップロードした画像が初期選択されています。</p>
+            <div style="display:flex; gap:20.3px;">
+              <div style="background:var(--surface); border:2.5px solid var(--brand); border-radius:10.2px; padding:10.2px; width:269.2px; display:flex; flex-direction:column; gap:10.2px;">
+                <div style="background:var(--ground); border-radius:7.6px; height:177.8px;"></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <p style="font-size:15.2px; color:var(--muted);">画像 1</p>
+                  <span class="f-badge pill-sm">サムネイル</span>
+                </div>
+              </div>
+              <div style="background:var(--surface); border:1.3px solid var(--line); border-radius:10.2px; padding:10.2px; width:269.2px; display:flex; flex-direction:column; gap:10.2px;">
+                <div style="background:var(--ground); border-radius:7.6px; height:177.8px;"></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <p style="font-size:15.2px; color:var(--muted);">画像 2</p>
+                  <span style="border:1.3px solid var(--line); border-radius:999px; padding:3.8px 10.2px; font-size:12.7px; color:var(--muted);">選択する</span>
+                </div>
+              </div>
+              <div style="background:var(--surface); border:1.3px solid var(--line); border-radius:10.2px; padding:10.2px; width:269.2px; display:flex; flex-direction:column; gap:10.2px;">
+                <div style="background:var(--ground); border-radius:7.6px; height:177.8px;"></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <p style="font-size:15.2px; color:var(--muted);">画像 3</p>
+                  <span style="border:1.3px solid var(--line); border-radius:999px; padding:3.8px 10.2px; font-size:12.7px; color:var(--muted);">選択する</span>
+                </div>
+              </div>
+              <div style="background:var(--surface); border:1.3px solid var(--line); border-radius:10.2px; padding:10.2px; width:269.2px; display:flex; flex-direction:column; gap:10.2px;">
+                <div style="background:var(--ground); border-radius:7.6px; height:177.8px;"></div>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                  <p style="font-size:15.2px; color:var(--muted);">画像 4</p>
+                  <span style="border:1.3px solid var(--line); border-radius:999px; padding:3.8px 10.2px; font-size:12.7px; color:var(--muted);">選択する</span>
+                </div>
+              </div>
+            </div>
+            <div class="f-card" style="flex-direction:row; align-items:center; gap:20.3px; padding:20.3px; border-radius:10.2px;">
+              <div style="background:var(--ground); border-radius:7.6px; width:91.4px; height:91.4px; flex:none;"></div>
+              <div style="display:flex; flex-direction:column; gap:5.1px;">
+                <p style="font-size:16.5px; font-weight:600; color:var(--ink);">プレビュー：作品一覧に表示されるカード</p>
+                <p style="font-size:15.2px; color:var(--muted);">ゴシック台座 Sサイズ　¥1,800</p>
+              </div>
+            </div>
+            <div style="display:flex; gap:15.2px;">
+              <button class="f-btn ghost is-link" data-goto="post" style="font-size:19px; padding:17.8px 35.6px; border-radius:10.2px;" type="button">戻る</button>
+              <button class="f-btn is-link" data-goto="works" style="font-size:19px; padding:17.8px 40.6px; border-radius:10.2px;" type="button">作品を公開する</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ プロフィール編集 ══════════ -->
+      <section class="screen" id="s-profile">
+        <div class="fig">
+          <div class="f-header" style="padding:15.7px 31.4px;">
+            <p class="f-title" style="font-size:17.7px;">Osinest － クリエイター管理</p>
+          </div>
+          <div style="background:var(--surface); display:flex; gap:23.6px; padding:23.6px 31.4px; align-items:flex-start;">
+            <div style="display:flex; flex-direction:column; gap:15.7px; width:687.4px; flex:none;">
+              <div class="f-card" style="gap:13.7px; padding:19.6px; border-radius:7.9px;">
+                <h3 style="font-size:15.7px;">公開プロフィール編集（非公開画面）</h3>
+                <div style="display:flex; align-items:center; gap:11.8px;">
+                  <span class="f-avatar" style="width:62.8px; height:62.8px;"></span>
+                  <span class="f-btn ghost" style="font-size:11.8px; padding:7.9px 13.7px; border-radius:3.9px; font-weight:400;">アイコンを変更</span>
+                </div>
+                <div class="f-field">
+                  <label style="font-size:12.8px;">表示名</label>
+                  <div class="f-input" style="font-size:12.8px; padding:9.8px 11.8px; border-radius:3.9px;">yumeko_craft</div>
+                </div>
+                <div class="f-field">
+                  <label style="font-size:12.8px;">自己紹介</label>
+                  <div class="f-input" style="font-size:12.8px; padding:9.8px 11.8px; border-radius:3.9px;">推しぬい愛好家。Blenderでゴシック・和風テイストの台座や小物を制作しています。</div>
+                </div>
+                <div style="display:flex; gap:15.7px;">
+                  <div class="f-field" style="flex:1;">
+                    <label style="font-size:12.8px;">X (Twitter)</label>
+                    <div class="f-input" style="font-size:12.8px; padding:9.8px 11.8px; border-radius:3.9px;">@yumeko_craft</div>
+                  </div>
+                  <div class="f-field" style="flex:1;">
+                    <label style="font-size:12.8px;">Instagram</label>
+                    <div class="f-input" style="font-size:12.8px; padding:9.8px 11.8px; border-radius:3.9px;">@yumeko.craft</div>
+                  </div>
+                </div>
+              </div>
+              <div class="f-card" style="gap:13.7px; padding:19.6px; border-radius:7.9px;">
+                <h3 style="font-size:15.7px;">振込先口座・配送元情報（非公開）</h3>
+                <div class="f-field">
+                  <label style="font-size:12.8px;">銀行名・支店名</label>
+                  <div class="f-input" style="font-size:12.8px; padding:9.8px 11.8px; border-radius:3.9px;">〇〇銀行 △△支店</div>
+                </div>
+                <div class="f-field">
+                  <label style="font-size:12.8px;">口座番号・名義</label>
+                  <div class="f-input" style="font-size:12.8px; padding:9.8px 11.8px; border-radius:3.9px;">普通 1234567　ﾔﾏﾀﾞ ﾕﾒｺ</div>
+                </div>
+              </div>
+              <button class="f-btn sm" style="align-self:flex-start; font-size:13.7px; padding:11.8px 27.5px; border-radius:7.9px;" type="button">保存する</button>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:15.7px; width:392.8px; flex:none;">
+              <div class="f-card" style="gap:13.7px; padding:19.6px; border-radius:7.9px;">
+                <h3 style="font-size:15.7px;">クリエイターステータス</h3>
+                <p style="font-size:11.8px; color:var(--muted);">承認日：2026年3月12日</p>
+                <p style="font-size:11.8px; color:var(--muted);">申請時のメッセージ：Blenderで推しぬい用の台座や小物を制作しています。</p>
+              </div>
+              <div class="f-card" style="gap:13.7px; padding:19.6px; border-radius:7.9px;">
+                <h3 style="font-size:15.7px;">公開プロフィールプレビュー</h3>
+                <p style="font-size:11.8px; color:var(--muted);">変更内容は保存後、公開プロフィールページに反映されます。</p>
+                <button class="f-btn ghost is-link" data-goto="public" style="font-size:11.8px; padding:9.8px 15.7px; border-radius:3.9px; color:var(--brand); align-self:flex-start;" type="button">公開プロフィールを見る →</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ 公開プロフィール ══════════ -->
+      <section class="screen" id="s-public">
+        <div class="fig">
+          <div class="f-header" style="padding:16.8px 33.6px;">
+            <p class="f-logo" style="font-size:21px;">Osinest</p>
+          </div>
+          <div style="background:var(--surface); display:flex; align-items:center; gap:25.2px; padding:33.6px 33.6px 25.2px;">
+            <span class="f-avatar lg"></span>
+            <div style="display:flex; flex-direction:column; gap:6.3px; width:735px;">
+              <div style="display:flex; align-items:center; gap:10.5px;">
+                <p style="font-size:23.1px; font-weight:700; color:var(--ink);">yumeko_craft</p>
+                <span class="f-badge pill-sm">認定クリエイター</span>
+              </div>
+              <p style="font-size:13.7px; color:var(--muted);">推しぬい愛好家。Blenderでゴシック・和風テイストの台座や小物を制作しています。</p>
+              <div style="display:flex; gap:21px;">
+                <span style="display:flex; align-items:center; gap:4.2px;"><b style="font-size:14.7px; color:var(--ink);">24</b><span style="font-size:12.6px; color:var(--muted);">投稿作品</span></span>
+                <span style="display:flex; align-items:center; gap:4.2px;"><b style="font-size:14.7px; color:var(--ink);">312</b><span style="font-size:12.6px; color:var(--muted);">フォロワー</span></span>
+                <span style="display:flex; align-items:center; gap:4.2px;"><b style="font-size:14.7px; color:var(--ink);">1,204件</b><span style="font-size:12.6px; color:var(--muted);">販売実績</span></span>
+              </div>
+              <div style="display:flex; gap:8.4px; font-size:12.6px; color:var(--brand);">
+                <span>🔗 X (Twitter)</span><span>🔗 Instagram</span>
+              </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10.5px; margin-left:auto;">
+              <button class="f-btn" style="font-size:13.7px; padding:12.6px 25.2px; border-radius:8.4px;" type="button">＋ フォローする</button>
+              <button class="f-btn ghost is-link" data-goto="review" style="font-size:13.7px; padding:12.6px 25.2px; border-radius:8.4px;" type="button">💬 メッセージ</button>
+            </div>
+          </div>
+          <div style="background:var(--surface); border-top:1px solid var(--line); border-bottom:1px solid var(--line); display:flex; gap:25.2px; padding:14px 33.6px; font-size:13.7px;">
+            <span style="font-weight:600; color:var(--brand);">作品一覧（24）</span>
+            <span style="color:var(--muted);">推し空間コーディネート</span>
+            <span style="color:var(--muted);">レビュー（189）</span>
+          </div>
+          <div style="background:var(--surface); padding:21px 33.6px 25.2px;">
+            <div style="display:flex; gap:16.8px;">
+              <div class="f-card" style="width:277.2px; gap:8.4px; padding:12.6px; border-radius:8.4px;">
+                <div style="background:var(--ground); border-radius:6.3px; height:147px;"></div>
+                <p style="font-size:13.7px; color:var(--ink);">ゴシック台座 Sサイズ</p>
+                <p style="font-size:14.7px; font-weight:700; color:var(--brand);">¥1800</p>
+              </div>
+              <div class="f-card" style="width:277.2px; gap:8.4px; padding:12.6px; border-radius:8.4px;">
+                <div style="background:var(--ground); border-radius:6.3px; height:147px;"></div>
+                <p style="font-size:13.7px; color:var(--ink);">和風背景パネル</p>
+                <p style="font-size:14.7px; font-weight:700; color:var(--brand);">¥2100</p>
+              </div>
+              <div class="f-card" style="width:277.2px; gap:8.4px; padding:12.6px; border-radius:8.4px;">
+                <div style="background:var(--ground); border-radius:6.3px; height:147px;"></div>
+                <p style="font-size:13.7px; color:var(--ink);">ランタン台座</p>
+                <p style="font-size:14.7px; font-weight:700; color:var(--brand);">¥2400</p>
+              </div>
+              <div class="f-card" style="width:277.2px; gap:8.4px; padding:12.6px; border-radius:8.4px;">
+                <div style="background:var(--ground); border-radius:6.3px; height:147px;"></div>
+                <p style="font-size:13.7px; color:var(--ink);">花冠アクセサリー</p>
+                <p style="font-size:14.7px; font-weight:700; color:var(--brand);">¥2700</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════ メッセージ・レビュー投稿 ══════════ -->
+      <section class="screen" id="s-review">
+        <div class="fig">
+          <div class="f-header" style="padding:16.9px 33.9px;">
+            <p class="f-logo" style="font-size:21.2px;">Osinest</p>
+          </div>
+          <div style="background:var(--surface); display:flex; justify-content:center; padding:25.4px 33.9px;">
+            <div class="f-card" style="width:480px; gap:14.8px; padding:21.2px;">
+              <h3>レビューを投稿する</h3>
+              <p style="font-size:13.8px; font-weight:600; color:var(--muted);">ゴシック台座 Sサイズ</p>
+              <div class="f-stars big"><span>★</span><span>★</span><span>★</span><span>★</span><span>★</span></div>
+              <div class="f-input tall" style="font-size:12.7px;">使用感や仕上がりについてコメントをお願いします</div>
+              <div style="background:var(--ground); border-radius:4.2px; padding:16.9px; text-align:center; font-size:12.7px; color:var(--muted);">＋ 使用例の写真を添付</div>
+              <button class="f-btn block" style="font-size:14.8px; padding:12.7px;" type="button">投稿する</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="exits" id="exits" hidden>
+    <p class="exits-label">Figma の矢印が示す遷移</p>
+    <div class="exit-row" id="exitRow"></div>
+  </div>
+</main>
+
+<script>
+  var SCREENS = {
+    flow: {
+      title: "画面フロー",
+      node: "Figma: 推し活2",
+      note: "",
+      exits: []
+    },
+    top: {
+      title: "Top Page（未ログイン）",
+      node: "44:427",
+      note: "サービスの入口。ヘッダーの「ログイン」「新規会員登録」から会員導線へ入ります。",
+      exits: [{ to: "login", via: "ログイン / 新規会員登録" }]
+    },
+    login: {
+      title: "ログイン・新規登録",
+      node: "46:122",
+      note: "ログインと新規登録を左右に並べた1画面構成。どちらを完了してもログイン後のトップへ進みます。",
+      exits: [{ to: "home", via: "ログイン / アカウントを作成する" }]
+    },
+    home: {
+      title: "ログイン後 Top Page",
+      node: "46:362",
+      note: "未ログイン時とレイアウトは同じで、ヘッダーが会員向けメニューに変わります。作品カードから詳細へ、ヘッダーから投稿・マイページへ分岐します。",
+      exits: [
+        { to: "detail", via: "作品カード" },
+        { to: "post", via: "作品を投稿する" },
+        { to: "mypage", via: "マイページ" }
+      ]
+    },
+    detail: {
+      title: "作品詳細ページ",
+      node: "60:8",
+      note: "購入とオーダーメイド相談の分岐点。Figma ではここから2本の矢印が伸びています。",
+      exits: [
+        { to: "cart", via: "カートに追加する" },
+        { to: "custom", via: "オーダーメイド相談" }
+      ]
+    },
+    cart: {
+      title: "カート",
+      node: "48:748",
+      note: "",
+      exits: [{ to: "checkout", via: "レジに進む" }]
+    },
+    checkout: {
+      title: "決済（チェックアウト）",
+      node: "48:796",
+      note: "購入導線の終点。Stripe でのカード決済を想定した構成です。",
+      exits: []
+    },
+    custom: {
+      title: "オーダーメイド相談フォーム",
+      node: "48:900",
+      note: "作品詳細から相談を起こす画面。送信するとクリエイターとのやりとり画面へ移ります。",
+      exits: [{ to: "review", via: "相談を送信する" }]
+    },
+    mypage: {
+      title: "マイページ",
+      node: "61:235",
+      note: "買う人と作る人の切り替え地点。クリエイターページ・売上・評価投稿へ分岐します。",
+      exits: [
+        { to: "works", via: "クリエイターページ" },
+        { to: "dashboard", via: "売上を見る" },
+        { to: "review", via: "受け取り評価" }
+      ]
+    },
+    dashboard: {
+      title: "クリエイター売上ダッシュボード",
+      node: "47:488",
+      note: "振込可能額・振込履歴・人気作品ランキング。",
+      exits: [{ to: "mypage", via: "マイページへ戻る", back: true }]
+    },
+    works: {
+      title: "クリエイター作品管理",
+      node: "48:541",
+      note: "投稿済み作品の一覧。新規投稿とプロフィール編集へ分岐します。",
+      exits: [
+        { to: "post", via: "＋ 新規作品を投稿" },
+        { to: "profile", via: "プロフィールを編集" }
+      ]
+    },
+    post: {
+      title: "作品投稿 STEP 1",
+      node: "48:842",
+      note: "STL アップロードと作品情報の入力。「次へ」でサムネイル選択へ進みます。",
+      exits: [{ to: "thumb", via: "次へ" }]
+    },
+    thumb: {
+      title: "作品投稿 STEP 2（サムネイル選択・公開）",
+      node: "51:949",
+      note: "公開すると作品管理の一覧に並びます。",
+      exits: [
+        { to: "works", via: "作品を公開する" },
+        { to: "post", via: "戻る", back: true }
+      ]
+    },
+    profile: {
+      title: "クリエイター管理（プロフィール編集）",
+      node: "48:654",
+      note: "非公開の編集画面。保存した内容が公開プロフィールに反映されます。",
+      exits: [{ to: "public", via: "公開プロフィールを見る →" }]
+    },
+    public: {
+      title: "クリエイター公開プロフィール",
+      node: "61:77",
+      note: "買う人から見えるクリエイターのページ。ここからメッセージを送れます。",
+      exits: [{ to: "review", via: "💬 メッセージ" }]
+    },
+    review: {
+      title: "メッセージ・レビュー投稿",
+      node: "61:132",
+      note: "オーダーメイド相談・受け取り評価・クリエイターへのメッセージ、3本の矢印が集まる画面です。",
+      exits: []
+    }
+  };
+
+  var ORDER = ["flow", "top", "login", "home", "detail", "cart", "checkout", "custom",
+               "mypage", "dashboard", "works", "post", "thumb", "profile", "public", "review"];
+
+  var select = document.getElementById("screenSelect");
+  var stageWrap = document.getElementById("stageWrap");
+  var stage = document.getElementById("stage");
+  var stageTitle = document.getElementById("stageTitle");
+  var stageNode = document.getElementById("stageNode");
+  var stageNote = document.getElementById("stageNote");
+  var exits = document.getElementById("exits");
+  var exitRow = document.getElementById("exitRow");
+  var prevBtn = document.getElementById("prevBtn");
+  var nextBtn = document.getElementById("nextBtn");
+  var zoomReadout = document.getElementById("zoomReadout");
+
+  ORDER.forEach(function (key) {
+    var opt = document.createElement("option");
+    opt.value = key;
+    opt.textContent = (key === "flow" ? "— " : "") + SCREENS[key].title;
+    select.appendChild(opt);
+  });
+
+  var current = "flow";
+
+  function fit() {
+    if (current === "flow") return;
+    var avail = stageWrap.clientWidth;
+    var scale = Math.min(1, avail / 1270);
+    document.documentElement.style.setProperty("--scale", scale);
+    zoomReadout.textContent = Math.round(scale * 100) + "%";
+    var active = document.getElementById("s-" + current);
+    if (active) {
+      stageWrap.style.height = Math.ceil(active.offsetHeight * scale) + "px";
+    }
+  }
+
+  function show(key) {
+    if (!SCREENS[key]) return;
+    current = key;
+    var info = SCREENS[key];
+
+    var all = document.querySelectorAll(".screen");
+    for (var i = 0; i < all.length; i++) all[i].classList.remove("is-active");
+    var target = document.getElementById("s-" + key);
+    if (target) target.classList.add("is-active");
+
+    stageTitle.textContent = info.title;
+    stageNode.textContent = info.node ? "node " + info.node : "";
+    stageNote.textContent = info.note || "";
+    select.value = key;
+
+    var isFlow = key === "flow";
+    stageWrap.hidden = isFlow;
+    exits.hidden = isFlow;
+
+    if (!isFlow) {
+      exitRow.innerHTML = "";
+      if (info.exits.length === 0) {
+        var none = document.createElement("p");
+        none.className = "exit-none";
+        none.textContent = "この画面から先に伸びる矢印はありません（導線の終点）。";
+        exitRow.appendChild(none);
+      } else {
+        info.exits.forEach(function (ex) {
+          var b = document.createElement("button");
+          b.type = "button";
+          b.className = "exit" + (ex.back ? " is-back" : "");
+          b.dataset.goto = ex.to;
+          b.innerHTML = '<span class="arrow">' + (ex.back ? "←" : "→") + "</span>" +
+                        "<span>" + SCREENS[ex.to].title + "</span>" +
+                        '<span class="via">' + ex.via + "</span>";
+          exitRow.appendChild(b);
+        });
+      }
+      requestAnimationFrame(fit);
+    } else {
+      stageWrap.style.height = "";
+      zoomReadout.textContent = "—";
+    }
+
+    var idx = ORDER.indexOf(key);
+    prevBtn.disabled = idx <= 0;
+    nextBtn.disabled = idx >= ORDER.length - 1;
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  document.addEventListener("click", function (e) {
+    var el = e.target.closest ? e.target.closest("[data-goto]") : null;
+    if (el) show(el.dataset.goto);
+  });
+
+  select.addEventListener("change", function () { show(select.value); });
+  prevBtn.addEventListener("click", function () { show(ORDER[Math.max(0, ORDER.indexOf(current) - 1)]); });
+  nextBtn.addEventListener("click", function () { show(ORDER[Math.min(ORDER.length - 1, ORDER.indexOf(current) + 1)]); });
+  window.addEventListener("resize", fit);
+
+  show("flow");
+</script>
