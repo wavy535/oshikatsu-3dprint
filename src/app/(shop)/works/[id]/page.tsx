@@ -119,10 +119,18 @@ export default async function WorkDetailPage({
             />
           </div>
 
-          <p className="num text-2xl font-bold text-ink">
-            {yen(selected?.price_jpy ?? null)}
-            <span className="ml-1 text-[11px] font-medium text-muted-foreground">税込</span>
-          </p>
+          {/* 印刷代行費は作品価格に上乗せして請求するので、支払額と内訳を出す */}
+          <div className="flex flex-col gap-0.5">
+            <p className="num text-2xl font-bold text-ink">
+              {yen(selected?.buyer_total_jpy ?? null)}
+              <span className="ml-1 text-[11px] font-medium text-muted-foreground">税込</span>
+            </p>
+            {selected && (
+              <p className="num text-[11px] text-muted-foreground">
+                作品 {yen(selected.price_jpy)} ＋ 印刷代行費 {yen(selected.print_fee_jpy)}
+              </p>
+            )}
+          </div>
 
           {/* サイズ展開 */}
           <div className="flex flex-col gap-2">
@@ -145,7 +153,7 @@ export default async function WorkDetailPage({
                   >
                     <span className="text-[12.5px] font-semibold text-ink">{v.size_label}</span>
                     <span className="num text-[11px] text-muted-foreground">
-                      {yen(v.price_jpy)}
+                      {yen(v.buyer_total_jpy)}
                     </span>
                     {soldOut && <span className="text-[10px] text-danger">在庫なし</span>}
                   </Link>

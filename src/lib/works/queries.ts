@@ -58,18 +58,19 @@ export async function listWorks(filters: WorkFilters) {
 
   if (idFilter !== null) query = query.in("id", idFilter);
   if (filters.q) query = query.ilike("title", `%${filters.q}%`);
-  if (filters.priceMin !== undefined) query = query.gte("min_price_jpy", filters.priceMin);
-  if (filters.priceMax !== undefined) query = query.lte("min_price_jpy", filters.priceMax);
+  // 価格帯の絞り込みも、画面に出している「支払額」で行う
+  if (filters.priceMin !== undefined) query = query.gte("min_buyer_total_jpy", filters.priceMin);
+  if (filters.priceMax !== undefined) query = query.lte("min_buyer_total_jpy", filters.priceMax);
 
   switch (filters.sort) {
     case "popular":
       query = query.order("favorite_count", { ascending: false });
       break;
     case "price_asc":
-      query = query.order("min_price_jpy", { ascending: true, nullsFirst: false });
+      query = query.order("min_buyer_total_jpy", { ascending: true, nullsFirst: false });
       break;
     case "price_desc":
-      query = query.order("min_price_jpy", { ascending: false, nullsFirst: false });
+      query = query.order("min_buyer_total_jpy", { ascending: false, nullsFirst: false });
       break;
     case "rating":
       query = query.order("avg_rating", { ascending: false, nullsFirst: false });
@@ -93,9 +94,12 @@ export async function listWorks(filters: WorkFilters) {
       .select("work_id, storage_path, sort_order")
       .in("work_id", ids)
       .order("sort_order", { ascending: true }),
+    // 価格は work_variant_pricing の buyer_total_jpy（作品価格＋印刷代行費）を使う。
+    // 代行費は上乗せ請求（fee_billing = 'separate'）なので、price_jpy だけを出すと
+    // 実際の支払額より安く見えてしまう
     supabase
-      .from("work_variants")
-      .select("work_id, price_jpy")
+      .from("work_variant_pricing")
+      .select("work_id, buyer_total_jpy")
       .in("work_id", ids)
       .eq("is_listed", true),
   ]);
@@ -107,8 +111,8 @@ export async function listWorks(filters: WorkFilters) {
 
   const prices = new Map<string, number[]>();
   for (const v of variantsRes.data ?? []) {
-    if (v.price_jpy === null) continue;
-    prices.set(v.work_id, [...(prices.get(v.work_id) ?? []), v.price_jpy]);
+    if (v.buyer_total_jpy === null || v.work_id === null) continue;
+    prices.set(v.work_id, [...(prices.get(v.work_id) ?? []), v.buyer_total_jpy]);
   }
 
   const items: WorkCardItem[] = list.map((r) => {
@@ -119,7 +123,7 @@ export async function listWorks(filters: WorkFilters) {
       creatorId: r.creator_id!,
       creatorName: r.creator_name!,
       favoriteCount: r.favorite_count ?? 0,
-      minPrice: p.length ? Math.min(...p) : r.min_price_jpy,
+      minPrice: p.length ? Math.min(...p) : r.min_buyer_total_jpy,
       maxPrice: p.length ? Math.max(...p) : null,
       hasRange: p.length > 1 && Math.min(...p) !== Math.max(...p),
       isPriceDropped: Boolean(r.is_price_dropped),
@@ -171,8 +175,18 @@ export async function getWork(id: string) {
 
   if (error || !data) return null;
 
+  // 支払額（作品価格＋印刷代行費）はビューが計算している
+  const { data: pricing } = await supabase
+    .from("work_variant_pricing")
+    .select("id, buyer_total_jpy")
+    .eq("work_id", id);
+  const buyerTotalById = new Map(
+    (pricing ?? []).map((p) => [p.id, p.buyer_total_jpy] as const)
+  );
+
   const variants = [...(data.work_variants ?? [])]
     .filter((v) => v.is_listed)
+    .map((v) => ({ ...v, buyer_total_jpy: buyerTotalById.get(v.id) ?? null }))
     .sort((a, b) => (a.nui_size_cm ?? 0) - (b.nui_size_cm ?? 0));
 
   const images = [...(data.work_images ?? [])].sort(

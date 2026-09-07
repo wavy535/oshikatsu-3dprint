@@ -244,6 +244,8 @@ begin
     unit := v.price_jpy;
     fee  := coalesce(v.print_fee_jpy, 0);
 
+    -- 代行費は price に上乗せして請求する（fee_billing = 'separate'）ので、
+    -- 合計は 作品価格 + 印刷代行費 になる
     insert into public.orders (
       buyer_id, status, subtotal_amount, platform_fee_amount, print_cost_amount,
       total_amount, shipping_address_id, created_at, updated_at,
@@ -251,7 +253,7 @@ begin
     ) values (
       buyer, o.status, unit * o.qty,
       round(unit * o.qty * rule.platform_fee_rate), fee * o.qty,
-      unit * o.qty, addr,
+      unit * o.qty + fee * o.qty, addr,
       now() - make_interval(days => o.days_ago), now() - make_interval(days => o.days_ago),
       case when o.status in ('shipped', 'completed')
            then now() - make_interval(days => o.days_ago - 2) end,
@@ -266,7 +268,7 @@ begin
     ) values (
       order_id, v.work_id, v.creator_id, v.id, v.size_label,
       unit, o.qty,
-      unit * o.qty - round(unit * o.qty * rule.platform_fee_rate) - fee * o.qty,
+      unit * o.qty - round(unit * o.qty * rule.platform_fee_rate),
       round(unit * o.qty * rule.platform_fee_rate), fee * o.qty, fee,
       'work-stl/demo/' || v.work_id || '.3mf', 'PLA', 'ホワイト'
     ) returning id into item_id;

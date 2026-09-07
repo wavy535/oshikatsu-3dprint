@@ -2936,6 +2936,7 @@ export type Database = {
           description: string
           favorite_count: number
           id: string
+          min_buyer_total_jpy: number | null
           min_price_jpy: number | null
           previous_min_price_jpy: number | null
           price_changed_at: string | null
@@ -2954,6 +2955,7 @@ export type Database = {
           description?: string
           favorite_count?: number
           id?: string
+          min_buyer_total_jpy?: number | null
           min_price_jpy?: number | null
           previous_min_price_jpy?: number | null
           price_changed_at?: string | null
@@ -2972,6 +2974,7 @@ export type Database = {
           description?: string
           favorite_count?: number
           id?: string
+          min_buyer_total_jpy?: number | null
           min_price_jpy?: number | null
           previous_min_price_jpy?: number | null
           price_changed_at?: string | null
@@ -3134,6 +3137,7 @@ export type Database = {
           id: string | null
           is_available: boolean | null
           is_price_dropped: boolean | null
+          min_buyer_total_jpy: number | null
           min_price_jpy: number | null
           previous_min_price_jpy: number | null
           price_changed_at: string | null
@@ -3275,6 +3279,7 @@ export type Database = {
           id: string | null
           is_available: boolean | null
           is_price_dropped: boolean | null
+          min_buyer_total_jpy: number | null
           min_price_jpy: number | null
           previous_min_price_jpy: number | null
           price_changed_at: string | null

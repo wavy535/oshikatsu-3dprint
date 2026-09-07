@@ -38,6 +38,16 @@ export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }
     .eq("carts.user_id", user.id)
     .order("created_at", { ascending: true });
 
+  // 金額は work_variant_pricing の buyer_total_jpy（作品価格＋印刷代行費）
+  const variantIds = (data ?? []).map((r) => r.variant_id);
+  const { data: pricing } = variantIds.length
+    ? await supabase
+        .from("work_variant_pricing")
+        .select("id, buyer_total_jpy")
+        .in("id", variantIds)
+    : { data: [] };
+  const buyerTotalById = new Map((pricing ?? []).map((p) => [p.id, p.buyer_total_jpy] as const));
+
   const lines: CartLine[] = (data ?? []).map((row) => {
     const v = row.work_variants;
     const w = v.works;
@@ -49,7 +59,7 @@ export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }
       quantity: row.quantity,
       variantId: row.variant_id,
       sizeLabel: v.size_label,
-      price: v.price_jpy,
+      price: buyerTotalById.get(row.variant_id) ?? v.price_jpy,
       stock: v.stock ?? 0,
       isListed: v.is_listed,
       workId: w.id,
