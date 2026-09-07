@@ -2,7 +2,8 @@ import Link from "next/link";
 import { ArrowRight, Package, Ruler, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const metadata = { title: "OshiNest｜推し活のための3Dプリント作品マーケット" };
+// トップだけはブランド名から始めたいので、ルートの「%s｜OshiNest」テンプレートを使わない
+export const metadata = { title: { absolute: "OshiNest｜推し活のための3Dプリント作品マーケット" } };
 
 const POINTS = [
   {
