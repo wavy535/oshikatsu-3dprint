@@ -220,7 +220,7 @@ declare
   rule public.print_pricing_rules;
   o record;
   v record;
-  order_id uuid;
+  o_id uuid;
   item_id uuid;
   unit integer;
   fee integer;
@@ -258,7 +258,7 @@ begin
       case when o.status in ('shipped', 'completed')
            then now() - make_interval(days => o.days_ago - 2) end,
       case when o.status in ('shipped', 'completed') then '4567-8901-2345' end
-    ) returning id into order_id;
+    ) returning id into o_id;
 
     insert into public.order_items (
       order_id, work_id, creator_id, variant_id, size_label_snapshot,
@@ -266,26 +266,42 @@ begin
       print_cost_amount, print_fee_snapshot,
       stl_storage_path_snapshot, filament_material_snapshot, filament_color_snapshot
     ) values (
-      order_id, v.work_id, v.creator_id, v.id, v.size_label,
+      o_id, v.work_id, v.creator_id, v.id, v.size_label,
       unit, o.qty,
       unit * o.qty - round(unit * o.qty * rule.platform_fee_rate),
       round(unit * o.qty * rule.platform_fee_rate), fee * o.qty, fee,
       'work-stl/demo/' || v.work_id || '.3mf', 'PLA', 'ホワイト'
     ) returning id into item_id;
 
-    -- 発送済み・取引完了の注文には発送記録も入れる（運営の「出荷済み」一覧が読む）。
+    -- 発送済み・取引完了の注文には、ジョブの実績と発送記録も入れる
+    -- （運営の「出荷済み」一覧と、実費での精算が「確定」になる例を作るため）。
     -- apply_shipment() が status を shipped に戻すので、あとで元の status に直す
     if o.status in ('shipped', 'completed') then
+      perform public.create_print_jobs_for_order(o_id);
+      update public.print_jobs
+         set status = 'qc_passed',
+             printer_id = (select id from public.printers where code = 'P-01'),
+             assignee_id = '44444444-4444-4444-4444-444444444444',
+             batch_done = batch_count,
+             actual_filament_grams = 118.0 * o.qty,
+             actual_print_hours = 4.80 * o.qty
+       where print_jobs.order_id = o_id;
+      insert into public.filament_ledger (filament_id, delta_grams, reason, print_job_id, actor_id)
+      select f.id, -118.0 * o.qty, 'print', j.id, '44444444-4444-4444-4444-444444444444'
+        from public.print_jobs j
+        join public.filaments f on f.material = 'PLA' and f.color_name = 'ホワイト'
+       where j.order_id = o_id;
+
       insert into public.shipments (
         order_id, carrier, service_name, tracking_number, box_type,
         weight_grams, size_sum_cm, shipping_fee_jpy, shipped_at, packer_id
       ) values (
-        order_id, 'yamato', '宅急便コンパクト', '4567-8901-2345', '宅急便コンパクト箱',
+        o_id, 'yamato', '宅急便コンパクト', '4567-8901-2345', '宅急便コンパクト箱',
         180 + o.days_ago * 7, 52, 520,
         now() - make_interval(days => o.days_ago - 2),
         '44444444-4444-4444-4444-444444444444'
       );
-      update public.orders set status = o.status where id = order_id;
+      update public.orders set status = o.status where id = o_id;
     end if;
   end loop;
 end $$;

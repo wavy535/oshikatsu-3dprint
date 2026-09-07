@@ -716,6 +716,13 @@ export type Database = {
             foreignKeyName: "messages_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_settlements"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -1098,6 +1105,13 @@ export type Database = {
             foreignKeyName: "order_items_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_settlements"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -1196,6 +1210,13 @@ export type Database = {
             foreignKeyName: "order_status_history_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
+            referencedRelation: "order_settlements"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_status_history_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
@@ -1208,6 +1229,7 @@ export type Database = {
           gift_wrapping: boolean
           id: string
           platform_fee_amount: number
+          platform_fee_rate: number | null
           print_cost_amount: number
           ship_due_at: string | null
           shipped_at: string | null
@@ -1226,6 +1248,7 @@ export type Database = {
           gift_wrapping?: boolean
           id?: string
           platform_fee_amount?: number
+          platform_fee_rate?: number | null
           print_cost_amount?: number
           ship_due_at?: string | null
           shipped_at?: string | null
@@ -1244,6 +1267,7 @@ export type Database = {
           gift_wrapping?: boolean
           id?: string
           platform_fee_amount?: number
+          platform_fee_rate?: number | null
           print_cost_amount?: number
           ship_due_at?: string | null
           shipped_at?: string | null
@@ -1481,6 +1505,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_settlements"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "print_jobs_order_id_fkey"
@@ -2168,6 +2199,13 @@ export type Database = {
           weight_grams?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "shipments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_settlements"
+            referencedColumns: ["order_id"]
+          },
           {
             foreignKeyName: "shipments_order_id_fkey"
             columns: ["order_id"]
@@ -3185,6 +3223,37 @@ export type Database = {
         }
         Relationships: []
       }
+      order_settlements: {
+        Row: {
+          buyer_id: string | null
+          fee_amount: number | null
+          goods_amount: number | null
+          gross_amount: number | null
+          is_final: boolean | null
+          order_id: string | null
+          ordered_at: string | null
+          payout_amount: number | null
+          platform_fee_rate: number | null
+          pool_amount: number | null
+          print_actual_amount: number | null
+          print_cost_used: number | null
+          print_fee_amount: number | null
+          shipped_at: string | null
+          shipping_actual_amount: number | null
+          shipping_charged_amount: number | null
+          shipping_used: number | null
+          status: Database["public"]["Enums"]["order_status"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_queue: {
         Row: {
           actual_filament_grams: number | null
@@ -3235,6 +3304,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_settlements"
+            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "print_jobs_order_id_fkey"
@@ -3447,6 +3523,7 @@ export type Database = {
         Args: { p_nui_id: string; p_variant_id: string }
         Returns: Database["public"]["Enums"]["fit_verdict"]
       }
+      order_actual_print_cost: { Args: { p_order_id: string }; Returns: number }
       popular_works: {
         Args: { p_limit?: number; p_nui_size_cm?: number; p_offset?: number }
         Returns: {

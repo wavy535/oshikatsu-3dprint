@@ -206,7 +206,7 @@ export function WorkInfoForm({
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           印刷代行費は解析結果から自動で出ています。
           {feeBilling === "separate"
-            ? "代行費は作品価格に上乗せして買う人に請求されるので、ここで決めるのは作品そのものの価格です。"
+            ? "代行費は作品価格に上乗せして買う人に請求されるので、ここで決めるのは作品そのものの価格です。受取額は見込みで、発送後に印刷と送料の実費で確定します。"
             : "代行費と手数料を回収できない価格は保存できません。"}
         </p>
 
@@ -219,7 +219,7 @@ export function WorkInfoForm({
                 <th className="py-2 text-right font-semibold">代行費</th>
                 <th className="py-2 text-right font-semibold">下限</th>
                 <th className="py-2 text-right font-semibold">作品価格</th>
-                <th className="py-2 text-right font-semibold">支払額 / 受取額</th>
+                <th className="py-2 text-right font-semibold">支払額 / 受取額（見込み）</th>
                 <th className="py-2 text-right font-semibold">在庫</th>
                 <th className="py-2 text-center font-semibold">出品</th>
               </tr>
