@@ -30,6 +30,30 @@ export async function getMyProductForEdit(id: string, creatorId: string) {
   return data;
 }
 
+/** 作品投稿 4STEP で使う下書き一式（本人の作品のみ） */
+export async function getProductDraft(id: string, creatorId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("products")
+    .select(
+      `*,
+       product_assets(id, original_name, file_ext, part_label, quantity_per_item, sort_order,
+                      layer_direction, support_type, color_slot, filament_id, print_note),
+       product_asset_validations(asset_id, passed, checks, triangle_count,
+                                 bbox_w_mm, bbox_d_mm, bbox_h_mm, shell_count),
+       product_size_variants(nui_size_id, price, stock, agency_fee, est_weight_g, est_print_min,
+                             is_active, unavailable_reason),
+       product_images(id, image_url, alt, sort_order),
+       product_tags(tag_id),
+       product_filaments(filament_id, is_default)`
+    )
+    .eq("id", id)
+    .eq("creator_id", creatorId)
+    .single();
+  if (error) return null;
+  return data;
+}
+
 export async function listProductAssets(productId: string) {
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -130,6 +154,7 @@ export async function getProductBySlug(slug: string) {
        profiles!products_creator_id_fkey(handle, display_name, avatar_url),
        product_images(id, image_url, alt, sort_order),
        product_nui_sizes(nui_sizes(id, label)),
+       product_size_variants(nui_size_id, price, stock, agency_fee, est_weight_g, est_print_min, is_active, unavailable_reason),
        product_filaments(is_default, filaments(id, name, color_hex, surcharge))`
     )
     .eq("slug", slug)
@@ -166,7 +191,8 @@ export async function listPublishedProductsByCreator(creatorId: string) {
     .from("products")
     .select(
       `id, slug, title, base_price, review_count, review_avg, favorite_count,
-       product_images(image_url, sort_order)`
+       product_images(image_url, sort_order),
+       product_size_variants(nui_size_id, is_active)`
     )
     .eq("creator_id", creatorId)
     .eq("status", "published")

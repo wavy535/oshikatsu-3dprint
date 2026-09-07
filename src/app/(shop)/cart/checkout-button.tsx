@@ -15,7 +15,13 @@ import {
 
 type Address = { id: string; recipient_name: string; prefecture: string; city: string };
 
-export function CheckoutButton({ addresses }: { addresses: Address[] }) {
+export function CheckoutButton({
+  addresses,
+  disabled = false,
+}: {
+  addresses: Address[];
+  disabled?: boolean;
+}) {
   const [addressId, setAddressId] = useState(addresses[0]?.id);
   const [pending, setPending] = useState(false);
 
@@ -43,7 +49,12 @@ export function CheckoutButton({ addresses }: { addresses: Address[] }) {
     <div className="flex flex-col gap-3">
       <Select value={addressId} onValueChange={(v) => v && setAddressId(v)}>
         <SelectTrigger className="w-full">
-          <SelectValue placeholder="配送先を選択" />
+          <SelectValue placeholder="配送先を選択">
+            {(v) => {
+              const a = addresses.find((x) => x.id === v);
+              return a ? `${a.recipient_name}（${a.prefecture}${a.city}）` : null;
+            }}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent>
           {addresses.map((a) => (
@@ -54,7 +65,11 @@ export function CheckoutButton({ addresses }: { addresses: Address[] }) {
           ))}
         </SelectContent>
       </Select>
-      <Button disabled={pending || !addressId} onClick={handleCheckout}>
+      <Button
+        size="lg"
+        disabled={pending || disabled || !addressId}
+        onClick={handleCheckout}
+      >
         {pending ? "処理中..." : "レジに進む"}
       </Button>
     </div>
