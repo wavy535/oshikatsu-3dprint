@@ -14,7 +14,8 @@ export default async function CartPage() {
   await requireUser("/cart");
   const { lines, subtotal } = await getCart();
 
-  const buyable = lines.filter((l) => l.isListed && l.stock > 0);
+  // 在庫 null は無制限（受注生産）
+  const buyable = lines.filter((l) => l.isListed && (l.stock === null || l.stock > 0));
 
   return (
     <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-6 py-6 lg:flex-row">
@@ -44,7 +45,7 @@ export default async function CartPage() {
             <span className="num text-lg font-bold text-ink">{yen(subtotal)}</span>
           </div>
           <p className="text-[11px] leading-4 text-muted-foreground">
-            印刷代行費は価格に含まれています。送料は決済画面で確定します。
+            印刷代行費を含みます。送料は次の画面で確定します。
           </p>
           <Button asChild disabled={buyable.length === 0} className="mt-1 w-full">
             <Link href="/checkout">レジに進む</Link>

@@ -27,8 +27,9 @@ export function CartLineRow({ line }: { line: CartLine }) {
   const [removeState, removeItem, removing] = useActionState(removeCartItemAction, initialState);
 
   const image = workImageUrl(line.imagePath);
-  const max = Math.min(20, line.stock);
-  const unavailable = !line.isListed || line.stock <= 0;
+  // 在庫 null は無制限（受注生産）
+  const max = Math.min(20, line.stock ?? 20);
+  const unavailable = !line.isListed || (line.stock !== null && line.stock <= 0);
 
   return (
     <div className="flex gap-3 rounded-xl border border-line bg-white p-3">

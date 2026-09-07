@@ -7,7 +7,8 @@ export type CartLine = {
   variantId: string;
   sizeLabel: string;
   price: number | null;
-  stock: number;
+  /** null は無制限 */
+  stock: number | null;
   isListed: boolean;
   workId: string;
   workTitle: string;
@@ -60,7 +61,7 @@ export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }
       variantId: row.variant_id,
       sizeLabel: v.size_label,
       price: buyerTotalById.get(row.variant_id) ?? v.price_jpy,
-      stock: v.stock ?? 0,
+      stock: v.stock,
       isListed: v.is_listed,
       workId: w.id,
       workTitle: w.title,

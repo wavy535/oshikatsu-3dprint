@@ -1580,6 +1580,7 @@ export type Database = {
           material_yen_per_gram: number
           max_batch_hours: number
           platform_fee_rate: number
+          shipping_fee_jpy: number
         }
         Insert: {
           bed_x_mm?: number
@@ -1596,6 +1597,7 @@ export type Database = {
           material_yen_per_gram?: number
           max_batch_hours?: number
           platform_fee_rate?: number
+          shipping_fee_jpy?: number
         }
         Update: {
           bed_x_mm?: number
@@ -1612,6 +1614,7 @@ export type Database = {
           material_yen_per_gram?: number
           max_batch_hours?: number
           platform_fee_rate?: number
+          shipping_fee_jpy?: number
         }
         Relationships: []
       }
@@ -3472,6 +3475,11 @@ export type Database = {
         Args: { grams: number; hours: number; parts: number }
         Returns: number
       }
+      cancel_unpaid_order: { Args: { p_order_id: string }; Returns: boolean }
+      confirm_order_payment: {
+        Args: { p_order_id: string; p_payment_ref?: string }
+        Returns: boolean
+      }
       create_print_jobs_for_order: {
         Args: { p_lead_days?: number; p_order_id: string }
         Returns: number
@@ -3524,6 +3532,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["fit_verdict"]
       }
       order_actual_print_cost: { Args: { p_order_id: string }; Returns: number }
+      place_order: {
+        Args: { p_address_id: string; p_note?: string }
+        Returns: string
+      }
       popular_works: {
         Args: { p_limit?: number; p_nui_size_cm?: number; p_offset?: number }
         Returns: {
