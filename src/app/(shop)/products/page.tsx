@@ -1,24 +1,11 @@
 import { getOptionalUser } from "@/lib/auth/guards";
-import { listCategories, searchProducts, type ProductFilters } from "@/features/products/queries";
 import { listMyNuis, listNuiSizes } from "@/features/nuis/queries";
-import { ProductFilterBar } from "@/components/product/product-filter-bar";
-import { ProductGrid } from "@/components/product/product-grid";
+import { listCategories, listTags, searchProducts } from "@/features/products/queries";
+import { parseProductFilters } from "@/features/products/search-params";
+import { CategoryBar } from "@/components/layout/site-header";
+import { ProductBrowser } from "@/components/product/product-browser";
 
-const SORT_VALUES = ["newest", "popular", "price_asc", "price_desc", "rating"] as const;
-
-function parseIntArray(value: string | undefined): number[] {
-  if (!value) return [];
-  return value
-    .split(",")
-    .map((v) => Number(v))
-    .filter((n) => Number.isInteger(n));
-}
-
-function parseSort(value: string | undefined): ProductFilters["sort"] {
-  return (SORT_VALUES as readonly string[]).includes(value ?? "")
-    ? (value as ProductFilters["sort"])
-    : "newest";
-}
+export const metadata = { title: "検索結果" };
 
 export default async function ProductsPage({
   searchParams,
@@ -35,31 +22,60 @@ export default async function ProductsPage({
     if (primary) defaultNuiSizeIds = [primary.nui_size_id];
   }
 
-  const nuiSizeIds = sp.nuiSizes !== undefined ? parseIntArray(sp.nuiSizes) : defaultNuiSizeIds;
-
-  const [categories, nuiSizes, result] = await Promise.all([
+  const filters = parseProductFilters(sp, defaultNuiSizeIds);
+  const [categories, nuiSizes, tags, result] = await Promise.all([
     listCategories(),
     listNuiSizes(),
-    searchProducts({
-      q: sp.q,
-      categoryId: sp.category ? Number(sp.category) : undefined,
-      nuiSizeIds,
-      priceMin: sp.priceMin ? Number(sp.priceMin) : undefined,
-      priceMax: sp.priceMax ? Number(sp.priceMax) : undefined,
-      sort: parseSort(sp.sort),
-      page: sp.page ? Number(sp.page) : 1,
-    }),
+    listTags(),
+    searchProducts(filters),
   ]);
 
+  // 適用中の条件をチップで並べる（Figma 2038:873）
+  const chips: string[] = [];
+  if (filters.q) chips.push(`キーワード: ${filters.q}`);
+  const category = categories.find((c) => c.id === filters.categoryId);
+  if (category) chips.push(category.name);
+  for (const id of filters.nuiSizeIds ?? []) {
+    const size = nuiSizes.find((s) => s.id === id);
+    if (size) chips.push(size.label);
+  }
+  for (const id of filters.tagIds ?? []) {
+    const tag = tags.find((t) => t.id === id);
+    if (tag) chips.push(tag.name);
+  }
+  if (filters.priceMin != null) chips.push(`¥${filters.priceMin.toLocaleString()}〜`);
+  if (filters.priceMax != null) chips.push(`〜¥${filters.priceMax.toLocaleString()}`);
+
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 py-8">
-      <h1 className="text-xl font-semibold">作品を探す</h1>
-      <ProductFilterBar
+    <>
+      <CategoryBar
+        categories={categories.map((c) => ({ id: c.id, name: c.name }))}
+        activeId={filters.categoryId}
+      />
+      <ProductBrowser
+        heading={filters.q ? `「${filters.q}」の検索結果` : "検索結果"}
         categories={categories.map((c) => ({ id: c.id, label: c.name }))}
         nuiSizes={nuiSizes.map((s) => ({ id: s.id, label: s.label }))}
+        tags={tags.map((t) => ({ id: t.id, label: t.name }))}
         defaultNuiSizeIds={defaultNuiSizeIds}
+        products={result.items}
+        totalCount={result.totalCount}
+        appliedChips={
+          chips.length > 0 ? (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-[11px] text-muted-foreground">適用中:</span>
+              {chips.map((chip) => (
+                <span
+                  key={chip}
+                  className="rounded-full bg-brand-soft px-2.5 py-1 text-[11px] font-medium text-accent-foreground"
+                >
+                  {chip}
+                </span>
+              ))}
+            </div>
+          ) : null
+        }
       />
-      <ProductGrid products={result.items} />
-    </div>
+    </>
   );
 }
