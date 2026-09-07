@@ -182,3 +182,28 @@ values ('11111111-1111-1111-1111-111111111111', '推し活 花子', '1500001', '
 insert into public.work_favorites (user_id, work_id)
 select '11111111-1111-1111-1111-111111111111', id
   from public.works where status = 'published' order by created_at limit 3;
+
+-- -----------------------------------------------------------------------------
+-- 4. 通知
+--   通知はトリガーだけが作る決まりなので、シードでも push_notification() を通す
+--   （直接 insert すると設定の判定や link_path の必須を素通ししてしまう）。
+-- -----------------------------------------------------------------------------
+do $$
+declare
+  buyer uuid := '11111111-1111-1111-1111-111111111111';
+  w record;
+begin
+  select id, title into w from public.works where status = 'published' order by created_at limit 1;
+
+  perform public.push_notification(
+    buyer, 'favorite_price', 'お気に入りの作品が値下がりしました',
+    w.title || ' が値下げされました', '/works/' || w.id);
+
+  perform public.push_notification(
+    buyer, 'message', 'みるく工房さんからメッセージが届きました',
+    'オーダーメイドのご相談ありがとうございます。', '/mypage/messages');
+
+  perform public.push_notification(
+    buyer, 'announcement', 'マイぬいの採寸値を登録しませんか',
+    '採寸値を入れると、作品に入るかどうかを数値で判定できます。', '/mypage/nuis');
+end $$;
