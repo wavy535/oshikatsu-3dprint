@@ -3930,6 +3930,16 @@ export type Database = {
         Args: { variant: Database["public"]["Tables"]["work_variants"]["Row"] }
         Returns: number
       }
+      creator_public_stats: {
+        Args: { p_creator_id: string }
+        Returns: {
+          avg_rating: number
+          follower_count: number
+          review_count: number
+          sold_count: number
+          works_count: number
+        }[]
+      }
       decline_custom_quote: { Args: { p_quote_id: string }; Returns: boolean }
       estimate_filament_grams: {
         Args: {

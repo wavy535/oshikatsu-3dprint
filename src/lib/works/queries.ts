@@ -58,6 +58,7 @@ export async function listWorks(filters: WorkFilters) {
 
   if (idFilter !== null) query = query.in("id", idFilter);
   if (filters.q) query = query.ilike("title", `%${filters.q}%`);
+  if (filters.creatorId) query = query.eq("creator_id", filters.creatorId);
   // 価格帯の絞り込みも、画面に出している「支払額」で行う
   if (filters.priceMin !== undefined) query = query.gte("min_buyer_total_jpy", filters.priceMin);
   if (filters.priceMax !== undefined) query = query.lte("min_buyer_total_jpy", filters.priceMax);
@@ -242,4 +243,40 @@ export async function isFavorited(workId: string, userId: string) {
     .eq("user_id", userId)
     .maybeSingle();
   return Boolean(data);
+}
+
+/**
+ * 作品のレビュー一覧と集計（分布・クリエイター向け3軸）。
+ * 印刷品質・梱包・配送は運営あての評価なので、ここでは出さない（設計判断8）。
+ */
+export async function listWorkReviews(workId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("reviews")
+    .select(
+      `id, rating, comment, created_at, is_anonymous, design_rating, accuracy_rating, size_fit_rating,
+       photo_storage_path, profiles!reviews_reviewer_id_fkey(display_name, avatar_url),
+       order_items(size_label_snapshot)`
+    )
+    .eq("work_id", workId)
+    .order("created_at", { ascending: false });
+  const rows = data ?? [];
+  const count = rows.length;
+  const avgOf = (pick: (r: (typeof rows)[number]) => number | null) => {
+    const vals = rows.map(pick).filter((v): v is number => v !== null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  };
+  const distribution = [5, 4, 3, 2, 1].map((star) => ({
+    star,
+    count: rows.filter((r) => r.rating === star).length,
+  }));
+  return {
+    rows,
+    count,
+    avg: avgOf((r) => r.rating),
+    avgDesign: avgOf((r) => r.design_rating),
+    avgAccuracy: avgOf((r) => r.accuracy_rating),
+    avgSizeFit: avgOf((r) => r.size_fit_rating),
+    distribution,
+  };
 }

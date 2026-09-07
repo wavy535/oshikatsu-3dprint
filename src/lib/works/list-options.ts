@@ -26,6 +26,8 @@ export type WorkFilters = {
   nuiSizeCm?: number;
   priceMin?: number;
   priceMax?: number;
+  /** 公開プロフィールの作品一覧で、そのクリエイターに絞る */
+  creatorId?: string;
   sort: Sort;
   page: number;
 };
