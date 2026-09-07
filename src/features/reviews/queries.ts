@@ -34,7 +34,9 @@ export async function listReviewableOrderItems(orderId: string, buyerId: string)
 
   const { data: reviews } = await supabase
     .from("reviews")
-    .select("id, order_item_id, rating, title, body, created_at")
+    .select(
+      "id, order_item_id, rating, rating_design, rating_accuracy, rating_size, title, body, created_at"
+    )
     .in("order_item_id", itemIds);
 
   const byItemId = new Map((reviews ?? []).map((r) => [r.order_item_id, r]));
@@ -48,6 +50,18 @@ export async function listReviewableOrderItems(orderId: string, buyerId: string)
       editable: !review || now - new Date(review.created_at).getTime() < editWindowMs,
     };
   });
+}
+
+/** 運営あての評価（注文ごとに 1 件） */
+export async function getServiceReview(orderId: string, userId: string) {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("service_reviews")
+    .select("rating_print, rating_packing, rating_delivery, comment")
+    .eq("order_id", orderId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data ?? null;
 }
 
 export async function listCreatorReviews(creatorId: string) {

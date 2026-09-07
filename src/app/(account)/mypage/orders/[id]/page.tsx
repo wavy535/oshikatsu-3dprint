@@ -1,12 +1,18 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MessageSquare } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { getMyOrder } from "@/features/orders/queries";
-import { listReviewableOrderItems } from "@/features/reviews/queries";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getServiceReview, listReviewableOrderItems } from "@/features/reviews/queries";
+import { JOB_STATUS_LABEL } from "@/features/print-jobs/queries";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { OrderStatusStepper } from "@/components/order/order-status-stepper";
 import { TrackingLink } from "@/components/order/tracking-link";
 import { OrderActions } from "./order-actions";
 import { ReviewSection } from "./review-section";
+
+export const metadata = { title: "注文詳細" };
 
 export default async function MyOrderDetailPage({
   params,
@@ -19,79 +25,141 @@ export default async function MyOrderDetailPage({
   if (!order) {
     notFound();
   }
-  const reviewableItems = order.status === "completed" ? await listReviewableOrderItems(id, user.id) : [];
+  const [reviewableItems, serviceReview] =
+    order.status === "completed"
+      ? await Promise.all([
+          listReviewableOrderItems(id, user.id),
+          getServiceReview(id, user.id),
+        ])
+      : [[], null];
+
+  const jobByItem = new Map(order.print_jobs.map((j) => [j.order_item_id, j]));
+  // 出荷予定日はジョブの期限のうち最も遅いもの
+  const dueDates = order.print_jobs
+    .map((j) => j.due_at)
+    .filter((d): d is string => Boolean(d))
+    .sort();
+  const shipEstimate = dueDates.at(-1);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">{order.order_number}</h1>
-        <OrderActions orderId={order.id} status={order.status} />
+    <div className="flex flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <Link
+          href="/mypage/orders"
+          className="text-xs text-muted-foreground hover:text-ink"
+        >
+          ← 購入履歴
+        </Link>
+        <h1 className="num text-lg font-bold text-ink">{order.order_number}</h1>
+        <span className="ml-auto">
+          <OrderActions orderId={order.id} status={order.status} />
+        </span>
       </div>
 
-      <OrderStatusStepper status={order.status} />
-
-      {order.shipments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>配送状況</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-1">
-            {order.shipments.map((s) => (
-              <TrackingLink key={s.id} carrier={s.carrier} trackingNumber={s.tracking_number} />
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle>注文内容</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          {order.order_items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between text-sm">
-              <div>
-                <p className="font-medium">{item.product_title}</p>
-                <p className="text-muted-foreground">
-                  {item.filament_name}
-                  {item.nui_size_label ? ` / ${item.nui_size_label}` : ""} × {item.quantity}
-                </p>
-              </div>
-              <span>¥{item.line_total.toLocaleString()}</span>
-            </div>
-          ))}
-          <div className="flex justify-between border-t pt-3 text-sm">
-            <span>小計</span>
-            <span>¥{order.subtotal.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>送料</span>
-            <span>¥{order.shipping_fee.toLocaleString()}</span>
-          </div>
-          <div className="flex justify-between font-semibold">
-            <span>合計</span>
-            <span>¥{order.total.toLocaleString()}</span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>配送先</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm">
-          <p>{order.ship_recipient_name}</p>
-          <p>
-            〒{order.ship_postal_code} {order.ship_prefecture}
-            {order.ship_city}
-            {order.ship_address_line1}
-            {order.ship_address_line2}
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-4">
+        <OrderStatusStepper status={order.status} />
+        {shipEstimate && order.status !== "completed" && (
+          <p className="num text-[11.5px] text-muted-foreground">
+            出荷予定日 {new Date(shipEstimate).toLocaleDateString("ja-JP")}
           </p>
-          <p>{order.ship_phone}</p>
-        </CardContent>
-      </Card>
+        )}
+        {order.shipments.length > 0 && (
+          <div className="flex flex-col gap-1 border-t border-line pt-2">
+            {order.shipments.map((s) => (
+              <TrackingLink
+                key={s.id}
+                carrier={s.carrier}
+                trackingNumber={s.tracking_number}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-      <ReviewSection items={reviewableItems} />
+      <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-4">
+        <p className="text-sm font-bold text-ink">注文内容</p>
+        {order.order_items.map((item) => {
+          const job = jobByItem.get(item.id);
+          return (
+            <div
+              key={item.id}
+              className="flex items-center gap-3 border-t border-line pt-3 first:border-t-0 first:pt-0"
+            >
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                {item.products?.slug ? (
+                  <Link
+                    href={`/products/${item.products.slug}`}
+                    className="truncate text-[13px] font-semibold text-ink hover:text-brand"
+                  >
+                    {item.product_title}
+                  </Link>
+                ) : (
+                  <span className="truncate text-[13px] font-semibold text-ink">
+                    {item.product_title}
+                  </span>
+                )}
+                <span className="text-[11px] text-muted-foreground">
+                  {item.filament_name}
+                  {item.nui_size_label ? ` / ${item.nui_size_label}` : ""} ×{" "}
+                  {item.quantity}
+                </span>
+              </div>
+              {job && (
+                <Badge variant={job.status === "failed" ? "destructive" : "outline"}>
+                  {JOB_STATUS_LABEL[job.status]}
+                </Badge>
+              )}
+              <span className="num text-[13px] font-semibold text-ink">
+                ¥{item.line_total.toLocaleString()}
+              </span>
+            </div>
+          );
+        })}
+
+        <dl className="flex flex-col gap-1 border-t border-line pt-3 text-[12.5px]">
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">小計</dt>
+            <dd className="num text-ink">¥{order.subtotal.toLocaleString()}</dd>
+          </div>
+          <div className="flex justify-between">
+            <dt className="text-muted-foreground">送料</dt>
+            <dd className="num text-ink">¥{order.shipping_fee.toLocaleString()}</dd>
+          </div>
+          <div className="flex items-baseline justify-between">
+            <dt className="font-semibold text-ink">合計</dt>
+            <dd className="num text-lg font-bold text-brand">
+              ¥{order.total.toLocaleString()}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4 text-[12.5px]">
+        <p className="text-sm font-bold text-ink">配送先</p>
+        <p className="text-ink">{order.ship_recipient_name}</p>
+        <p className="text-muted-foreground">
+          〒{order.ship_postal_code} {order.ship_prefecture}
+          {order.ship_city}
+          {order.ship_address_line1}
+          {order.ship_address_line2}
+        </p>
+        <p className="num text-muted-foreground">{order.ship_phone}</p>
+        <Button
+          render={<Link href="/mypage/messages" />}
+          variant="outline"
+          size="sm"
+          className="mt-1 self-start"
+        >
+          <MessageSquare />
+          運営・クリエイターに問い合わせ
+        </Button>
+      </div>
+
+      <ReviewSection
+        orderId={order.id}
+        items={reviewableItems}
+        serviceReview={serviceReview}
+      />
     </div>
   );
 }

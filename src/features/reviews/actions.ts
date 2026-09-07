@@ -8,10 +8,12 @@ import {
   updateReviewSchema,
   replyToReviewSchema,
   hideReviewSchema,
+  serviceReviewSchema,
   type CreateReviewInput,
   type UpdateReviewInput,
   type ReplyToReviewInput,
   type HideReviewInput,
+  type ServiceReviewInput,
 } from "./schema";
 
 export async function createReview(input: CreateReviewInput): Promise<ActionResult> {
@@ -37,6 +39,9 @@ export async function createReview(input: CreateReviewInput): Promise<ActionResu
     product_id: item.product_id,
     user_id: user.id,
     rating: v.rating,
+    rating_design: v.ratingDesign ?? null,
+    rating_accuracy: v.ratingAccuracy ?? null,
+    rating_size: v.ratingSize ?? null,
     title: v.title || null,
     body: v.body || null,
   });
@@ -67,12 +72,54 @@ export async function updateReview(input: UpdateReviewInput): Promise<ActionResu
 
   const { error } = await supabase
     .from("reviews")
-    .update({ rating: v.rating, title: v.title || null, body: v.body || null })
+    .update({
+      rating: v.rating,
+      rating_design: v.ratingDesign ?? null,
+      rating_accuracy: v.ratingAccuracy ?? null,
+      rating_size: v.ratingSize ?? null,
+      title: v.title || null,
+      body: v.body || null,
+    })
     .eq("id", v.reviewId);
   if (error) return { ok: false, error: "投稿から14日を過ぎたレビューは編集できません" };
 
   revalidatePath("/mypage/orders");
   if (review?.order_items?.order_id) revalidatePath(`/mypage/orders/${review.order_items.order_id}`);
+  return { ok: true, data: undefined };
+}
+
+/**
+ * 運営あての評価（印刷・梱包・配送）。Figma 61:153 の 2 段目。
+ * service_reviews は products.review_avg の集計対象ではないので、
+ * ここでの点数がクリエイターの星に混ざることはない。
+ */
+export async function upsertServiceReview(
+  input: ServiceReviewInput
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser();
+
+  const parsed = serviceReviewSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "入力エラー", fieldErrors: parsed.error.flatten().fieldErrors };
+  }
+  const v = parsed.data;
+
+  const { error } = await supabase.from("service_reviews").upsert(
+    {
+      order_id: v.orderId,
+      user_id: user.id,
+      rating_print: v.ratingPrint,
+      rating_packing: v.ratingPacking,
+      rating_delivery: v.ratingDelivery,
+      comment: v.comment || null,
+    },
+    { onConflict: "order_id" }
+  );
+  if (error) {
+    return { ok: false, error: "受取完了した自分の注文のみ評価できます" };
+  }
+
+  revalidatePath(`/mypage/orders/${v.orderId}`);
   return { ok: true, data: undefined };
 }
 

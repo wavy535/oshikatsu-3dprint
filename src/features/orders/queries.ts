@@ -18,8 +18,9 @@ export async function getMyOrder(id: string, buyerId: string) {
     .from("orders")
     .select(
       `*,
-       order_items(*),
-       shipments(*)`
+       order_items(*, products(slug)),
+       shipments(*),
+       print_jobs(id, order_item_id, status, due_at)`
     )
     .eq("id", id)
     .eq("buyer_id", buyerId)
