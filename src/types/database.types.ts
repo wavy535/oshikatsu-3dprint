@@ -407,6 +407,134 @@ export type Database = {
           },
         ]
       }
+      custom_orders: {
+        Row: {
+          approved_at: string | null
+          buyer_id: string
+          color_note: string | null
+          created_at: string
+          creator_id: string
+          desired_date: string | null
+          finish_note: string | null
+          id: string
+          nui_size_id: number | null
+          order_id: string | null
+          product_id: string
+          quote_filament_g: number | null
+          quote_lead_days: number | null
+          quote_note: string | null
+          quote_part_count: number | null
+          quote_price: number | null
+          quote_print_min: number | null
+          quote_spec: string | null
+          quoted_at: string | null
+          request_note: string
+          status: Database["public"]["Enums"]["custom_order_status"]
+          thread_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          buyer_id: string
+          color_note?: string | null
+          created_at?: string
+          creator_id: string
+          desired_date?: string | null
+          finish_note?: string | null
+          id?: string
+          nui_size_id?: number | null
+          order_id?: string | null
+          product_id: string
+          quote_filament_g?: number | null
+          quote_lead_days?: number | null
+          quote_note?: string | null
+          quote_part_count?: number | null
+          quote_price?: number | null
+          quote_print_min?: number | null
+          quote_spec?: string | null
+          quoted_at?: string | null
+          request_note: string
+          status?: Database["public"]["Enums"]["custom_order_status"]
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          buyer_id?: string
+          color_note?: string | null
+          created_at?: string
+          creator_id?: string
+          desired_date?: string | null
+          finish_note?: string | null
+          id?: string
+          nui_size_id?: number | null
+          order_id?: string | null
+          product_id?: string
+          quote_filament_g?: number | null
+          quote_lead_days?: number | null
+          quote_note?: string | null
+          quote_part_count?: number | null
+          quote_price?: number | null
+          quote_print_min?: number | null
+          quote_spec?: string | null
+          quoted_at?: string | null
+          request_note?: string
+          status?: Database["public"]["Enums"]["custom_order_status"]
+          thread_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_orders_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_orders_nui_size_id_fkey"
+            columns: ["nui_size_id"]
+            isOneToOne: false
+            referencedRelation: "nui_sizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "admin_production_sheets"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "custom_orders_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_orders_thread_id_fkey"
+            columns: ["thread_id"]
+            isOneToOne: false
+            referencedRelation: "message_threads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       favorites: {
         Row: {
           created_at: string
@@ -1101,47 +1229,314 @@ export type Database = {
           },
         ]
       }
+      print_job_inspections: {
+        Row: {
+          checks: Json
+          comment: string | null
+          created_at: string
+          id: string
+          inspector_id: string
+          job_id: string
+          photo_url: string | null
+          result: Database["public"]["Enums"]["inspection_result"]
+        }
+        Insert: {
+          checks?: Json
+          comment?: string | null
+          created_at?: string
+          id?: string
+          inspector_id: string
+          job_id: string
+          photo_url?: string | null
+          result: Database["public"]["Enums"]["inspection_result"]
+        }
+        Update: {
+          checks?: Json
+          comment?: string | null
+          created_at?: string
+          id?: string
+          inspector_id?: string
+          job_id?: string
+          photo_url?: string | null
+          result?: Database["public"]["Enums"]["inspection_result"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_job_inspections_inspector_id_fkey"
+            columns: ["inspector_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_job_inspections_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "print_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      print_jobs: {
+        Row: {
+          actual_filament_id: number | null
+          actual_print_min: number | null
+          actual_weight_g: number | null
+          created_at: string
+          creator_id: string
+          due_at: string | null
+          est_print_min: number | null
+          est_weight_g: number | null
+          id: string
+          inspected_at: string | null
+          note: string | null
+          nui_size_id: number | null
+          operator_id: string | null
+          order_id: string
+          order_item_id: string
+          part_count: number
+          printed_at: string | null
+          product_id: string
+          started_at: string | null
+          status: Database["public"]["Enums"]["print_job_status"]
+          updated_at: string
+        }
+        Insert: {
+          actual_filament_id?: number | null
+          actual_print_min?: number | null
+          actual_weight_g?: number | null
+          created_at?: string
+          creator_id: string
+          due_at?: string | null
+          est_print_min?: number | null
+          est_weight_g?: number | null
+          id?: string
+          inspected_at?: string | null
+          note?: string | null
+          nui_size_id?: number | null
+          operator_id?: string | null
+          order_id: string
+          order_item_id: string
+          part_count?: number
+          printed_at?: string | null
+          product_id: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["print_job_status"]
+          updated_at?: string
+        }
+        Update: {
+          actual_filament_id?: number | null
+          actual_print_min?: number | null
+          actual_weight_g?: number | null
+          created_at?: string
+          creator_id?: string
+          due_at?: string | null
+          est_print_min?: number | null
+          est_weight_g?: number | null
+          id?: string
+          inspected_at?: string | null
+          note?: string | null
+          nui_size_id?: number | null
+          operator_id?: string | null
+          order_id?: string
+          order_item_id?: string
+          part_count?: number
+          printed_at?: string | null
+          product_id?: string
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["print_job_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "print_jobs_actual_filament_id_fkey"
+            columns: ["actual_filament_id"]
+            isOneToOne: false
+            referencedRelation: "filaments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_nui_size_id_fkey"
+            columns: ["nui_size_id"]
+            isOneToOne: false
+            referencedRelation: "nui_sizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_operator_id_fkey"
+            columns: ["operator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "admin_production_sheets"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: true
+            referencedRelation: "admin_production_sheets"
+            referencedColumns: ["order_item_id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: true
+            referencedRelation: "creator_order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: true
+            referencedRelation: "order_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_asset_validations: {
+        Row: {
+          asset_id: string
+          bbox_d_mm: number | null
+          bbox_h_mm: number | null
+          bbox_w_mm: number | null
+          checks: Json
+          created_at: string
+          passed: boolean
+          product_id: string
+          shell_count: number | null
+          triangle_count: number | null
+        }
+        Insert: {
+          asset_id: string
+          bbox_d_mm?: number | null
+          bbox_h_mm?: number | null
+          bbox_w_mm?: number | null
+          checks?: Json
+          created_at?: string
+          passed: boolean
+          product_id: string
+          shell_count?: number | null
+          triangle_count?: number | null
+        }
+        Update: {
+          asset_id?: string
+          bbox_d_mm?: number | null
+          bbox_h_mm?: number | null
+          bbox_w_mm?: number | null
+          checks?: Json
+          created_at?: string
+          passed?: boolean
+          product_id?: string
+          shell_count?: number | null
+          triangle_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_asset_validations_asset_id_fkey"
+            columns: ["asset_id"]
+            isOneToOne: true
+            referencedRelation: "product_assets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_asset_validations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       product_assets: {
         Row: {
           checksum_sha256: string | null
+          color_slot: number | null
           created_at: string
+          filament_id: number | null
           file_ext: string
           file_size: number
           id: string
+          layer_direction: string | null
           original_name: string
           part_label: string | null
+          print_note: string | null
           product_id: string
           quantity_per_item: number
           sort_order: number
           storage_path: string
+          support_type: string | null
         }
         Insert: {
           checksum_sha256?: string | null
+          color_slot?: number | null
           created_at?: string
+          filament_id?: number | null
           file_ext: string
           file_size: number
           id?: string
+          layer_direction?: string | null
           original_name: string
           part_label?: string | null
+          print_note?: string | null
           product_id: string
           quantity_per_item?: number
           sort_order?: number
           storage_path: string
+          support_type?: string | null
         }
         Update: {
           checksum_sha256?: string | null
+          color_slot?: number | null
           created_at?: string
+          filament_id?: number | null
           file_ext?: string
           file_size?: number
           id?: string
+          layer_direction?: string | null
           original_name?: string
           part_label?: string | null
+          print_note?: string | null
           product_id?: string
           quantity_per_item?: number
           sort_order?: number
           storage_path?: string
+          support_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "product_assets_filament_id_fkey"
+            columns: ["filament_id"]
+            isOneToOne: false
+            referencedRelation: "filaments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "product_assets_product_id_fkey"
             columns: ["product_id"]
@@ -1177,6 +1572,70 @@ export type Database = {
           },
           {
             foreignKeyName: "product_filaments_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_fix_requests: {
+        Row: {
+          created_at: string
+          creator_id: string
+          id: string
+          inspector_comment: string | null
+          job_id: string | null
+          photo_url: string | null
+          product_id: string
+          reason: string
+          reprint_fee: number
+          resolved_at: string | null
+          status: Database["public"]["Enums"]["fix_request_status"]
+        }
+        Insert: {
+          created_at?: string
+          creator_id: string
+          id?: string
+          inspector_comment?: string | null
+          job_id?: string | null
+          photo_url?: string | null
+          product_id: string
+          reason: string
+          reprint_fee?: number
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["fix_request_status"]
+        }
+        Update: {
+          created_at?: string
+          creator_id?: string
+          id?: string
+          inspector_comment?: string | null
+          job_id?: string | null
+          photo_url?: string | null
+          product_id?: string
+          reason?: string
+          reprint_fee?: number
+          resolved_at?: string | null
+          status?: Database["public"]["Enums"]["fix_request_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_fix_requests_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_fix_requests_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "print_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_fix_requests_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
@@ -1242,6 +1701,63 @@ export type Database = {
           },
           {
             foreignKeyName: "product_nui_sizes_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      product_size_variants: {
+        Row: {
+          agency_fee: number
+          created_at: string
+          est_print_min: number | null
+          est_weight_g: number | null
+          is_active: boolean
+          nui_size_id: number
+          price: number
+          product_id: string
+          stock: number
+          unavailable_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          agency_fee?: number
+          created_at?: string
+          est_print_min?: number | null
+          est_weight_g?: number | null
+          is_active?: boolean
+          nui_size_id: number
+          price: number
+          product_id: string
+          stock?: number
+          unavailable_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agency_fee?: number
+          created_at?: string
+          est_print_min?: number | null
+          est_weight_g?: number | null
+          is_active?: boolean
+          nui_size_id?: number
+          price?: number
+          product_id?: string
+          stock?: number
+          unavailable_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_size_variants_nui_size_id_fkey"
+            columns: ["nui_size_id"]
+            isOneToOne: false
+            referencedRelation: "nui_sizes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_size_variants_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
@@ -1458,6 +1974,9 @@ export type Database = {
           order_item_id: string
           product_id: string
           rating: number
+          rating_accuracy: number | null
+          rating_design: number | null
+          rating_size: number | null
           title: string | null
           updated_at: string
           user_id: string
@@ -1473,6 +1992,9 @@ export type Database = {
           order_item_id: string
           product_id: string
           rating: number
+          rating_accuracy?: number | null
+          rating_design?: number | null
+          rating_size?: number | null
           title?: string | null
           updated_at?: string
           user_id: string
@@ -1488,6 +2010,9 @@ export type Database = {
           order_item_id?: string
           product_id?: string
           rating?: number
+          rating_accuracy?: number | null
+          rating_design?: number | null
+          rating_size?: number | null
           title?: string | null
           updated_at?: string
           user_id?: string
@@ -1523,6 +2048,64 @@ export type Database = {
           },
           {
             foreignKeyName: "reviews_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          order_id: string
+          rating_delivery: number
+          rating_packing: number
+          rating_print: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          order_id: string
+          rating_delivery: number
+          rating_packing: number
+          rating_print: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          order_id?: string
+          rating_delivery?: number
+          rating_packing?: number
+          rating_print?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "admin_production_sheets"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "service_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_reviews_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1842,6 +2425,16 @@ export type Database = {
           status: string
         }[]
       }
+      create_order_from_custom_order: {
+        Args: {
+          p_address_id: string
+          p_custom_order_id: string
+          p_shipping_fee: number
+        }
+        Returns: {
+          order_id: string
+        }[]
+      }
       create_pending_order: {
         Args: {
           p_address_id: string
@@ -1867,6 +2460,10 @@ export type Database = {
       }
       owns_order: { Args: { oid: string }; Returns: boolean }
       owns_product: { Args: { pid: string }; Returns: boolean }
+      resolve_unit_price: {
+        Args: { p_nui_size_id: number; p_product_id: string }
+        Returns: number
+      }
       search_products: {
         Args: {
           p_category_id?: number
@@ -1889,11 +2486,13 @@ export type Database = {
           favorite_count: number
           id: string
           image_url: string
+          max_price: number
           review_avg: number
           review_count: number
           slug: string
           title: string
           total_count: number
+          variant_count: number
         }[]
       }
       show_limit: { Args: never; Returns: number }
@@ -1920,7 +2519,16 @@ export type Database = {
     }
     Enums: {
       creator_status: "pending" | "approved" | "suspended"
+      custom_order_status:
+        | "requested"
+        | "quoted"
+        | "approved"
+        | "rejected"
+        | "paid"
+        | "cancelled"
       filament_finish: "matte" | "glossy" | "silk" | "glitter" | "transparent"
+      fix_request_status: "open" | "resolved" | "dismissed"
+      inspection_result: "pass" | "fail_model" | "fail_print"
       item_status: "pending" | "printing" | "printed" | "shipped" | "cancelled"
       order_status:
         | "pending_payment"
@@ -1931,6 +2539,7 @@ export type Database = {
         | "cancelled"
         | "refunded"
       payout_status: "unpaid" | "scheduled" | "paid" | "failed"
+      print_job_status: "queued" | "printing" | "inspection" | "done" | "failed"
       product_status:
         | "draft"
         | "in_review"
@@ -2070,7 +2679,17 @@ export const Constants = {
   public: {
     Enums: {
       creator_status: ["pending", "approved", "suspended"],
+      custom_order_status: [
+        "requested",
+        "quoted",
+        "approved",
+        "rejected",
+        "paid",
+        "cancelled",
+      ],
       filament_finish: ["matte", "glossy", "silk", "glitter", "transparent"],
+      fix_request_status: ["open", "resolved", "dismissed"],
+      inspection_result: ["pass", "fail_model", "fail_print"],
       item_status: ["pending", "printing", "printed", "shipped", "cancelled"],
       order_status: [
         "pending_payment",
@@ -2082,6 +2701,7 @@ export const Constants = {
         "refunded",
       ],
       payout_status: ["unpaid", "scheduled", "paid", "failed"],
+      print_job_status: ["queued", "printing", "inspection", "done", "failed"],
       product_status: [
         "draft",
         "in_review",

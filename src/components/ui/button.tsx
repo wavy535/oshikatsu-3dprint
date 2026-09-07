@@ -49,6 +49,9 @@ function Button({
   return (
     <ButtonPrimitive
       data-slot="button"
+      // render で <Link> 等に差し替えたときは <button> ではなくなるため、
+      // Base UI に native button でないことを伝える（伝えないと警告が出る）
+      nativeButton={props.render ? false : undefined}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     />

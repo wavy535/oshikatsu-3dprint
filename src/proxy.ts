@@ -40,8 +40,13 @@ export async function proxy(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  // 「/creator」の前方一致だと公開ページの「/creators/[handle]」まで
+  // ログイン必須になってしまうので、セグメント境界まで見て判定する
   const isAccountRoute =
-    pathname.startsWith("/mypage") || pathname.startsWith("/creator");
+    pathname === "/mypage" ||
+    pathname.startsWith("/mypage/") ||
+    pathname === "/creator" ||
+    pathname.startsWith("/creator/");
   const isCreatorRoute = pathname.startsWith("/studio");
   const isAdminRoute = pathname.startsWith("/admin");
 

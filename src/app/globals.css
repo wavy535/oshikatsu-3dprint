@@ -7,6 +7,25 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  /* OshiNest ブランドトークン（Figma「推し活2」/ Design System） */
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-ground: var(--ground);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-star: var(--star);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-line: var(--ok-line);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-console: var(--console);
+  --color-console-2: var(--console-2);
+  --color-console-line: var(--console-line);
+  --color-console-ink: var(--console-ink);
+  --color-console-muted: var(--console-muted);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
@@ -49,72 +68,98 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  /* ── OshiNest の素のトークン（Figma と同じ値をそのまま持つ） ── */
+  --brand: #0096fa;
+  --brand-soft: #e6f4ff;
+  --ground: #f5f7fb;
+  --ink: #1f2328;
+  --line: #e4e7ed;
+  --star: #ffb020;
+  --ok: #2fa36b;
+  --ok-bg: #e7f6ee;
+  --ok-line: #b7e4cc;
+  --warn: #d97706;
+  --warn-bg: #fff4e5;
+  --danger: #e5484d;
+  --danger-bg: #fdecec;
+  /* 運営コンソールの暗色面 */
+  --console: #111827;
+  --console-2: #1f2937;
+  --console-line: #2c3542;
+  --console-ink: #e8ecf2;
+  --console-muted: #9aa4b4;
+
+  /* Figma と同じ Inter + Noto Sans JP。変数の実体は layout.tsx の next/font */
+  --font-sans:
+    var(--font-inter), var(--font-noto-sans-jp), system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+
+  /* ── shadcn のセマンティックトークンへの割り当て ── */
+  --background: var(--ground);
+  --foreground: var(--ink);
+  --card: #ffffff;
+  --card-foreground: var(--ink);
+  --popover: #ffffff;
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: #ffffff;
+  --secondary-foreground: var(--ink);
+  --muted: var(--ground);
+  --muted-foreground: #6b7280;
+  --accent: var(--brand-soft);
+  --accent-foreground: #0074c2;
+  --destructive: var(--danger);
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand);
+  --chart-1: var(--brand);
+  --chart-2: var(--ok);
+  --chart-3: var(--star);
+  --chart-4: #7c6cf5;
+  --chart-5: #ef6ea8;
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar: #ffffff;
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: var(--brand-soft);
+  --sidebar-accent-foreground: #0074c2;
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--brand);
 }
 
+/*
+ * 暗色面は「運営コンソール」だけが使う。サイト全体のダークテーマ切替は無いので、
+ * .dark は運営コンソール（Figma ④ 運営オペレーション）のパレットに合わせてある。
+ */
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: var(--console);
+  --foreground: var(--console-ink);
+  --card: var(--console-2);
+  --card-foreground: var(--console-ink);
+  --popover: var(--console-2);
+  --popover-foreground: var(--console-ink);
+  --primary: var(--brand);
+  --primary-foreground: #ffffff;
+  --secondary: #26303d;
+  --secondary-foreground: var(--console-ink);
+  --muted: #1a222e;
+  --muted-foreground: var(--console-muted);
+  --accent: #16324b;
+  --accent-foreground: #7cc6ff;
+  --destructive: #ff6b6f;
+  --border: var(--console-line);
+  --input: var(--console-line);
+  --ring: var(--brand);
+  --sidebar: var(--console-2);
+  --sidebar-foreground: var(--console-ink);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #16324b;
+  --sidebar-accent-foreground: #7cc6ff;
+  --sidebar-border: var(--console-line);
+  --sidebar-ring: var(--brand);
 }
 
 @layer base {
@@ -126,5 +171,9 @@
   }
   html {
     @apply font-sans;
+  }
+  /* 価格・件数は Figma 同様に等幅寄りの数字で揃える */
+  .num {
+    font-variant-numeric: tabular-nums;
   }
 }
