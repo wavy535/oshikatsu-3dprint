@@ -11,6 +11,7 @@ import {
   Printer,
   Truck,
   UserCheck,
+  Wallet,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -44,6 +45,7 @@ const MASTER_ITEMS: Item[] = [
   { label: "プリンタ管理", icon: Printer },
   { label: "クリエイター審査", href: "/admin/creator-applications", inTabs: true, icon: UserCheck },
   { label: "売上・手数料", href: "/admin/sales", icon: BarChart3 },
+  { label: "払込管理", href: "/admin/payouts", icon: Wallet },
 ];
 
 /** href を持たない項目は、まだ画面が無いもの。押せるように見せない。 */

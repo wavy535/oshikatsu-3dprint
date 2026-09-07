@@ -15,6 +15,7 @@ export default async function CreatorLayout({ children }: { children: React.Reac
         { href: "/studio/works", label: "作品管理" },
         { href: "/studio/custom-orders", label: "オーダーメイド相談" },
         { href: "/studio/revisions", label: "修正依頼" },
+        { href: "/studio/payouts", label: "売上の受け取り" },
       ],
     },
     {

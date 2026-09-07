@@ -711,3 +711,25 @@ export async function getSales(month: string | "all") {
     feeRate: Number(rule?.platform_fee_rate ?? 0),
   };
 }
+
+// =============================================================================
+// 払込管理
+// =============================================================================
+
+/** 振込申請の一覧（口座つき）と、クリエイターごとの残高。 */
+export async function listPayoutRequests() {
+  const { supabase } = await requireAdmin();
+  const [{ data: requests }, { data: accounts }, { data: balances }] = await Promise.all([
+    supabase
+      .from("payout_requests")
+      .select("id, creator_id, amount, status, requested_at, processed_at, profiles(display_name)")
+      .order("requested_at", { ascending: false }),
+    supabase.from("payout_accounts").select("creator_id, bank_name, branch_name, account_type, account_number, account_holder_name"),
+    supabase.from("creator_payout_balances").select("creator_id, available_amount"),
+  ]);
+  const accountById = new Map((accounts ?? []).map((a) => [a.creator_id, a]));
+  return {
+    requests: (requests ?? []).map((r) => ({ ...r, account: accountById.get(r.creator_id) ?? null })),
+    balances: balances ?? [],
+  };
+}

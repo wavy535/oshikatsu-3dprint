@@ -76,6 +76,13 @@ export type Database = {
             foreignKeyName: "addresses_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "addresses_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -161,6 +168,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "carts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "carts_user_id_fkey"
             columns: ["user_id"]
@@ -260,6 +274,13 @@ export type Database = {
             foreignKeyName: "coordinate_posts_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "coordinate_posts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -301,8 +322,22 @@ export type Database = {
             foreignKeyName: "creator_applications_reviewed_by_fkey"
             columns: ["reviewed_by"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "creator_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_applications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "creator_applications_user_id_fkey"
@@ -334,8 +369,22 @@ export type Database = {
             foreignKeyName: "creator_follows_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "creator_follows_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "creator_follows_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "creator_follows_follower_id_fkey"
@@ -471,8 +520,22 @@ export type Database = {
             foreignKeyName: "custom_order_quotes_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "custom_order_quotes_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_order_quotes_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "custom_order_quotes_creator_id_fkey"
@@ -551,6 +614,13 @@ export type Database = {
             foreignKeyName: "custom_order_requests_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "custom_order_requests_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -581,6 +651,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "works"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_order_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "custom_order_requests_requester_id_fkey"
@@ -620,6 +697,13 @@ export type Database = {
           reason?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "filament_ledger_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "filament_ledger_actor_id_fkey"
             columns: ["actor_id"]
@@ -730,8 +814,22 @@ export type Database = {
             foreignKeyName: "messages_recipient_id_fkey"
             columns: ["recipient_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "messages_sender_id_fkey"
@@ -772,6 +870,13 @@ export type Database = {
             foreignKeyName: "notification_preferences_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -800,6 +905,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notification_settings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "notification_settings_user_id_fkey"
             columns: ["user_id"]
@@ -853,6 +965,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "notifications_user_id_fkey"
             columns: ["user_id"]
@@ -955,6 +1074,13 @@ export type Database = {
             foreignKeyName: "nui_profiles_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "nui_profiles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1027,6 +1153,13 @@ export type Database = {
             foreignKeyName: "nui_scans_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "nui_scans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1094,6 +1227,13 @@ export type Database = {
           work_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "order_items_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "order_items_creator_id_fkey"
             columns: ["creator_id"]
@@ -1203,6 +1343,13 @@ export type Database = {
             foreignKeyName: "order_status_history_changed_by_fkey"
             columns: ["changed_by"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "order_status_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1285,6 +1432,13 @@ export type Database = {
             foreignKeyName: "orders_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1333,6 +1487,13 @@ export type Database = {
             foreignKeyName: "payout_accounts_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: true
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "payout_accounts_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1368,6 +1529,13 @@ export type Database = {
             foreignKeyName: "payout_requests_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "payout_requests_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1399,6 +1567,13 @@ export type Database = {
           status?: Database["public"]["Enums"]["print_job_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "print_job_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "print_job_events_actor_id_fkey"
             columns: ["actor_id"]
@@ -1503,6 +1678,13 @@ export type Database = {
             foreignKeyName: "print_jobs_assignee_id_fkey"
             columns: ["assignee_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "print_jobs_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1519,6 +1701,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "creator_item_settlements"
+            referencedColumns: ["item_id"]
           },
           {
             foreignKeyName: "print_jobs_order_item_id_fkey"
@@ -1792,6 +1981,13 @@ export type Database = {
             foreignKeyName: "qc_inspections_inspector_id_fkey"
             columns: ["inspector_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "qc_inspections_inspector_id_fkey"
+            columns: ["inspector_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1840,6 +2036,13 @@ export type Database = {
           work_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "qna_threads_asker_id_fkey"
+            columns: ["asker_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "qna_threads_asker_id_fkey"
             columns: ["asker_id"]
@@ -1937,6 +2140,13 @@ export type Database = {
             foreignKeyName: "reviews_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "reviews_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1944,8 +2154,22 @@ export type Database = {
             foreignKeyName: "reviews_order_item_id_fkey"
             columns: ["order_item_id"]
             isOneToOne: true
+            referencedRelation: "creator_item_settlements"
+            referencedColumns: ["item_id"]
+          },
+          {
+            foreignKeyName: "reviews_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: true
             referencedRelation: "order_items"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "reviews_reviewer_id_fkey"
@@ -2059,8 +2283,22 @@ export type Database = {
             foreignKeyName: "revision_requests_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "revision_requests_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_requests_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "revision_requests_creator_id_fkey"
@@ -2220,6 +2458,13 @@ export type Database = {
             foreignKeyName: "shipments_packer_id_fkey"
             columns: ["packer_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "shipments_packer_id_fkey"
+            columns: ["packer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2335,6 +2580,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tags"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_nui_sizes_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "user_nui_sizes_user_id_fkey"
@@ -2657,6 +2909,13 @@ export type Database = {
           work_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "work_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "work_favorites_user_id_fkey"
             columns: ["user_id"]
@@ -3150,6 +3409,13 @@ export type Database = {
             foreignKeyName: "works_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "works_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -3157,6 +3423,126 @@ export type Database = {
       }
     }
     Views: {
+      creator_item_settlements: {
+        Row: {
+          creator_id: string | null
+          fee_amount: number | null
+          goods_amount: number | null
+          is_final: boolean | null
+          item_id: string | null
+          order_id: string | null
+          ordered_at: string | null
+          payout_amount: number | null
+          payout_estimate: number | null
+          quantity: number | null
+          shipped_at: string | null
+          size_label_snapshot: string | null
+          status: Database["public"]["Enums"]["order_status"] | null
+          thumbnail_path: string | null
+          variant_id: string | null
+          work_id: string | null
+          work_title: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_items_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "order_items_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "order_settlements"
+            referencedColumns: ["order_id"]
+          },
+          {
+            foreignKeyName: "order_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variants_missing_fit_dims"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "work_variant_pricing"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "work_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "my_favorites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
+          },
+          {
+            foreignKeyName: "order_items_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "work_list_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "works"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      creator_payout_balances: {
+        Row: {
+          available_amount: number | null
+          creator_id: string | null
+          paid_amount: number | null
+          pending_payout: number | null
+          reprint_charges: number | null
+          requested_amount: number | null
+          settled_payout: number | null
+          sold_items: number | null
+        }
+        Relationships: []
+      }
       creator_rating_summary: {
         Row: {
           avg_accuracy: number | null
@@ -3169,6 +3555,13 @@ export type Database = {
           review_count: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reviews_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "reviews_creator_id_fkey"
             columns: ["creator_id"]
@@ -3204,8 +3597,22 @@ export type Database = {
             foreignKeyName: "work_favorites_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "work_favorites_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "works_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "works_creator_id_fkey"
@@ -3248,6 +3655,13 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"] | null
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "orders_buyer_id_fkey"
             columns: ["buyer_id"]
@@ -3298,8 +3712,22 @@ export type Database = {
             foreignKeyName: "orders_buyer_id_fkey"
             columns: ["buyer_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
           },
           {
             foreignKeyName: "print_jobs_assignee_id_fkey"
@@ -3373,6 +3801,13 @@ export type Database = {
             foreignKeyName: "works_creator_id_fkey"
             columns: ["creator_id"]
             isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
+          {
+            foreignKeyName: "works_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -3398,6 +3833,13 @@ export type Database = {
           title: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "works_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "creator_payout_balances"
+            referencedColumns: ["creator_id"]
+          },
           {
             foreignKeyName: "works_creator_id_fkey"
             columns: ["creator_id"]
@@ -3532,6 +3974,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["fit_verdict"]
       }
       order_actual_print_cost: { Args: { p_order_id: string }; Returns: number }
+      order_has_creator_items: {
+        Args: { p_creator_id: string; p_order_id: string }
+        Returns: boolean
+      }
       place_order: {
         Args: { p_address_id: string; p_note?: string }
         Returns: string
