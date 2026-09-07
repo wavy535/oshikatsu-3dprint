@@ -1857,6 +1857,7 @@ export type Database = {
           display_name: string
           id: string
           role: Database["public"]["Enums"]["user_role"]
+          role_before_admin: Database["public"]["Enums"]["user_role"] | null
           sns_links: Json
           updated_at: string
         }
@@ -1867,6 +1868,7 @@ export type Database = {
           display_name: string
           id: string
           role?: Database["public"]["Enums"]["user_role"]
+          role_before_admin?: Database["public"]["Enums"]["user_role"] | null
           sns_links?: Json
           updated_at?: string
         }
@@ -1877,6 +1879,7 @@ export type Database = {
           display_name?: string
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
+          role_before_admin?: Database["public"]["Enums"]["user_role"] | null
           sns_links?: Json
           updated_at?: string
         }
@@ -3952,12 +3955,37 @@ export type Database = {
         Returns: number
       }
       expire_custom_quotes: { Args: never; Returns: number }
+      grant_admin: { Args: { p_email: string }; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       judge_axis: {
         Args: { p_loose_mm?: number; p_nui_mm: number; p_slot_mm: number }
         Returns: Database["public"]["Enums"]["fit_verdict"]
       }
+      list_admin_members: {
+        Args: never
+        Returns: {
+          created_at: string
+          display_name: string
+          email: string
+          id: string
+        }[]
+      }
       mark_all_notifications_read: { Args: never; Returns: number }
+      notification_email_targets: {
+        Args: { p_limit?: number }
+        Returns: {
+          body: string
+          created_at: string
+          digest: Database["public"]["Enums"]["notification_digest"]
+          digest_hour: number
+          email: string
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          link_path: string
+          title: string
+          user_id: string
+        }[]
+      }
       nui_fit_axes: {
         Args: { p_nui_id: string; p_variant_id: string }
         Returns: {
@@ -4037,6 +4065,7 @@ export type Database = {
         Args: { q: Database["public"]["Tables"]["custom_order_quotes"]["Row"] }
         Returns: number
       }
+      revoke_admin: { Args: { p_user_id: string }; Returns: undefined }
       unread_notification_count: { Args: never; Returns: number }
       variant_reserved_for: {
         Args: { p_user_id: string; p_variant_id: string }

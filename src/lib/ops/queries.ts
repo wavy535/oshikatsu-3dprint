@@ -733,3 +733,14 @@ export async function listPayoutRequests() {
     balances: balances ?? [],
   };
 }
+
+// =============================================================================
+// 運営メンバー
+// =============================================================================
+
+/** 運営メンバーの一覧。メールは auth.users 側なので関数（0022）経由で引く。 */
+export async function listAdminMembers() {
+  const { supabase } = await requireAdmin();
+  const { data } = await supabase.rpc("list_admin_members");
+  return data ?? [];
+}
