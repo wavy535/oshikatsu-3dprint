@@ -82,7 +82,8 @@ export async function SiteHeader({ query }: { query?: string }) {
           <nav className="ml-auto flex items-center gap-1">
             {shell.isCreator ? (
               <Button asChild size="sm" className="mr-1 hidden sm:inline-flex">
-                <Link href="/studio/works/new">
+                {/* 下書きの作成は作品管理の Server Action で行うので、そこへ送る */}
+                <Link href="/studio/works">
                   <Plus className="size-4" aria-hidden />
                   作品を投稿する
                 </Link>
