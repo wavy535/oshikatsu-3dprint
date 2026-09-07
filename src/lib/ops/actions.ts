@@ -540,3 +540,63 @@ export async function processPayoutAction(
   revalidatePath("/studio/payouts");
   return OK;
 }
+
+// =============================================================================
+// 実績の修正
+//   完了後に実績（実使用グラム・時間・失敗回数）を直したいときに使う。
+//   何をいくらからいくらに直したかは print_job_events の note に残す
+//   （フィラメント台帳は触らない。差分は台帳の「棚卸し調整」で合わせる運用）。
+// =============================================================================
+
+const editActualsSchema = z.object({
+  jobId: idSchema,
+  actualGrams: z.coerce.number().min(0).max(20000),
+  actualHours: z.coerce.number().min(0).max(999),
+  failureCount: z.coerce.number().int().min(0).max(99),
+  reason: z.string().trim().min(1, "修正の理由を書いてください").max(200),
+});
+
+export async function editActualsAction(
+  _prev: OpsActionState,
+  formData: FormData
+): Promise<OpsActionState> {
+  const parsed = editActualsSchema.safeParse({
+    jobId: formData.get("jobId"),
+    actualGrams: formData.get("actualGrams"),
+    actualHours: formData.get("actualHours"),
+    failureCount: formData.get("failureCount") ?? 0,
+    reason: formData.get("reason"),
+  });
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+  const v = parsed.data;
+
+  const { supabase, user } = await requireAdmin();
+  const { data: before } = await supabase
+    .from("print_jobs")
+    .select("status, actual_filament_grams, actual_print_hours, failure_count")
+    .eq("id", v.jobId)
+    .maybeSingle();
+  if (!before) return { error: "ジョブが見つかりません" };
+  if (!["printed", "qc_passed", "qc_failed"].includes(before.status)) {
+    return { error: "実績を直せるのは印刷が終わったジョブだけです" };
+  }
+
+  const result = await updateJob(v.jobId, {
+    actual_filament_grams: v.actualGrams,
+    actual_print_hours: v.actualHours,
+    failure_count: v.failureCount,
+  });
+  if (result.error) return result;
+
+  const note =
+    `実績を修正（${v.reason}）: ` +
+    `${before.actual_filament_grams ?? "—"}g→${v.actualGrams}g, ` +
+    `${before.actual_print_hours ?? "—"}h→${v.actualHours}h, ` +
+    `失敗 ${before.failure_count}→${v.failureCount}`;
+  await supabase
+    .from("print_job_events")
+    .insert({ print_job_id: v.jobId, status: before.status, actor_id: user.id, note })
+    .select("id");
+
+  return { error: null, message: "実績を直しました。履歴に残ります" };
+}

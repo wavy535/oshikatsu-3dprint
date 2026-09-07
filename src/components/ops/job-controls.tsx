@@ -5,6 +5,7 @@ import { Check, Pause, Play, RotateCcw } from "lucide-react";
 
 import {
   advanceBatchAction,
+  editActualsAction,
   finishPrintJobAction,
   pausePrintJobAction,
   startPrintJobAction,
@@ -212,6 +213,37 @@ export function JobFinishForm({
       <Button type="submit" disabled={pending} className="w-full">
         <Check className="size-3.5" aria-hidden />
         実績を保存して検品待ちへ
+      </Button>
+      <Notice state={state} />
+    </form>
+  );
+}
+
+/** 完了後に実績を直す。理由は必須で、履歴に残る。 */
+export function JobEditActualsForm({
+  jobId,
+  actualGrams,
+  actualHours,
+  failureCount,
+}: {
+  jobId: string;
+  actualGrams: number | null;
+  actualHours: number | null;
+  failureCount: number;
+}) {
+  const [state, action, pending] = useActionState(editActualsAction, initial);
+  return (
+    <form action={action} className="flex flex-col gap-2 border-t border-line pt-2.5">
+      <input type="hidden" name="jobId" value={jobId} />
+      <p className="text-[10.5px] font-semibold text-muted-foreground">実績を修正する</p>
+      <div className="grid grid-cols-3 gap-2">
+        <input name="actualGrams" type="number" step="0.1" min="0" required defaultValue={actualGrams ?? ""} aria-label="実使用フィラメント（g）" className={FIELD} />
+        <input name="actualHours" type="number" step="0.1" min="0" required defaultValue={actualHours ?? ""} aria-label="実印刷時間（h）" className={FIELD} />
+        <input name="failureCount" type="number" min="0" defaultValue={failureCount} aria-label="失敗回数" className={FIELD} />
+      </div>
+      <input name="reason" required maxLength={200} placeholder="修正の理由（必須・履歴に残ります）" className={FIELD} />
+      <Button type="submit" size="sm" variant="outline" disabled={pending}>
+        修正を保存
       </Button>
       <Notice state={state} />
     </form>

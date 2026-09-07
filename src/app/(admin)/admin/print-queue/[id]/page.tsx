@@ -11,7 +11,7 @@ import {
   yen,
 } from "@/lib/ops/labels";
 import { workImageUrl } from "@/lib/storage";
-import { JobControls, JobFinishForm } from "@/components/ops/job-controls";
+import { JobControls, JobEditActualsForm, JobFinishForm } from "@/components/ops/job-controls";
 import { JobStatusBadge } from "@/components/ops/status-badge";
 
 export const metadata = { title: "印刷ジョブ" };
@@ -291,11 +291,16 @@ export default async function PrintJobPage({ params }: { params: Promise<{ id: s
                   }
                 />
                 <Row label="失敗" value={<span className="num">{job.failure_count} 回</span>} />
-                <p className="pt-1 text-[10.5px] text-muted-foreground">
-                  {job.status === "queued"
-                    ? "印刷を開始すると実績を入力できます。"
-                    : "実績は印刷中のジョブだけ記録できます。"}
-                </p>
+                {job.status === "queued" ? (
+                  <p className="pt-1 text-[10.5px] text-muted-foreground">印刷を開始すると実績を入力できます。</p>
+                ) : (
+                  <JobEditActualsForm
+                    jobId={job.id!}
+                    actualGrams={job.actual_filament_grams}
+                    actualHours={job.actual_print_hours}
+                    failureCount={job.failure_count ?? 0}
+                  />
+                )}
               </div>
             )}
           </Card>
