@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { idSchema } from "@/lib/validation";
+
 import { requireAdmin } from "@/lib/auth/guards";
 import type {
   PrintJobStatus,
@@ -112,7 +114,7 @@ const finishSchema = z.object({
   actualGrams: z.coerce.number().min(0, "0以上で入力してください").max(20000),
   actualHours: z.coerce.number().min(0, "0以上で入力してください").max(999),
   failureCount: z.coerce.number().int().min(0).max(99),
-  filamentId: z.string().uuid().optional().or(z.literal("")),
+  filamentId: idSchema.optional().or(z.literal("")),
 });
 
 /**
@@ -202,7 +204,7 @@ export async function startReprintAction(
 }
 
 const qcSchema = z.object({
-  jobId: z.string().uuid(),
+  jobId: idSchema,
   memo: z.string().max(2000).optional(),
   reprintCause: z.enum(["model", "print", "material", "handling"]).optional(),
 });
@@ -308,7 +310,7 @@ export async function submitQcAction(
 }
 
 const shipmentSchema = z.object({
-  orderId: z.string().uuid(),
+  orderId: idSchema,
   carrier: z.enum(["yamato", "sagawa", "japanpost", "other"]),
   serviceName: z.string().max(60).optional(),
   trackingNumber: z.string().min(4, "追跡番号を入れてください").max(60),
@@ -388,7 +390,7 @@ export async function createShipmentAction(
 // =============================================================================
 
 const restockSchema = z.object({
-  filamentId: z.string().uuid(),
+  filamentId: idSchema,
   grams: z.coerce.number().positive("1g以上で入力してください").max(100000),
   reason: z.enum(["restock", "waste", "adjust"]),
 });

@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { idSchema } from "@/lib/validation";
+
 import { requireUser } from "@/lib/auth/guards";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { getStripe, siteUrl } from "@/lib/payments/stripe";
@@ -11,7 +13,7 @@ import { getStripe, siteUrl } from "@/lib/payments/stripe";
 export type CheckoutActionState = { error: string | null };
 
 const schema = z.object({
-  addressId: z.string().uuid("お届け先を選んでください"),
+  addressId: idSchema,
   note: z.string().max(500).optional(),
 });
 

@@ -207,6 +207,26 @@ export default async function WorkDetailPage({
           </span>
         </Link>
 
+        {/* 相談の入口（③やりとり）。カスタマイズを1つも受けていない作品は相談ボタンを出さない */}
+        <div className="flex gap-2">
+          {(work.accepts_color_change || work.accepts_mirror || work.accepts_stand_hole ||
+            work.accepts_custom_size || work.accepts_other_request) && (
+            <Link
+              href={`/mypage/custom-orders/new?creator=${work.creator_id}&work=${work.id}`}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand bg-white px-3 py-2.5 text-[12px] font-semibold text-brand hover:bg-brand-soft"
+            >
+              <MessageSquare className="size-3.5" aria-hidden />
+              オーダーメイド相談
+            </Link>
+          )}
+          <Link
+            href={`/mypage/messages?with=${work.creator_id}`}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2.5 text-[12px] font-semibold text-ink hover:bg-ground"
+          >
+            メッセージを送る
+          </Link>
+        </div>
+
         {/* レビュー行 */}
         <Link
           href={`/works/${work.id}/reviews`}

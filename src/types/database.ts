@@ -3930,6 +3930,7 @@ export type Database = {
         Args: { variant: Database["public"]["Tables"]["work_variants"]["Row"] }
         Returns: number
       }
+      decline_custom_quote: { Args: { p_quote_id: string }; Returns: boolean }
       estimate_filament_grams: {
         Args: {
           density?: number
@@ -4027,6 +4028,14 @@ export type Database = {
         Returns: number
       }
       unread_notification_count: { Args: never; Returns: number }
+      variant_reserved_for: {
+        Args: { p_user_id: string; p_variant_id: string }
+        Returns: boolean
+      }
+      work_reserved_for: {
+        Args: { p_user_id: string; p_work_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       creator_application_status: "pending" | "approved" | "rejected"

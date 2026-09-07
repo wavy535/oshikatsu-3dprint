@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
+import { idSchema } from "@/lib/validation";
+
 import { requireCreator } from "@/lib/auth/guards";
 import type { RevisionResolution } from "@/types/db";
 
@@ -59,7 +61,7 @@ export async function startRevisionAction(
 }
 
 const resolveSchema = z.object({
-  id: z.string().uuid(),
+  id: idSchema,
   note: z.string().max(1000).optional(),
   relist: z.boolean(),
 });

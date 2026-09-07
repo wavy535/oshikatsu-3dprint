@@ -49,6 +49,17 @@ export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }
     : { data: [] };
   const buyerTotalById = new Map((pricing ?? []).map((p) => [p.id, p.buyer_total_jpy] as const));
 
+  // オーダーメイドで承認した見積りのサイズは is_listed = false だが、本人だけは買える
+  const { data: reserved } = variantIds.length
+    ? await supabase
+        .from("custom_order_quotes")
+        .select("variant_id")
+        .eq("buyer_id", user.id)
+        .in("status", ["accepted", "ordered"])
+        .in("variant_id", variantIds)
+    : { data: [] };
+  const reservedIds = new Set((reserved ?? []).map((r) => r.variant_id));
+
   const lines: CartLine[] = (data ?? []).map((row) => {
     const v = row.work_variants;
     const w = v.works;
@@ -62,7 +73,7 @@ export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }
       sizeLabel: v.size_label,
       price: buyerTotalById.get(row.variant_id) ?? v.price_jpy,
       stock: v.stock,
-      isListed: v.is_listed,
+      isListed: v.is_listed || reservedIds.has(row.variant_id),
       workId: w.id,
       workTitle: w.title,
       imagePath: image?.storage_path ?? null,
