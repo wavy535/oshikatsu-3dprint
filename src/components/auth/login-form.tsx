@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState } from "react";
-import Link from "next/link";
 
 import { signInAction, type AuthActionState } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
@@ -10,11 +9,13 @@ import { Label } from "@/components/ui/label";
 
 const initialState: AuthActionState = { error: null };
 
-export function LoginForm() {
+export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const [state, formAction, pending] = useActionState(signInAction, initialState);
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
+
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">メールアドレス</Label>
         <Input id="email" name="email" type="email" placeholder="you@example.com" required />
@@ -29,13 +30,6 @@ export function LoginForm() {
       <Button type="submit" disabled={pending} className="mt-2">
         {pending ? "ログイン中..." : "ログイン"}
       </Button>
-
-      <p className="text-center text-sm text-muted-foreground">
-        アカウントをお持ちでない方は{" "}
-        <Link href="/signup" className="text-primary underline-offset-4 hover:underline">
-          新規登録
-        </Link>
-      </p>
     </form>
   );
 }

@@ -29,15 +29,20 @@ begin
       ('44444444-4444-4444-4444-444444444444'::uuid, 'admin@example.com',    'OshiNest運営', 'admin')
     ) as t(id, email, display_name, role)
   loop
+    -- トークン系の列は NULL のままだと GoTrue が
+    -- 「Database error querying schema」で落ちるので、空文字を入れる
     insert into auth.users (
       instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
-      raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+      raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+      confirmation_token, recovery_token, email_change_token_new, email_change,
+      email_change_token_current, phone_change, phone_change_token, reauthentication_token
     ) values (
       '00000000-0000-0000-0000-000000000000', u.id, 'authenticated', 'authenticated',
       u.email, extensions.crypt('password123', extensions.gen_salt('bf')), now(),
       '{"provider":"email","providers":["email"]}'::jsonb,
       jsonb_build_object('display_name', u.display_name),
-      now(), now()
+      now(), now(),
+      '', '', '', '', '', '', '', ''
     );
 
     insert into auth.identities (

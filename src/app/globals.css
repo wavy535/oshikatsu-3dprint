@@ -1,36 +1,80 @@
 @import "tailwindcss";
 
+/*
+ * OshiNest のデザイントークン。値は Figma「推し活2」の Design System と
+ * プロトタイプ（oshikatsu-3dprint/docs/screen-flow.html）に合わせてある。
+ *
+ * 素のトークン（--brand など）を :root に置き、shadcn のセマンティック
+ * トークンはそこへの割り当てとして定義する。色を直に書かず必ず素の
+ * トークンを経由させることで、運営コンソールの暗色面（.dark）を
+ * 差し替えるだけで済むようにしている。
+ */
 :root {
-  --radius: 0.5rem;
+  /* ── 素のトークン ── */
+  --brand: #0096fa;
+  --brand-soft: #e6f4ff;
+  --ground: #f5f7fb;
+  --ink: #1f2328;
+  --line: #e4e7ed;
+  --star: #ffb020;
+  --ok: #2fa36b;
+  --ok-bg: #e7f6ee;
+  --ok-line: #b7e4cc;
+  --warn: #d97706;
+  --warn-bg: #fff4e5;
+  --danger: #e5484d;
+  --danger-bg: #fdecec;
+  /* 運営コンソールの暗色面 */
+  --console: #111827;
+  --console-2: #1f2937;
+  --console-line: #2c3542;
+  --console-ink: #e8ecf2;
+  --console-muted: #9aa4b4;
 
-  /* Osinest brand — Pixiv-inspired palette */
-  --background: #ffffff;
-  --foreground: #1f2328;
+  --radius: 0.625rem;
 
+  /* ── shadcn のセマンティックトークンへの割り当て ── */
+  --background: var(--ground);
+  --foreground: var(--ink);
   --card: #ffffff;
-  --card-foreground: #1f2328;
-
+  --card-foreground: var(--ink);
   --popover: #ffffff;
-  --popover-foreground: #1f2328;
-
-  --primary: #0096fa;
+  --popover-foreground: var(--ink);
+  --primary: var(--brand);
   --primary-foreground: #ffffff;
-
-  --secondary: #f5f7fb;
-  --secondary-foreground: #1f2328;
-
-  --muted: #f5f7fb;
+  --secondary: #ffffff;
+  --secondary-foreground: var(--ink);
+  --muted: var(--ground);
   --muted-foreground: #6b7280;
-
-  --accent: #f5f7fb;
-  --accent-foreground: #1f2328;
-
-  --destructive: #e5484d;
+  --accent: var(--brand-soft);
+  --accent-foreground: #0074c2;
+  --destructive: var(--danger);
   --destructive-foreground: #ffffff;
+  --border: var(--line);
+  --input: var(--line);
+  --ring: var(--brand);
+}
 
-  --border: #e4e7ed;
-  --input: #e4e7ed;
-  --ring: #0096fa;
+/*
+ * 暗色面は運営コンソール（Figma ⑤運営オペレーション）だけが使う。
+ * サイト全体のダークテーマ切り替えは無い。
+ */
+.dark {
+  --background: var(--console);
+  --foreground: var(--console-ink);
+  --card: var(--console-2);
+  --card-foreground: var(--console-ink);
+  --popover: var(--console-2);
+  --popover-foreground: var(--console-ink);
+  --secondary: #26303d;
+  --secondary-foreground: var(--console-ink);
+  --muted: #1a222e;
+  --muted-foreground: var(--console-muted);
+  --accent: #16324b;
+  --accent-foreground: #7cc6ff;
+  --destructive: #ff6b6f;
+  --border: var(--console-line);
+  --input: var(--console-line);
 }
 
 @theme inline {
@@ -54,10 +98,31 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  /* ブランドトークンをそのままユーティリティにする（bg-brand / text-ink など） */
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-ground: var(--ground);
+  --color-ink: var(--ink);
+  --color-line: var(--line);
+  --color-star: var(--star);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-ok-line: var(--ok-line);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-danger: var(--danger);
+  --color-danger-bg: var(--danger-bg);
+  --color-console: var(--console);
+  --color-console-2: var(--console-2);
+  --color-console-line: var(--console-line);
+  --color-console-ink: var(--console-ink);
+  --color-console-muted: var(--console-muted);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
   --radius-full: 9999px;
 
   --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
@@ -69,4 +134,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+}
+
+/* 価格・件数は Figma 同様に等幅寄りの数字で揃える */
+.num {
+  font-variant-numeric: tabular-nums;
 }
