@@ -1,0 +1,97 @@
+/**
+ * 運営コンソールの表示ラベル。
+ *
+ * クライアントコンポーネント（検品フォームなど）からも読むので、
+ * `server-only` な queries.ts ではなくここに置く。
+ */
+import type {
+  PrintJobStatus,
+  PrintOrientation,
+  ReprintCause,
+  ShippingCarrier,
+  SupportMode,
+} from "@/types/db";
+
+/** バッジの色味。プロトタイプの badge n / b / y / g / r に対応する。 */
+export type Tone = "neutral" | "info" | "warn" | "ok" | "danger";
+
+export const JOB_STATUS_LABEL: Record<PrintJobStatus, string> = {
+  queued: "未着手",
+  printing: "印刷中",
+  printed: "検品待ち",
+  qc_passed: "検品OK",
+  qc_failed: "検品NG",
+  reprinting: "再印刷中",
+  cancelled: "中止",
+};
+
+export const JOB_STATUS_TONE: Record<PrintJobStatus, Tone> = {
+  queued: "neutral",
+  printing: "info",
+  printed: "warn",
+  qc_passed: "ok",
+  qc_failed: "danger",
+  reprinting: "info",
+  cancelled: "neutral",
+};
+
+/** 印刷キューの絞り込み。「作業中」はまとめて追いたいことが多いので束ねてある。 */
+export const QUEUE_STATUS_FILTERS = [
+  { value: "open", label: "作業中のみ", statuses: ["queued", "printing", "reprinting", "printed", "qc_failed"] },
+  { value: "queued", label: "未着手", statuses: ["queued"] },
+  { value: "printing", label: "印刷中", statuses: ["printing", "reprinting"] },
+  { value: "printed", label: "検品待ち", statuses: ["printed"] },
+  { value: "qc_failed", label: "検品NG", statuses: ["qc_failed"] },
+  { value: "qc_passed", label: "検品OK", statuses: ["qc_passed"] },
+  { value: "all", label: "すべて", statuses: [] },
+] as const;
+
+export type QueueStatusFilter = (typeof QUEUE_STATUS_FILTERS)[number]["value"];
+
+export const REPRINT_CAUSE_LABEL: Record<ReprintCause, string> = {
+  model: "モデル側（データの問題）",
+  print: "印刷側（造形の失敗）",
+  material: "材料側（フィラメント不良）",
+  handling: "取り扱い（検品・梱包時の破損）",
+};
+
+/** 「誰の負担になるか」は原因から自動で決まる（設計判断7）。画面にも書いておく。 */
+export const REPRINT_CAUSE_NOTE: Record<ReprintCause, string> = {
+  model: "クリエイターに修正依頼が飛び、再印刷分の代行費は運営負担になりません。",
+  print: "運営負担で刷り直します。クリエイターへの通知はありません。",
+  material: "運営負担で刷り直します。クリエイターへの通知はありません。",
+  handling: "運営負担で刷り直します。クリエイターへの通知はありません。",
+};
+
+export const CARRIER_LABEL: Record<ShippingCarrier, string> = {
+  yamato: "ヤマト運輸",
+  sagawa: "佐川急便",
+  japanpost: "日本郵便",
+  other: "その他",
+};
+
+export const ORIENTATION_LABEL: Record<PrintOrientation, string> = {
+  flat: "XY 平置き",
+  upright: "Z 立て",
+  tilted: "傾け置き",
+  as_is: "データのまま",
+};
+
+export const SUPPORT_LABEL: Record<SupportMode, string> = {
+  none: "不要",
+  auto: "要・自動",
+  custom: "要・指定あり",
+};
+
+export function yen(n: number | null | undefined) {
+  return n === null || n === undefined ? "—" : `¥${n.toLocaleString("ja-JP")}`;
+}
+
+/** 一覧・詳細で使う短い日時（例: 09/06 18:00）。 */
+export function shortDateTime(value: string | null | undefined) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")} ${String(
+    d.getHours()
+  ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
