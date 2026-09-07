@@ -207,3 +207,68 @@ begin
     buyer, 'announcement', 'マイぬいの採寸値を登録しませんか',
     '採寸値を入れると、作品に入るかどうかを数値で判定できます。', '/mypage/nuis');
 end $$;
+
+-- -----------------------------------------------------------------------------
+-- 5. 注文（決済を通さずに購入履歴・注文詳細・受け取り評価を確認するため）
+--   決済（Stripe）を入れたら create_print_jobs_for_order まで本物の経路が通るので、
+--   ここは「その手前の状態を手で作る」だけにしてある。
+-- -----------------------------------------------------------------------------
+do $$
+declare
+  buyer uuid := '11111111-1111-1111-1111-111111111111';
+  addr uuid;
+  rule public.print_pricing_rules;
+  o record;
+  v record;
+  order_id uuid;
+  item_id uuid;
+  unit integer;
+  fee integer;
+begin
+  select * into rule from public.print_pricing_rules where is_active limit 1;
+  select id into addr from public.addresses where user_id = buyer limit 1;
+
+  for o in
+    select * from (values
+      ('paid'::public.order_status,      'ふわもこ台座（丸型）',     1, 3),
+      ('shipped'::public.order_status,   'ミニチュアソファ',         1, 9),
+      ('completed'::public.order_status, '推し撮り用ミニ背景ボード', 2, 21)
+    ) as t(status, title, qty, days_ago)
+  loop
+    select v2.id, v2.price_jpy, v2.print_fee_jpy, v2.size_label, w.id as work_id, w.creator_id
+      into v
+      from public.work_variants v2
+      join public.works w on w.id = v2.work_id
+     where w.title = o.title and v2.size_label = '15cm';
+
+    unit := v.price_jpy;
+    fee  := coalesce(v.print_fee_jpy, 0);
+
+    insert into public.orders (
+      buyer_id, status, subtotal_amount, platform_fee_amount, print_cost_amount,
+      total_amount, shipping_address_id, created_at, updated_at,
+      shipped_at, tracking_number
+    ) values (
+      buyer, o.status, unit * o.qty,
+      round(unit * o.qty * rule.platform_fee_rate), fee * o.qty,
+      unit * o.qty, addr,
+      now() - make_interval(days => o.days_ago), now() - make_interval(days => o.days_ago),
+      case when o.status in ('shipped', 'completed')
+           then now() - make_interval(days => o.days_ago - 2) end,
+      case when o.status in ('shipped', 'completed') then '4567-8901-2345' end
+    ) returning id into order_id;
+
+    insert into public.order_items (
+      order_id, work_id, creator_id, variant_id, size_label_snapshot,
+      unit_price, quantity, creator_payout_amount, platform_fee_amount,
+      print_cost_amount, print_fee_snapshot,
+      stl_storage_path_snapshot, filament_material_snapshot, filament_color_snapshot
+    ) values (
+      order_id, v.work_id, v.creator_id, v.id, v.size_label,
+      unit, o.qty,
+      unit * o.qty - round(unit * o.qty * rule.platform_fee_rate) - fee * o.qty,
+      round(unit * o.qty * rule.platform_fee_rate), fee * o.qty, fee,
+      'work-stl/demo/' || v.work_id || '.3mf', 'PLA', 'ホワイト'
+    ) returning id into item_id;
+  end loop;
+end $$;
