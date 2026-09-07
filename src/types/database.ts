@@ -1212,6 +1212,7 @@ export type Database = {
           ship_due_at: string | null
           shipped_at: string | null
           shipping_address_id: string | null
+          shipping_fee_amount: number
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
           subtotal_amount: number
@@ -1229,6 +1230,7 @@ export type Database = {
           ship_due_at?: string | null
           shipped_at?: string | null
           shipping_address_id?: string | null
+          shipping_fee_amount?: number
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           subtotal_amount: number
@@ -1246,6 +1248,7 @@ export type Database = {
           ship_due_at?: string | null
           shipped_at?: string | null
           shipping_address_id?: string | null
+          shipping_fee_amount?: number
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           subtotal_amount?: number

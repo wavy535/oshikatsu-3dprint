@@ -127,13 +127,18 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <div className="flex flex-1 flex-col gap-2 rounded-xl border border-line bg-white p-4">
           <h2 className="text-[12.5px] font-semibold text-ink">お支払い</h2>
           <dl className="flex flex-col gap-1 text-[12px]">
+            {/* 合計 = 作品代金 + 印刷代行費 + 送料（0015）。代行費は上乗せ請求なので「うち」ではない */}
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">小計</dt>
+              <dt className="text-muted-foreground">作品代金</dt>
               <dd className="num text-ink">{yen(order.subtotal_amount)}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-muted-foreground">うち印刷代行費</dt>
-              <dd className="num text-muted-foreground">{yen(order.print_cost_amount)}</dd>
+              <dt className="text-muted-foreground">印刷代行費</dt>
+              <dd className="num text-ink">{yen(order.print_cost_amount)}</dd>
+            </div>
+            <div className="flex justify-between">
+              <dt className="text-muted-foreground">送料</dt>
+              <dd className="num text-ink">{yen(order.shipping_fee_amount)}</dd>
             </div>
             <div className="flex justify-between border-t border-line pt-1">
               <dt className="font-semibold text-ink">合計</dt>

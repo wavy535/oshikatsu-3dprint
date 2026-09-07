@@ -245,15 +245,15 @@ begin
     fee  := coalesce(v.print_fee_jpy, 0);
 
     -- 代行費は price に上乗せして請求する（fee_billing = 'separate'）ので、
-    -- 合計は 作品価格 + 印刷代行費 になる
+    -- 合計は 作品価格 + 印刷代行費 + 送料 になる（送料は決済がまだ無いので一律 520 円）
     insert into public.orders (
       buyer_id, status, subtotal_amount, platform_fee_amount, print_cost_amount,
-      total_amount, shipping_address_id, created_at, updated_at,
+      shipping_fee_amount, total_amount, shipping_address_id, created_at, updated_at,
       shipped_at, tracking_number
     ) values (
       buyer, o.status, unit * o.qty,
       round(unit * o.qty * rule.platform_fee_rate), fee * o.qty,
-      unit * o.qty + fee * o.qty, addr,
+      520, unit * o.qty + fee * o.qty + 520, addr,
       now() - make_interval(days => o.days_ago), now() - make_interval(days => o.days_ago),
       case when o.status in ('shipped', 'completed')
            then now() - make_interval(days => o.days_ago - 2) end,
@@ -272,6 +272,21 @@ begin
       round(unit * o.qty * rule.platform_fee_rate), fee * o.qty, fee,
       'work-stl/demo/' || v.work_id || '.3mf', 'PLA', 'ホワイト'
     ) returning id into item_id;
+
+    -- 発送済み・取引完了の注文には発送記録も入れる（運営の「出荷済み」一覧が読む）。
+    -- apply_shipment() が status を shipped に戻すので、あとで元の status に直す
+    if o.status in ('shipped', 'completed') then
+      insert into public.shipments (
+        order_id, carrier, service_name, tracking_number, box_type,
+        weight_grams, size_sum_cm, shipping_fee_jpy, shipped_at, packer_id
+      ) values (
+        order_id, 'yamato', '宅急便コンパクト', '4567-8901-2345', '宅急便コンパクト箱',
+        180 + o.days_ago * 7, 52, 520,
+        now() - make_interval(days => o.days_ago - 2),
+        '44444444-4444-4444-4444-444444444444'
+      );
+      update public.orders set status = o.status where id = order_id;
+    end if;
   end loop;
 end $$;
 
@@ -428,12 +443,12 @@ begin
 
     insert into public.orders (
       buyer_id, status, subtotal_amount, platform_fee_amount, print_cost_amount,
-      total_amount, shipping_address_id, ship_due_at, gift_wrapping,
+      shipping_fee_amount, total_amount, shipping_address_id, ship_due_at, gift_wrapping,
       created_at, updated_at
     ) values (
       buyer, 'paid', unit_jpy * o.qty,
       round(unit_jpy * o.qty * rule.platform_fee_rate), fee_jpy * o.qty,
-      unit_jpy * o.qty + fee_jpy * o.qty, addr,
+      520, unit_jpy * o.qty + fee_jpy * o.qty + 520, addr,
       now() + make_interval(hours => o.due_hours),
       o.title = '推し撮り用ミニ背景ボード',
       now() - interval '2 days', now() - interval '2 days'
