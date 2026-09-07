@@ -118,6 +118,13 @@ export type Database = {
             foreignKeyName: "cart_items_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "cart_items_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variants_missing_fit_dims"
             referencedColumns: ["variant_id"]
           },
@@ -202,6 +209,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coordinate_post_pins_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "coordinate_post_pins_work_id_fkey"
@@ -436,6 +450,13 @@ export type Database = {
             foreignKeyName: "custom_order_quotes_base_work_id_fkey"
             columns: ["base_work_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
+          },
+          {
+            foreignKeyName: "custom_order_quotes_base_work_id_fkey"
+            columns: ["base_work_id"]
+            isOneToOne: false
             referencedRelation: "work_list_items"
             referencedColumns: ["id"]
           },
@@ -466,6 +487,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "custom_order_requests"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_order_quotes_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "custom_order_quotes_variant_id_fkey"
@@ -532,6 +560,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_order_requests_reference_work_id_fkey"
+            columns: ["reference_work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "custom_order_requests_reference_work_id_fkey"
@@ -683,13 +718,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "messages_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "print_queue"
-            referencedColumns: ["order_id"]
           },
           {
             foreignKeyName: "messages_recipient_id_fkey"
@@ -1074,11 +1102,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "order_items_order_id_fkey"
-            columns: ["order_id"]
+            foreignKeyName: "order_items_variant_id_fkey"
+            columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "print_queue"
-            referencedColumns: ["order_id"]
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "order_items_variant_id_fkey"
@@ -1107,6 +1135,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "order_items_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "order_items_work_id_fkey"
@@ -1163,13 +1198,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "orders"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "order_status_history_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "print_queue"
-            referencedColumns: ["order_id"]
           },
         ]
       }
@@ -1459,13 +1487,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "print_jobs_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "print_queue"
-            referencedColumns: ["order_id"]
-          },
-          {
             foreignKeyName: "print_jobs_order_item_id_fkey"
             columns: ["order_item_id"]
             isOneToOne: false
@@ -1478,6 +1499,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "printers"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "print_jobs_variant_id_fkey"
@@ -1793,6 +1821,13 @@ export type Database = {
             foreignKeyName: "qna_threads_work_id_fkey"
             columns: ["work_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
+          },
+          {
+            foreignKeyName: "qna_threads_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
             referencedRelation: "work_list_items"
             referencedColumns: ["id"]
           },
@@ -1888,6 +1923,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reviews_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "reviews_work_id_fkey"
@@ -2022,6 +2064,13 @@ export type Database = {
             foreignKeyName: "revision_requests_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "revision_requests_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variants_missing_fit_dims"
             referencedColumns: ["variant_id"]
           },
@@ -2045,6 +2094,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "revision_requests_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "revision_requests_work_id_fkey"
@@ -2117,13 +2173,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "shipments_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "print_queue"
-            referencedColumns: ["order_id"]
-          },
-          {
             foreignKeyName: "shipments_packer_id_fkey"
             columns: ["packer_id"]
             isOneToOne: false
@@ -2188,6 +2237,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "nui_profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tryon_renders_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "tryon_renders_variant_id_fkey"
@@ -2277,6 +2333,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_assembly_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: true
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "work_assembly_work_id_fkey"
@@ -2435,6 +2498,13 @@ export type Database = {
             foreignKeyName: "work_assets_work_id_fkey"
             columns: ["work_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
+          },
+          {
+            foreignKeyName: "work_assets_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
             referencedRelation: "work_list_items"
             referencedColumns: ["id"]
           },
@@ -2507,6 +2577,13 @@ export type Database = {
             foreignKeyName: "work_color_slots_work_id_fkey"
             columns: ["work_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
+          },
+          {
+            foreignKeyName: "work_color_slots_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
             referencedRelation: "work_list_items"
             referencedColumns: ["id"]
           },
@@ -2554,6 +2631,13 @@ export type Database = {
             foreignKeyName: "work_favorites_work_id_fkey"
             columns: ["work_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
+          },
+          {
+            foreignKeyName: "work_favorites_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
             referencedRelation: "work_list_items"
             referencedColumns: ["id"]
           },
@@ -2592,6 +2676,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_images_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "work_images_work_id_fkey"
@@ -2658,6 +2749,13 @@ export type Database = {
             foreignKeyName: "work_part_instructions_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "work_part_instructions_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variants_missing_fit_dims"
             referencedColumns: ["variant_id"]
           },
@@ -2681,6 +2779,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_part_instructions_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "work_part_instructions_work_id_fkey"
@@ -2725,6 +2830,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_tags_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "work_tags_work_id_fkey"
@@ -2912,6 +3024,13 @@ export type Database = {
             foreignKeyName: "work_variants_work_id_fkey"
             columns: ["work_id"]
             isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
+          },
+          {
+            foreignKeyName: "work_variants_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
             referencedRelation: "work_list_items"
             referencedColumns: ["id"]
           },
@@ -3065,26 +3184,70 @@ export type Database = {
       }
       print_queue: {
         Row: {
+          actual_filament_grams: number | null
+          actual_print_hours: number | null
+          assignee_id: string | null
           assignee_name: string | null
           batch_count: number | null
           batch_done: number | null
+          buyer_id: string | null
+          buyer_name: string | null
+          color_hex: string | null
           color_name: string | null
           created_at: string | null
           due_at: string | null
           est_filament_grams: number | null
           est_print_hours: number | null
+          failure_count: number | null
+          gift_wrapping: boolean | null
           id: string | null
           is_overdue: boolean | null
           job_no: string | null
           material: Database["public"]["Enums"]["filament_material"] | null
+          nui_size_cm: number | null
           order_id: string | null
+          ordered_at: string | null
           part_count: number | null
           printer_code: string | null
+          printer_id: string | null
+          quantity: number | null
           size_label: string | null
           status: Database["public"]["Enums"]["print_job_status"] | null
+          thumbnail_path: string | null
+          variant_id: string | null
+          work_id: string | null
           work_title: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "orders_buyer_id_fkey"
+            columns: ["buyer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_printer_id_fkey"
+            columns: ["printer_id"]
+            isOneToOne: false
+            referencedRelation: "printers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       variants_missing_fit_dims: {
         Row: {
@@ -3102,6 +3265,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_variants_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "work_variants_work_id_fkey"
@@ -3192,6 +3362,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "my_favorites"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "work_variants_work_id_fkey"
+            columns: ["work_id"]
+            isOneToOne: false
+            referencedRelation: "print_queue"
+            referencedColumns: ["work_id"]
           },
           {
             foreignKeyName: "work_variants_work_id_fkey"
