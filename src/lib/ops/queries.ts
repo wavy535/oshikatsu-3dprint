@@ -8,6 +8,7 @@ import {
   SALES_ORDER_STATUSES,
 } from "@/lib/ops/labels";
 import type {
+  Database,
   FilamentMaterial,
   OrderStatus,
   PrintJobStatus,
@@ -495,14 +496,66 @@ export async function listFilamentLedger(limit = 30) {
 /**
  * 売上の集計。運営の決め（2026-09-08）:
  *
- *   購入者の支払い = 作品代金 + 印刷代行費 + 送料
- *   手数料 = (支払い − 印刷代行費 − 送料) × 20% = 作品代金 × 20%
- *   クリエイター受取 = 作品代金 − 手数料
+ *   手数料 = (購入者の支払い − 印刷の実費 − 送料の実費) × 料率（20%）
+ *   クリエイター受取 = 残り
  *
- * 金額は注文時のスナップショット（orders / order_items の *_amount）を足すだけで、
- * ここで料率を掛け直さない。料率を変えても過去の注文は動かないようにするため。
- * 料率そのものは print_pricing_rules.platform_fee_rate（0015 で 20%）。
+ * 式は DB の `order_settlements` ビュー（0016）だけが持つ。発送が終わって実費が
+ * そろった注文は「確定」、それまでは請求した代行費・購入者負担の送料で「見込み」。
+ * 料率は注文ごとのスナップショット（orders.platform_fee_rate）なので、
+ * 料率を変えても過去の注文の精算は動かない。
  */
+export type Settlement = {
+  orderId: string;
+  status: OrderStatus;
+  orderedAt: string;
+  rate: number;
+  gross: number;
+  goods: number;
+  printFee: number;
+  printActual: number | null;
+  shippingCharged: number;
+  shippingActual: number | null;
+  printUsed: number;
+  shippingUsed: number;
+  pool: number;
+  fee: number;
+  payout: number;
+  isFinal: boolean;
+};
+
+type SettlementRow = Database["public"]["Views"]["order_settlements"]["Row"];
+
+function toSettlement(r: SettlementRow): Settlement {
+  return {
+    orderId: r.order_id!,
+    status: r.status!,
+    orderedAt: r.ordered_at!,
+    rate: Number(r.platform_fee_rate ?? 0),
+    gross: r.gross_amount ?? 0,
+    goods: r.goods_amount ?? 0,
+    printFee: r.print_fee_amount ?? 0,
+    printActual: r.print_actual_amount,
+    shippingCharged: r.shipping_charged_amount ?? 0,
+    shippingActual: r.shipping_actual_amount,
+    printUsed: r.print_cost_used ?? 0,
+    shippingUsed: r.shipping_used ?? 0,
+    pool: r.pool_amount ?? 0,
+    fee: r.fee_amount ?? 0,
+    payout: r.payout_amount ?? 0,
+    isFinal: !!r.is_final,
+  };
+}
+
+export async function getOrderSettlement(orderId: string) {
+  const { supabase } = await requireAdmin();
+  const { data } = await supabase
+    .from("order_settlements")
+    .select("*")
+    .eq("order_id", orderId)
+    .maybeSingle();
+  return data ? toSettlement(data) : null;
+}
+
 export async function getSales(month: string | "all") {
   const { supabase } = await requireAdmin();
 
@@ -514,30 +567,26 @@ export async function getSales(month: string | "all") {
     to = new Date(y, m, 1).toISOString();
   }
 
-  let ordersQuery = supabase
-    .from("orders")
-    .select(
-      "id, status, created_at, subtotal_amount, platform_fee_amount, print_cost_amount, shipping_fee_amount, total_amount"
-    )
+  let settlementsQuery = supabase
+    .from("order_settlements")
+    .select("*")
     .in("status", [...SALES_ORDER_STATUSES]);
-  if (from && to) ordersQuery = ordersQuery.gte("created_at", from).lt("created_at", to);
+  if (from && to) settlementsQuery = settlementsQuery.gte("ordered_at", from).lt("ordered_at", to);
 
   const sixMonthsAgo = new Date();
   sixMonthsAgo.setDate(1);
   sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
   sixMonthsAgo.setHours(0, 0, 0, 0);
 
-  const [{ data: orders }, { data: trendOrders }, { data: payouts }, { data: rule }] =
+  const [{ data: rows }, { data: trendRows }, { data: payouts }, { data: rule }] =
     await Promise.all([
-      ordersQuery.order("created_at", { ascending: false }),
+      settlementsQuery.order("ordered_at", { ascending: false }),
       supabase
-        .from("orders")
-        .select("created_at, subtotal_amount, platform_fee_amount")
+        .from("order_settlements")
+        .select("ordered_at, pool_amount, fee_amount, is_final")
         .in("status", [...SALES_ORDER_STATUSES])
-        .gte("created_at", sixMonthsAgo.toISOString()),
-      supabase
-        .from("payout_requests")
-        .select("creator_id, amount, status, requested_at"),
+        .gte("ordered_at", sixMonthsAgo.toISOString()),
+      supabase.from("payout_requests").select("creator_id, amount, status"),
       supabase
         .from("print_pricing_rules")
         .select("platform_fee_rate")
@@ -545,48 +594,81 @@ export async function getSales(month: string | "all") {
         .maybeSingle(),
     ]);
 
-  const orderIds = (orders ?? []).map((o) => o.id);
-  const { data: items } = orderIds.length
-    ? await supabase
-        .from("order_items")
-        .select(
-          `order_id, creator_id, quantity, unit_price, platform_fee_amount, creator_payout_amount,
-           print_cost_amount, works(title), profiles!order_items_creator_id_fkey(display_name)`
-        )
-        .in("order_id", orderIds)
-    : { data: [] };
+  const settlements = (rows ?? []).map(toSettlement);
+  const orderIds = settlements.map((s) => s.orderId);
+  type SalesItem = {
+    order_id: string;
+    creator_id: string;
+    quantity: number;
+    unit_price: number;
+    profiles: { display_name: string } | null;
+  };
+  let items: SalesItem[] = [];
+  if (orderIds.length) {
+    const { data } = await supabase
+      .from("order_items")
+      .select("order_id, creator_id, quantity, unit_price, profiles!order_items_creator_id_fkey(display_name)")
+      .in("order_id", orderIds);
+    items = data ?? [];
+  }
 
-  const sum = <T,>(rows: T[], pick: (r: T) => number | null | undefined) =>
-    rows.reduce((n, r) => n + Number(pick(r) ?? 0), 0);
+  const sum = (pick: (s: Settlement) => number | null) =>
+    settlements.reduce((n, s) => n + (pick(s) ?? 0), 0);
 
   const totals = {
-    orders: (orders ?? []).length,
-    gross: sum(orders ?? [], (o) => o.total_amount),
-    printCost: sum(orders ?? [], (o) => o.print_cost_amount),
-    shipping: sum(orders ?? [], (o) => o.shipping_fee_amount),
-    goods: sum(orders ?? [], (o) => o.subtotal_amount),
-    fee: sum(orders ?? [], (o) => o.platform_fee_amount),
+    orders: settlements.length,
+    finalCount: settlements.filter((s) => s.isFinal).length,
+    gross: sum((s) => s.gross),
+    goods: sum((s) => s.goods),
+    printFee: sum((s) => s.printFee),
+    printUsed: sum((s) => s.printUsed),
+    shippingCharged: sum((s) => s.shippingCharged),
+    shippingUsed: sum((s) => s.shippingUsed),
+    pool: sum((s) => s.pool),
+    fee: sum((s) => s.fee),
+    payout: sum((s) => s.payout),
   };
 
-  // クリエイター別
+  // クリエイター別。精算は注文単位なので、明細の作品代金の割合で配る
+  // （端数は最後の明細に寄せて、注文の合計と食い違わないようにする）
+  const byOrder = new Map(settlements.map((s) => [s.orderId, s]));
+  const itemsByOrder = new Map<string, SalesItem[]>();
+  for (const i of items) {
+    const list = itemsByOrder.get(i.order_id) ?? [];
+    list.push(i);
+    itemsByOrder.set(i.order_id, list);
+  }
   const byCreator = new Map<
     string,
     { creatorId: string; name: string; orders: Set<string>; goods: number; fee: number; payout: number }
   >();
-  for (const i of items ?? []) {
-    const row = byCreator.get(i.creator_id) ?? {
-      creatorId: i.creator_id,
-      name: i.profiles?.display_name ?? "—",
-      orders: new Set<string>(),
-      goods: 0,
-      fee: 0,
-      payout: 0,
-    };
-    row.orders.add(i.order_id);
-    row.goods += i.unit_price * i.quantity;
-    row.fee += i.platform_fee_amount;
-    row.payout += i.creator_payout_amount;
-    byCreator.set(i.creator_id, row);
+  for (const [orderId, list] of itemsByOrder) {
+    const s = byOrder.get(orderId);
+    if (!s || s.goods === 0) continue;
+    let feeLeft = s.fee;
+    let payoutLeft = s.payout;
+    list.forEach((i, idx) => {
+      const goods = i.unit_price * i.quantity;
+      const last = idx === list.length - 1;
+      const fee = last ? feeLeft : Math.round((s.fee * goods) / s.goods);
+      const payout = last ? payoutLeft : Math.round((s.payout * goods) / s.goods);
+      feeLeft -= fee;
+      payoutLeft -= payout;
+
+      const row = byCreator.get(i.creator_id) ?? {
+        creatorId: i.creator_id,
+        name: i.profiles?.display_name ?? "—",
+        orders: new Set<string>(),
+        goods: 0,
+        fee: 0,
+        payout: 0,
+      };
+      row.orders.add(orderId);
+      row.goods += goods;
+      row.fee += fee;
+      row.payout += payout;
+      byCreator.set(i.creator_id, row);
+    });
   }
   const paidOut = new Map<string, number>();
   const requested = new Map<string, number>();
@@ -606,26 +688,25 @@ export async function getSales(month: string | "all") {
     .sort((a, b) => b.goods - a.goods);
 
   // 月別（直近6か月）
-  const trend = new Map<string, { goods: number; fee: number; count: number }>();
+  const trend = new Map<string, { pool: number; fee: number; count: number; finalCount: number }>();
   for (let k = 0; k < 6; k++) {
     const d = new Date(sixMonthsAgo);
     d.setMonth(d.getMonth() + k);
-    trend.set(monthKey(d), { goods: 0, fee: 0, count: 0 });
+    trend.set(monthKey(d), { pool: 0, fee: 0, count: 0, finalCount: 0 });
   }
-  for (const o of trendOrders ?? []) {
-    const key = monthKey(new Date(o.created_at));
-    const t = trend.get(key);
+  for (const r of trendRows ?? []) {
+    const t = trend.get(monthKey(new Date(r.ordered_at!)));
     if (!t) continue;
-    t.goods += o.subtotal_amount;
-    t.fee += o.platform_fee_amount;
+    t.pool += r.pool_amount ?? 0;
+    t.fee += r.fee_amount ?? 0;
     t.count += 1;
+    if (r.is_final) t.finalCount += 1;
   }
 
   return {
-    totals: { ...totals, payout: totals.goods - totals.fee },
+    totals,
     creators,
-    orders: orders ?? [],
-    items: items ?? [],
+    settlements,
     trend: [...trend.entries()].map(([key, v]) => ({ key, ...v })),
     feeRate: Number(rule?.platform_fee_rate ?? 0),
   };

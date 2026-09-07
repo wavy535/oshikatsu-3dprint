@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Gift } from "lucide-react";
 
-import { getOrderForAdmin } from "@/lib/ops/queries";
+import { getOrderForAdmin, getOrderSettlement } from "@/lib/ops/queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { CARRIER_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
 import { JobStatusBadge, Pill } from "@/components/ops/status-badge";
@@ -13,17 +13,17 @@ export const metadata = { title: "注文詳細（運営）" };
 /**
  * 運営向けの注文詳細。お金の内訳はここが一番くわしい:
  *   支払い = 作品代金 + 印刷代行費 + 送料
- *   手数料 = 作品代金 × 料率（注文時のスナップショット）
- *   受取   = 作品代金 − 手数料
+ *   手数料 = (支払い − 印刷の実費 − 送料の実費) × 料率（注文時のスナップショット）
+ *   受取   = 残り
+ * 実費は発送後に確定する（order_settlements ビュー・0016）。明細の手数料・受取は注文時の見込み。
  */
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const order = await getOrderForAdmin(id);
+  const [order, settlement] = await Promise.all([getOrderForAdmin(id), getOrderSettlement(id)]);
   if (!order) notFound();
 
   const address = order.addresses;
   const shipment = order.shipments?.[0] ?? null;
-  const payout = order.order_items.reduce((n, i) => n + i.creator_payout_amount, 0);
 
   return (
     <>
@@ -61,8 +61,8 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                     <th className={`${TH} border-b border-line`}>クリエイター</th>
                     <th className={`${TH} border-b border-line text-right`}>作品代金</th>
                     <th className={`${TH} border-b border-line text-right`}>印刷代行費</th>
-                    <th className={`${TH} border-b border-line text-right`}>手数料</th>
-                    <th className={`${TH} border-b border-line text-right`}>受取額</th>
+                    <th className={`${TH} border-b border-line text-right`}>手数料（見込み）</th>
+                    <th className={`${TH} border-b border-line text-right`}>受取額（見込み）</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -125,17 +125,45 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         </div>
 
         <div className="flex w-full flex-col gap-3 xl:w-80 xl:flex-none">
-          <Card title="お金の内訳">
+          <Card
+            title="お金の内訳"
+            action={
+              settlement && (
+                <Pill tone={settlement.isFinal ? "ok" : "warn"}>{settlement.isFinal ? "確定" : "見込み"}</Pill>
+              )
+            }
+          >
             <Row label="作品代金" value={<span className="num">{yen(order.subtotal_amount)}</span>} />
-            <Row label="印刷代行費" value={<span className="num">{yen(order.print_cost_amount)}</span>} />
+            <Row label="印刷代行費（請求）" value={<span className="num">{yen(order.print_cost_amount)}</span>} />
             <Row label="送料（購入者負担）" value={<span className="num">{yen(order.shipping_fee_amount)}</span>} />
             <div className="my-1 border-t border-line" />
             <Row label="購入者の支払い" value={<span className="num text-[12.5px]">{yen(order.total_amount)}</span>} />
-            <div className="my-1 border-t border-line" />
-            <Row label="運営手数料" value={<span className="num">{yen(order.platform_fee_amount)}</span>} />
-            <Row label="クリエイター受取" value={<span className="num">{yen(payout)}</span>} />
+            {settlement && (
+              <>
+                <div className="my-1 border-t border-line" />
+                <Row
+                  label={settlement.printActual === null ? "− 印刷の実費（未確定・請求額で仮）" : "− 印刷の実費"}
+                  value={<span className="num">{yen(settlement.printUsed)}</span>}
+                />
+                <Row
+                  label={settlement.shippingActual === null ? "− 送料の実費（未確定・負担額で仮）" : "− 送料の実費"}
+                  value={<span className="num">{yen(settlement.shippingUsed)}</span>}
+                />
+                <Row label="＝ 差引" value={<span className="num">{yen(settlement.pool)}</span>} />
+                <Row
+                  label={`運営手数料（${Math.round(settlement.rate * 100)}%）`}
+                  value={<span className="num font-bold">{yen(settlement.fee)}</span>}
+                />
+                <Row
+                  label="クリエイター受取"
+                  warn={settlement.payout < 0}
+                  value={<span className="num">{yen(settlement.payout)}</span>}
+                />
+              </>
+            )}
             <p className="pt-1 text-[10px] text-muted-foreground">
-              手数料は「支払い − 印刷代行費 − 送料」（＝作品代金）にかかります。金額は注文時の値です。
+              手数料は「支払い − 印刷の実費 − 送料の実費」にかかります。実費は発送が終わると確定し、
+              それまでは請求額で仮に計算しています。
             </p>
           </Card>
 
