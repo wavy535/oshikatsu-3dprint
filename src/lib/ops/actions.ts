@@ -380,3 +380,127 @@ export async function createShipmentAction(
   revalidatePath("/mypage/orders");
   return { error: null, message: "発送を登録しました。購入者の注文は「発送済み」になります" };
 }
+
+// =============================================================================
+// フィラメント在庫
+//   在庫数は直接書かない。増減は必ず filament_ledger に積み、stock_grams は
+//   トリガー（apply_filament_ledger）が更新する。台帳と在庫が食い違わないようにするため。
+// =============================================================================
+
+const restockSchema = z.object({
+  filamentId: z.string().uuid(),
+  grams: z.coerce.number().positive("1g以上で入力してください").max(100000),
+  reason: z.enum(["restock", "waste", "adjust"]),
+});
+
+/** 補充・廃棄・棚卸し調整。廃棄は負の増減として積む。 */
+export async function adjustFilamentStockAction(
+  _prev: OpsActionState,
+  formData: FormData
+): Promise<OpsActionState> {
+  const parsed = restockSchema.safeParse({
+    filamentId: formData.get("filamentId"),
+    grams: formData.get("grams"),
+    reason: formData.get("reason") ?? "restock",
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+  }
+  const { filamentId, grams, reason } = parsed.data;
+
+  const { supabase, user } = await requireAdmin();
+  const { data, error } = await supabase
+    .from("filament_ledger")
+    .insert({
+      filament_id: filamentId,
+      delta_grams: reason === "waste" ? -grams : grams,
+      reason,
+      actor_id: user.id,
+    })
+    .select("id");
+
+  if (error || !data || data.length === 0) {
+    return { error: `台帳への記録に失敗しました（${error?.message ?? "0件"}）` };
+  }
+
+  revalidatePath("/admin/filaments");
+  return {
+    error: null,
+    message: reason === "waste" ? `${grams}g を廃棄として記録しました` : `${grams}g を記録しました`,
+  };
+}
+
+/** 使う／使わないの切り替え。無効にしても作品の色スロットは残る（restrict）。 */
+export async function toggleFilamentActiveAction(
+  _prev: OpsActionState,
+  formData: FormData
+): Promise<OpsActionState> {
+  const filamentId = String(formData.get("filamentId") ?? "");
+  const next = formData.get("isActive") === "true";
+  if (!filamentId) return { error: "フィラメントが指定されていません" };
+
+  const { supabase } = await requireAdmin();
+  const { data, error } = await supabase
+    .from("filaments")
+    .update({ is_active: next })
+    .eq("id", filamentId)
+    .select("id");
+  if (error || !data || data.length === 0) return { error: "更新できませんでした" };
+
+  revalidatePath("/admin/filaments");
+  return OK;
+}
+
+const newFilamentSchema = z.object({
+  material: z.enum(["PLA", "PETG", "ABS", "TPU"]),
+  colorName: z.string().min(1, "色の名前を入れてください").max(30),
+  colorHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "色コードは #RRGGBB で入力してください"),
+  pricePerGram: z.coerce.number().min(0).max(999),
+  stockGrams: z.coerce.number().int().min(0).max(100000),
+});
+
+/** 新しいフィラメントの登録。初期在庫があれば台帳に「補充」として積む。 */
+export async function createFilamentAction(
+  _prev: OpsActionState,
+  formData: FormData
+): Promise<OpsActionState> {
+  const parsed = newFilamentSchema.safeParse({
+    material: formData.get("material"),
+    colorName: String(formData.get("colorName") ?? "").trim(),
+    colorHex: String(formData.get("colorHex") ?? "").trim(),
+    pricePerGram: formData.get("pricePerGram") || 3.5,
+    stockGrams: formData.get("stockGrams") || 0,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+  }
+  const v = parsed.data;
+
+  const { supabase, user } = await requireAdmin();
+  const { data, error } = await supabase
+    .from("filaments")
+    .insert({
+      material: v.material,
+      color_name: v.colorName,
+      color_hex: v.colorHex.toUpperCase(),
+      price_per_gram: v.pricePerGram,
+      stock_grams: 0,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (error || !data) {
+    if (error?.code === "23505") return { error: "同じ素材・色のフィラメントがすでにあります" };
+    return { error: `登録に失敗しました（${error?.message ?? "0件"}）` };
+  }
+
+  if (v.stockGrams > 0) {
+    await supabase
+      .from("filament_ledger")
+      .insert({ filament_id: data.id, delta_grams: v.stockGrams, reason: "restock", actor_id: user.id })
+      .select("id");
+  }
+
+  revalidatePath("/admin/filaments");
+  return { error: null, message: `${v.material}・${v.colorName} を登録しました` };
+}

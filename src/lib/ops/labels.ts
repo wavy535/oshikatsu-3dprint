@@ -95,3 +95,51 @@ export function shortDateTime(value: string | null | undefined) {
     d.getHours()
   ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
+
+/** 「残りわずか」の目安。運用で変えたくなったらここだけ直す。 */
+export const LOW_STOCK_GRAMS = 500;
+
+export const LEDGER_REASON_LABEL: Record<string, string> = {
+  print: "印刷で消費",
+  restock: "補充",
+  waste: "廃棄",
+  adjust: "棚卸し調整",
+};
+
+/** 注文一覧の絞り込み。運営が追いたい単位で束ねてある。 */
+export const ORDER_STATUS_FILTERS = [
+  { value: "open", label: "進行中", statuses: ["paid", "printing_queued", "printing", "packaging"] },
+  { value: "packaging", label: "発送待ち", statuses: ["packaging"] },
+  { value: "shipped", label: "発送済み", statuses: ["shipped"] },
+  { value: "completed", label: "取引完了", statuses: ["completed"] },
+  { value: "cancelled", label: "キャンセル・返金", statuses: ["cancelled", "refunded"] },
+  { value: "payment_pending", label: "支払い待ち", statuses: ["payment_pending"] },
+  { value: "all", label: "すべて", statuses: [] },
+] as const;
+
+/** 売上として数える注文のステータス（支払い前・キャンセル・返金は含めない）。 */
+export const SALES_ORDER_STATUSES = [
+  "paid",
+  "printing_queued",
+  "printing",
+  "packaging",
+  "shipped",
+  "completed",
+] as const;
+
+export const PAYOUT_STATUS_LABEL: Record<string, string> = {
+  requested: "申請中",
+  processing: "処理中",
+  paid: "振込済み",
+  rejected: "却下",
+};
+
+/** 「2026-09」形式の月キー。売上画面の期間指定に使う。 */
+export function monthKey(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+export function monthLabel(key: string) {
+  const [y, m] = key.split("-");
+  return `${y}年${Number(m)}月`;
+}

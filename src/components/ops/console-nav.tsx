@@ -5,6 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import {
   BarChart3,
   CheckCircle2,
+  ClipboardList,
   Layers,
   Package,
   Printer,
@@ -34,14 +35,15 @@ const OPS_ITEMS: Item[] = [
     inTabs: true,
     icon: CheckCircle2,
   },
-  { label: "出荷済み", icon: Truck },
+  { label: "出荷済み", href: "/admin/shipments", icon: Truck },
+  { label: "注文一覧", href: "/admin/orders", inTabs: true, icon: ClipboardList },
 ];
 
 const MASTER_ITEMS: Item[] = [
-  { label: "フィラメント在庫", inTabs: true, icon: Layers },
+  { label: "フィラメント在庫", href: "/admin/filaments", inTabs: true, icon: Layers },
   { label: "プリンタ管理", icon: Printer },
   { label: "クリエイター審査", href: "/admin/creator-applications", inTabs: true, icon: UserCheck },
-  { label: "売上・手数料", icon: BarChart3 },
+  { label: "売上・手数料", href: "/admin/sales", icon: BarChart3 },
 ];
 
 /** href を持たない項目は、まだ画面が無いもの。押せるように見せない。 */
