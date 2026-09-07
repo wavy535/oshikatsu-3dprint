@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 
-import type { Database } from "@/types/database";
+import type { Database } from "@/types/db";
 
 // Use in Server Components, Route Handlers, and Server Actions.
 export async function createClient() {

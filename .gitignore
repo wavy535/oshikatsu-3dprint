@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# supabase CLI の作業ファイル（ローカル鍵やブランチ状態が入る）
+supabase/.temp/
+supabase/.branches/

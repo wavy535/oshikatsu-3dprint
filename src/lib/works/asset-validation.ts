@@ -1,6 +1,6 @@
 import { analyzeModelFile, type AssetAnalysis, type PricingRule } from "@/lib/print";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import type { Database, PrintOrientation, SupportMode } from "@/types/database";
+import type { Database, Json, PrintOrientation, SupportMode } from "@/types/db";
 
 // STEP1 のアップロード後に走る検証パイプライン。
 //   Storage から 3D データを落とす → 解析する → 結果をDBに書く
@@ -206,7 +206,7 @@ export async function validateAndPersistAsset(assetId: string): Promise<Validate
     code: i.code,
     severity: i.severity,
     message: i.message,
-    detail: i.detail,
+    detail: i.detail as Json,
   }));
 
   const { error: issueError } = await supabase.from("work_validation_issues").insert(issueRows);
