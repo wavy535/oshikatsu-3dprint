@@ -2,6 +2,8 @@
 
 推し活特化型 3Dプリント受託販売ECプラットフォーム
 
+現行コード全体の問題点・簡素化候補・改善順は [全体診断とリファクタリング計画](docs/architecture.md) を参照してください。
+
 ---
 
 ## 1. サービス概要
@@ -633,13 +635,13 @@ Figma 上に「Design System — OshiNest」セクションとして定義して
 
 ### ローカルで動かす（Supabase はローカルコンテナ）
 
-Docker Desktop が必要です。
+Node.js 24とDockerが必要です。
 
 ```bash
-npm install
+npm ci
 cp .env.local.example .env.local   # ローカルの Supabase の値を設定（下記）
 npx -y supabase@2.116.0 start      # 初回・停止後。API 54421 / DB 54422 / Studio 54423 / Mailpit 54424
-npx -y supabase@2.116.0 db reset   # supabase/migrations を順に適用し、supabase/seeds を投入
+npx -y supabase@2.116.0 migration up --local  # 既存DBには未適用分だけ追加
 node scripts/seed-storage.mjs      # ダミー画像を Storage へ（db reset では戻らない）
 npm run dev                        # http://localhost:3000
 ```
@@ -648,7 +650,10 @@ npm run dev                        # http://localhost:3000
 - シードのアカウントはパスワード共通 `password123`：`buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`
 - 新規登録は6桁の確認コード方式。コードは Mailpit（http://127.0.0.1:54424）で受け取れます
 - クリエイター申請の SMS 認証は、ローカルでは `config.toml` の `[auth.sms.test_otp]` にある番号だけ通ります（`090-0000-0001`〜`0003`、コードは `123456`）
-- `.env.local` の Supabase の値は `npx supabase status` で表示されるものを使います。Stripe の値は空のままでよく、空なら決済は開発用の即時確定になります
+- `.env.local` の Supabase の値は `npx -y supabase@2.116.0 status` で表示されるものを使います。Stripeを使わないローカル開発では `ALLOW_DEV_PAYMENTS=true` を設定します。即時確定が有効なのは `NODE_ENV=development` のときだけです
+- 初回の `supabase start` はマイグレーションとシードも適用します。既存データを初期化したい場合だけ、別途 `npx -y supabase@2.116.0 db reset --local` を実行します
+
+検証は `npm test`（TypeScriptの回帰テスト）、`npm run test:db`（ローカルDBのpgTAP）、`npm run lint`、`npx tsc --noEmit`、`npm run build`。解析スクリプトは `npm run analyze -- tests/fixtures/tetrahedron.stl` で動作確認できます。
 
 ### 環境変数
 
@@ -659,7 +664,8 @@ npm run dev                        # http://localhost:3000
 | `NEXT_PUBLIC_SITE_URL` | メール内リンクや決済のリダイレクト先 |
 | `CRON_SECRET` | `/api/cron/*` の合言葉。未設定なら入口は 503 |
 | `RESEND_API_KEY` / `MAIL_FROM` | 通知メールの送信。`RESEND_API_KEY` が無ければ開発時は Mailpit へ |
-| `STRIPE_SECRET_KEY` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` / `STRIPE_WEBHOOK_SECRET` | 今後。入れると決済が Stripe Checkout に切り替わる |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe Checkoutと署名検証。両方を設定して有効化する |
+| `ALLOW_DEV_PAYMENTS` | `true` かつ開発環境の場合だけ、Stripe未設定時に請求を省略する。本番では常に無効 |
 
 ### 本番（Supabase クラウド）へのマイグレーション適用
 
@@ -668,7 +674,7 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-`supabase/migrations/0001〜0026` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
+`supabase/migrations/0001〜0030` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
 
 クリエイター申請の SMS 認証には SMS プロバイダが要ります。Authentication > Providers > Phone で Twilio などを設定し、「Confirm phone」を有効にしてください（アプリ側に鍵は不要です）。
 
@@ -689,6 +695,8 @@ npx supabase gen types typescript --local > src/types/database.ts
 
 ### まとめて検証する
 
+認可と通知の境界は `npm run test:db` で自動検証できます。ローカルSupabaseに最新のマイグレーションを適用してから実行してください。テストデータはトランザクション内で作成し、最後にロールバックします。
+
 ```bash
 docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify-0014-0021.sql   # 決済 → 精算 → 払込 → 修正依頼 → オーダーメイド → 通知リンク
 docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify-0022-0023.sql   # 運営メンバー・role の防護・見積り期限切れ・メール宛先
@@ -700,7 +708,7 @@ docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify
 
 ## 13. 実装状況
 
-2026-09-08 時点。ルートは 51、マイグレーションは `0001〜0026`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
+2026-09-08 時点。ルートは 51、マイグレーションは `0001〜0028`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
 
 ### 実装済み
 
