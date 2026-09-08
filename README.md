@@ -569,51 +569,24 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 
 ## 10. 技術構成
 
-- **アプリケーション**：Next.js 16（App Router）+ TypeScript + Tailwind CSS v4。読み取りは RSC、変更系は Server Actions、外部からの受信（cron・Webhook）は Route Handlers
-- **UI**：Shadcn UI 互換のコンポーネント基盤（`src/components/ui`）
-- **バックエンド**：Supabase（Auth / PostgreSQL / Storage / RLS / pg_cron）。集計・状態遷移・通知はすべて DB のトリガーと関数が持つ
-- **ホスティング**：AWS Amplify Hosting（Next.js の SSR に対応）。定期実行は Amazon EventBridge のスケジュールルールから API Destination 経由で `/api/cron/*` を呼ぶ
-- **メール**：Resend（開発時は Mailpit）
-- **決済**：現在は開発用の即時確定（`confirm_order_payment()` を直接呼ぶ）。Stripe Checkout + Webhook は本番前にキーを入れて有効化する（下記「今後」）
-- **セッション管理**：`src/proxy.ts`（Next.js 16 の旧 `middleware.ts`）でセッション更新と保護ルートのガード
+- **アプリケーション**：Next.js 16（App Router）+ TypeScript + Tailwind CSS v4。読み取りはRSC、変更はServer Actions、メールcronとヘルスチェックはRoute Handlers
+- **UI**：`src/components/ui` の共通コンポーネント
+- **バックエンド**：Supabase（Auth / PostgreSQL / Storage / RLS / pg_cron）。金額スナップショット・状態遷移・通知生成はDBに置く
+- **AWSホスティング**：Node.js 24のDockerコンテナ。ECS Express Mode向けの設定例を用意。旧Amplify前提は、公式のNext.js対応範囲と16.3.4が一致しないため見直した
+- **通知**：アプリ内通知を維持。通知メールはAmazon SES、ローカルはMailpit。定期実行はDB側のpg_cron + pg_netに揃える
+- **注文**：実課金を行わないデモ注文。作成から確定・印刷ジョブ作成まで一つのDBトランザクション。Stripe SDK・Webhookは削除
+- **セッション管理**：`src/proxy.ts` で更新し、各Action/RPCでも認可。`/studio` はレイアウトとActionで役割を確認
 
-保護ルート（`src/lib/supabase/proxy.ts`）：`/mypage`, `/creator`, `/admin`, `/checkout`。`/studio` はレイアウト側で役割を検査
-
-### 構成図
-
-```
- 購入者 / クリエイター / 運営（ブラウザ）
-              │
-              ▼
-┌────────────────────────────────────────────────────────┐
-│ AWS                                                     │
-│                                                         │
-│  Amplify Hosting ── Next.js 16 (App Router)             │
-│    RSC            : 一覧・詳細の読み取り（anon key + RLS）│
-│    Server Actions : カート・注文・出品・検品などの変更系  │
-│    Route Handlers : /api/cron/*（cron の入口）           │
-│                     /api/stripe/webhook（今後）          │
-│                                                         │
-│  EventBridge（スケジュールルール → API Destination）      │
-│    Authorization: Bearer CRON_SECRET を付けて            │
-│    /api/cron/dispatch-emails を 5〜10 分おきに呼ぶ        │
-└──────────────┬──────────────────────────┬───────────────┘
-               │                          │
-               ▼                          ▼
-┌──────────────────────────────┐  ┌──────────────────────┐
-│ Supabase                     │  │ Resend（取引メール）  │
-│  Auth（メール＋6桁の確認コード）│  └──────────────────────┘
-│  PostgreSQL + RLS            │
-│    トリガー / 関数 / ビューが │  ┌──────────────────────┐
-│    集計・状態遷移・通知を担う │  │ Stripe（今後）        │
-│  Storage（3Dデータ・画像・   │  │  Checkout / Webhook  │
-│           検品写真）         │  └──────────────────────┘
-│  pg_cron（見積りの期限切れ）  │
-└──────────────────────────────┘
+```mermaid
+flowchart LR
+    browser[ブラウザ] --> web[AWS / Next.jsコンテナ]
+    web --> db[Supabase / Auth・DB・Storage]
+    db --> notifications[アプリ内通知]
+    cron[Supabase pg_cron + pg_net] --> web
+    web --> ses[Amazon SES]
 ```
 
-- アプリ側の秘密は `SUPABASE_SERVICE_ROLE_KEY` と `CRON_SECRET` の2つ。どちらもサーバーだけが持ち、ブラウザには渡さない
-- 定期実行は EventBridge の代わりに Supabase の pg_cron + pg_net から同じ URL を叩いてもよい（`0023` の見積り期限切れは pg_cron で動いている）
+認証・DB・Storageは当面Supabaseを使う。AWSへの配備手順、料金上の注意、環境変数・IAM・メール定期実行は [infra/aws/README.md](infra/aws/README.md)、残っている改善対象は [docs/architecture.md](docs/architecture.md) にまとめた。
 
 ---
 
@@ -650,7 +623,7 @@ npm run dev                        # http://localhost:3000
 - シードのアカウントはパスワード共通 `password123`：`buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`
 - 新規登録は6桁の確認コード方式。コードは Mailpit（http://127.0.0.1:54424）で受け取れます
 - クリエイター申請の SMS 認証は、ローカルでは `config.toml` の `[auth.sms.test_otp]` にある番号だけ通ります（`090-0000-0001`〜`0003`、コードは `123456`）
-- `.env.local` の Supabase の値は `npx -y supabase@2.116.0 status` で表示されるものを使います。Stripeを使わないローカル開発では `ALLOW_DEV_PAYMENTS=true` を設定します。即時確定が有効なのは `NODE_ENV=development` のときだけです
+- `.env.local` の Supabase の値は `npx -y supabase@2.116.0 status` で表示されるものを使います。注文は環境を問わず実課金なしのデモ注文です。決済用の鍵は不要です
 - 初回の `supabase start` はマイグレーションとシードも適用します。既存データを初期化したい場合だけ、別途 `npx -y supabase@2.116.0 db reset --local` を実行します
 
 検証は `npm test`（TypeScriptの回帰テスト）、`npm run test:db`（ローカルDBのpgTAP）、`npm run lint`、`npx tsc --noEmit`、`npm run build`。解析スクリプトは `npm run analyze -- tests/fixtures/tetrahedron.stl` で動作確認できます。
@@ -661,11 +634,11 @@ npm run dev                        # http://localhost:3000
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ブラウザ・サーバー共通の Supabase 接続 |
 | `SUPABASE_SERVICE_ROLE_KEY` | サーバー専用。cron・メール送信などユーザー文脈が無い処理だけで使う |
-| `NEXT_PUBLIC_SITE_URL` | メール内リンクや決済のリダイレクト先 |
+| `SITE_URL` | メール内リンクの公開URL。サーバーの実行時に設定 |
 | `CRON_SECRET` | `/api/cron/*` の合言葉。未設定なら入口は 503 |
-| `RESEND_API_KEY` / `MAIL_FROM` | 通知メールの送信。`RESEND_API_KEY` が無ければ開発時は Mailpit へ |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe Checkoutと署名検証。両方を設定して有効化する |
-| `ALLOW_DEV_PAYMENTS` | `true` かつ開発環境の場合だけ、Stripe未設定時に請求を省略する。本番では常に無効 |
+| `MAIL_PROVIDER` | `ses` / `mailpit` / `none`。未設定なら送信しない |
+| `AWS_REGION` / `MAIL_FROM` | SESの対象リージョン・検証済み差出人。認証はECSタスクロール |
+| `MAILPIT_URL` | ローカルのメール受信先。例：`http://127.0.0.1:54424` |
 
 ### 本番（Supabase クラウド）へのマイグレーション適用
 
@@ -674,16 +647,13 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-`supabase/migrations/0001〜0030` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
+`supabase/migrations/0001〜0032` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
 
 クリエイター申請の SMS 認証には SMS プロバイダが要ります。Authentication > Providers > Phone で Twilio などを設定し、「Confirm phone」を有効にしてください（アプリ側に鍵は不要です）。
 
-### 本番（AWS）へのデプロイ
+### AWSへのデプロイ
 
-1. **Amplify Hosting** で GitHub のこのリポジトリを接続する（フレームワークは Next.js SSR として自動検出）。環境変数に上表の値を入れる。`NEXT_PUBLIC_SITE_URL` は Amplify のドメイン
-2. **EventBridge** にスケジュールルール（`rate(10 minutes)`）を作り、API Destination の宛先を `https://<ドメイン>/api/cron/dispatch-emails`、Connection の認証を `Authorization: Bearer <CRON_SECRET>` にする
-3. Supabase の pg_cron（見積りの期限切れ・JST 00:05）は DB 側で動くので、AWS 側の設定は不要
-4. Stripe を有効化するときは、Webhook の宛先を `https://<ドメイン>/api/stripe/webhook` にして `STRIPE_WEBHOOK_SECRET` を入れる
+[配備手順と設定例](infra/aws/README.md)を参照してください。Next.jsのコンテナ、ECS Express Modeの設定例、通知メールのcron設定SQLを用意しています。AWSのアカウント・対象リージョン・ドメイン・Supabase接続先を確定してから配備します。このブランチではAWSリソースを作成していません。
 
 ### 型定義の再生成
 
@@ -708,7 +678,7 @@ docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify
 
 ## 13. 実装状況
 
-2026-09-08 時点。ルートは 51、マイグレーションは `0001〜0028`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
+2026-09-09 時点。マイグレーションは `0001〜0032`。`npm run dev` で **買う → デモ注文（実課金なし）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
 
 ### 実装済み
 
@@ -720,17 +690,17 @@ docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify
 | 相談系 | メッセージ、オーダーメイド相談 → 見積り → 承認 → 専用サイズがカートへ → 決済 | `/mypage/messages`, `/mypage/custom-orders/**`, `/studio/custom-orders/**` |
 | 作る人 | 作品管理、出品フロー4STEP（3Dデータの自動検証 → 印刷指示 → 作品情報 → 公開）、売上ダッシュボード、売上の受け取り（口座・振込申請）、修正依頼への対応 | `/studio`, `/studio/works/**`, `/studio/payouts`, `/studio/revisions/**` |
 | 運営 | 印刷キュー → ジョブ詳細 → 検品・発送登録、注文一覧・注文詳細、出荷済み、フィラメント在庫、売上・手数料（実費精算）、払込管理、運営メンバーの追加・解除 | `/admin/**` |
-| 裏側 | 3MF/STL の解析と見積り、通知（DB トリガーが生成）、通知 → メール（cron 入口 + Resend/Mailpit）、見積り期限切れの日次処理（pg_cron）、role の自己昇格の防護 | `src/lib/print/`, `/api/cron/dispatch-emails`, `0022`〜`0023` |
+| 裏側 | 3MF/STL の解析と見積り、通知（DB トリガーが生成）、通知 → メール（cron入口 + SES/Mailpit）、見積り期限切れの日次処理（pg_cron）、role の自己昇格の防護 | `src/lib/print/`, `/api/cron/dispatch-emails`, `0022`〜`0023` |
 
 - 集計（お気に入り数・未読数）、注文ステータスの導出、通知の生成、精算の式は **DB 側**にあります。アプリは記録を書くだけです
-- ビューは全て `security_invoker`、更新系は `.select()` で行数を検査しています（RLS で黙って 0 行になる事故を防ぐため）
+- ビューは `security_invoker`、複数テーブルの更新はRPCを使います。残る多段更新・取得失敗の扱いは [全体診断](docs/architecture.md) を参照してください
 
 ### 今後
 
-- **Stripe の有効化**：コードと Webhook の入口（`/api/stripe/webhook`）はあり、キーを入れると Checkout に切り替わります。本番前に鍵の投入と Webhook の登録を行う
+- 実決済は当面対象外。必要になった時点で、デモ注文と分けて要件・連携先を設計する
 - **プリンタ管理**（運営コンソール。最後に着手する）
 - スマホ向けの仕上げ（Figma ⑥ の下タブ）
 - 通知の「まとめ受信（daily）」の設定画面（DB の `notification_settings` は既にある）
-- 本番の cron 配線（EventBridge → `/api/cron/dispatch-emails`）
+- AWSへの配備とSESの設定、pg_cron → `/api/cron/dispatch-emails` の配線（設定例は `infra/aws/`）
 - 推し空間コーディネート投稿
 - （保留）アストラ連携の撮影・生成。テーブル（`nui_scans` / `nui_assets` / `tryon_renders`）は `0010` にあるが未使用
