@@ -85,7 +85,7 @@
 - 推し空間コーディネート投稿（自分の飾り方を投稿し、使用パーツをピン留め）
 
 ### クリエイター向け
-- クリエイター申請（活動内容を記入 → 運営が審査）
+- クリエイター申請（活動内容を記入 → SMS で電話番号を認証 → クリエイター利用規約に同意 → 運営が審査）
 - 作品投稿（4ステップ：①データ検証 → ②印刷指示 → ③作品情報・サイズ展開 → ④公開）
   - 3Dデータ（3MF / STL）は**非公開バケット**に保存。購入者にもダウンロードさせない
   - アップロード時に**自動検証**（マニフォールド／法線／単位／肉厚／ベッドサイズ／色数）
@@ -647,6 +647,7 @@ npm run dev                        # http://localhost:3000
 - ポートは既定の 5432x ではなく 544xx に寄せてあります（`supabase/config.toml`）。`config.toml` を変えたら `stop` → `start`
 - シードのアカウントはパスワード共通 `password123`：`buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`
 - 新規登録は6桁の確認コード方式。コードは Mailpit（http://127.0.0.1:54424）で受け取れます
+- クリエイター申請の SMS 認証は、ローカルでは `config.toml` の `[auth.sms.test_otp]` にある番号だけ通ります（`090-0000-0001`〜`0003`、コードは `123456`）
 - `.env.local` の Supabase の値は `npx supabase status` で表示されるものを使います。Stripe の値は空のままでよく、空なら決済は開発用の即時確定になります
 
 ### 環境変数
@@ -667,7 +668,9 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-`supabase/migrations/0001〜0023` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
+`supabase/migrations/0001〜0024` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
+
+クリエイター申請の SMS 認証には SMS プロバイダが要ります。Authentication > Providers > Phone で Twilio などを設定し、「Confirm phone」を有効にしてください（アプリ側に鍵は不要です）。
 
 ### 本番（AWS）へのデプロイ
 
@@ -697,14 +700,14 @@ docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify
 
 ## 13. 実装状況
 
-2026-09-08 時点。ルートは 50、マイグレーションは `0001〜0023`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
+2026-09-08 時点。ルートは 51、マイグレーションは `0001〜0024`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
 
 ### 実装済み
 
 | 区分 | 画面・機能 | ルート |
 |---|---|---|
 | 共通 | Top、検索・一覧（絞り込み／並べ替え／マイぬいサイズ既定）、作品詳細（サイズごとの価格と相性判定）、レビュー一覧、Q&A・発送、公開プロフィール（フォロー） | `/`, `/works`, `/works/[id]`, `/works/[id]/reviews`, `/works/[id]/qa`, `/creators/[id]` |
-| 認証 | ログイン、新規登録（メール＋パスワード → 6桁の確認コード）、クリエイター申請と審査 | `/login`, `/signup/verify`, `/creator/apply`, `/admin/creator-applications` |
+| 認証 | ログイン、新規登録（メール＋パスワード → 6桁の確認コード）、クリエイター申請（活動内容 → SMS 認証 → 利用規約への同意）と審査、クリエイター利用規約 | `/login`, `/signup/verify`, `/creator/apply`, `/terms/creator`, `/admin/creator-applications` |
 | 買う人 | お気に入り、カート、決済（お届け先・お支払い → 注文完了）、購入履歴、注文詳細、受け取り評価（2段）、通知・通知設定、マイぬい、配送先 | `/cart`, `/checkout`, `/checkout/complete`, `/mypage/**` |
 | 相談系 | メッセージ、オーダーメイド相談 → 見積り → 承認 → 専用サイズがカートへ → 決済 | `/mypage/messages`, `/mypage/custom-orders/**`, `/studio/custom-orders/**` |
 | 作る人 | 作品管理、出品フロー4STEP（3Dデータの自動検証 → 印刷指示 → 作品情報 → 公開）、売上ダッシュボード、売上の受け取り（口座・振込申請）、修正依頼への対応 | `/studio`, `/studio/works/**`, `/studio/payouts`, `/studio/revisions/**` |

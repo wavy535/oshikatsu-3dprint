@@ -21,7 +21,9 @@ export default async function CreatorApplicationsAdminPage() {
   const serviceClient = createServiceRoleClient();
   const { data: applications } = await serviceClient
     .from("creator_applications")
-    .select("id, user_id, status, message, admin_note, created_at, reviewed_at")
+    .select(
+      "id, user_id, status, message, admin_note, created_at, reviewed_at, phone, phone_verified_at, terms_version, terms_agreed_at, portfolio_url"
+    )
     .order("created_at", { ascending: false });
 
   const userIds = [...new Set((applications ?? []).map((a) => a.user_id))];
@@ -54,7 +56,37 @@ export default async function CreatorApplicationsAdminPage() {
                     {new Date(a.created_at).toLocaleString("ja-JP")}
                   </span>
                 </div>
-                <p className="text-sm">{a.message}</p>
+                <p className="text-sm whitespace-pre-wrap">{a.message}</p>
+                {/* 審査に要る本人確認の情報。番号は運営だけが見る（伏せない） */}
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-ground px-3 py-2 text-[12px]">
+                  <dt className="text-muted-foreground">SMS 認証</dt>
+                  <dd className="num text-ink">
+                    {a.phone
+                      ? `${a.phone}（${new Date(a.phone_verified_at ?? a.created_at).toLocaleString("ja-JP")} 認証）`
+                      : "未認証（旧形式の申請）"}
+                  </dd>
+                  <dt className="text-muted-foreground">利用規約</dt>
+                  <dd className="num text-ink">
+                    {a.terms_version
+                      ? `${a.terms_version} 版に同意（${new Date(a.terms_agreed_at ?? a.created_at).toLocaleString("ja-JP")}）`
+                      : "未同意（旧形式の申請）"}
+                  </dd>
+                  <dt className="text-muted-foreground">ポートフォリオ</dt>
+                  <dd>
+                    {a.portfolio_url ? (
+                      <a
+                        href={a.portfolio_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="break-all text-brand hover:underline"
+                      >
+                        {a.portfolio_url}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground">なし</span>
+                    )}
+                  </dd>
+                </dl>
                 {a.status === "pending" && <ReviewButtons applicationId={a.id} />}
               </div>
             ))

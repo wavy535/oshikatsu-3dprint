@@ -263,16 +263,21 @@ content_path = "./supabase/templates/confirmation.html"
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
 enable_signup = false
-# If enabled, users need to confirm their phone number before signing in.
-enable_confirmations = false
+# 電話番号の変更（クリエイター申請の SMS 認証）は必ずコードで確認する。
+# false だと updateUser({ phone }) がコード無しで番号を確定してしまい、認証にならない。
+enable_confirmations = true
 # Template for sending OTP to users
-template = "Your code is {{ .Code }}"
+template = "【OshiNest】認証コード: {{ .Code }}"
 # Controls the minimum amount of time that must pass before sending another sms otp.
-max_frequency = "5s"
+max_frequency = "60s"
 
-# Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
+# ローカルには SMS プロバイダが無いので、テスト用の番号と固定コードを使う。
+# （キーは E.164 から + を除いたもの。090-0000-0001 → 819000000001）
+# 本番は Supabase ダッシュボード Authentication > Providers > Phone でプロバイダ（Twilio 等）を設定する。
+[auth.sms.test_otp]
+819000000001 = "123456"
+819000000002 = "123456"
+819000000003 = "123456"
 
 # Configure logged in session timeouts.
 # [auth.sessions]

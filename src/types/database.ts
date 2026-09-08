@@ -292,9 +292,14 @@ export type Database = {
           created_at: string
           id: string
           message: string
+          phone: string | null
+          phone_verified_at: string | null
+          portfolio_url: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           status: Database["public"]["Enums"]["creator_application_status"]
+          terms_agreed_at: string | null
+          terms_version: string | null
           user_id: string
         }
         Insert: {
@@ -302,9 +307,14 @@ export type Database = {
           created_at?: string
           id?: string
           message: string
+          phone?: string | null
+          phone_verified_at?: string | null
+          portfolio_url?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["creator_application_status"]
+          terms_agreed_at?: string | null
+          terms_version?: string | null
           user_id: string
         }
         Update: {
@@ -312,9 +322,14 @@ export type Database = {
           created_at?: string
           id?: string
           message?: string
+          phone?: string | null
+          phone_verified_at?: string | null
+          portfolio_url?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           status?: Database["public"]["Enums"]["creator_application_status"]
+          terms_agreed_at?: string | null
+          terms_version?: string | null
           user_id?: string
         }
         Relationships: [
