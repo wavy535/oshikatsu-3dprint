@@ -24,8 +24,11 @@ rollback;
 \echo ''
 \echo '=== 2. 運営が申請を承認 → buyer が creator になる ==='
 begin;
-insert into public.creator_applications (id, user_id, message)
-  values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', 'テスト申請テスト申請テスト申請テスト申請');
+-- 0024 以降、申請は SMS 認証済み + 規約同意が無いとトリガーが拒否するので、先に認証済みにしておく
+update auth.users set phone = '819000000009', phone_confirmed_at = now()
+ where id = '11111111-1111-1111-1111-111111111111';
+insert into public.creator_applications (id, user_id, terms_version)
+  values ('aaaaaaaa-0000-0000-0000-000000000001', '11111111-1111-1111-1111-111111111111', '2026-09-08');
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}',true);
 update public.creator_applications set status = 'approved', reviewed_by = '44444444-4444-4444-4444-444444444444'
