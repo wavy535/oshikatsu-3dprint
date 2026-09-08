@@ -45,6 +45,19 @@ export default async function AccountLayout({
           ]
         : [{ href: "/creator/apply", label: "クリエイター登録" }],
     },
+    ...(shell.isAdmin
+      ? [
+          {
+            label: "運営",
+            items: [
+              { href: "/admin/print-queue", label: "印刷キュー" },
+              { href: "/admin/orders", label: "注文一覧" },
+              { href: "/admin/sales", label: "売上・手数料" },
+              { href: "/admin/payouts", label: "払込管理" },
+            ],
+          },
+        ]
+      : []),
   ];
 
   return (

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, Plus, Search, ShoppingBag, ShoppingCart, Smile } from "lucide-react";
+import { Bell, Plus, Search, ShieldCheck, ShoppingBag, ShoppingCart, Smile } from "lucide-react";
 import { getShellContext } from "@/lib/layout/queries";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -80,6 +80,19 @@ export async function SiteHeader({ query }: { query?: string }) {
 
         {signedIn ? (
           <nav className="ml-auto flex items-center gap-1">
+            {shell.isAdmin && (
+              <Button
+                asChild
+                size="sm"
+                className="mr-1 hidden bg-console text-white hover:bg-console/90 sm:inline-flex"
+              >
+                {/* 運営だけに見える入口。コンソール側の暗色ヘッダーと同じ色にして役割の切り替えを分かりやすくする */}
+                <Link href="/admin/print-queue">
+                  <ShieldCheck className="size-4" aria-hidden />
+                  運営コンソール
+                </Link>
+              </Button>
+            )}
             {shell.isCreator ? (
               <Button asChild size="sm" className="mr-1 hidden sm:inline-flex">
                 {/* 下書きの作成は作品管理の Server Action で行うので、そこへ送る */}
