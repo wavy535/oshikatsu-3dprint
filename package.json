@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:db": "npx -y supabase@2.116.0 test db --local"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
