@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { createClient } from "@/lib/supabase/server";
 import { validateAndPersistAsset } from "@/lib/works/asset-validation";
+import { idSchema } from "@/lib/validation";
 
 export type StepActionState = { error: string | null; ok?: boolean };
 
@@ -109,7 +110,7 @@ export async function registerAssetAction(
 
   if (error || !asset) return { error: "3Dデータを登録できませんでした" };
 
-  const result = await validateAndPersistAsset(asset.id);
+  const result = await validateAndPersistAsset(asset.id, parsed.data.workId);
   revalidatePath(`/studio/works/${parsed.data.workId}/steps/1`);
 
   if (!result.ok) return { error: result.error };
@@ -121,12 +122,24 @@ export async function revalidateAssetAction(
   _prev: StepActionState,
   formData: FormData
 ): Promise<StepActionState> {
-  const workId = String(formData.get("workId") ?? "");
-  const assetId = String(formData.get("assetId") ?? "");
+  const parsed = z.object({ workId: idSchema, assetId: idSchema }).safeParse({
+    workId: formData.get("workId"),
+    assetId: formData.get("assetId"),
+  });
+  if (!parsed.success) return { error: "3Dデータの指定が不正です" };
+  const { workId, assetId } = parsed.data;
   const owned = await requireOwnWork(workId);
   if (!owned.ok) return { error: owned.error };
 
-  const result = await validateAndPersistAsset(assetId);
+  const { data: asset, error } = await owned.supabase
+    .from("work_assets")
+    .select("id")
+    .eq("id", assetId)
+    .eq("work_id", workId)
+    .maybeSingle();
+  if (error || !asset) return { error: "この作品の3Dデータが見つかりません" };
+
+  const result = await validateAndPersistAsset(asset.id, workId);
   revalidatePath(`/studio/works/${workId}/steps/1`);
   return result.ok ? { error: null, ok: true } : { error: result.error };
 }

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { analyzeModelFile, type AssetAnalysis, type PricingRule } from "@/lib/print";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import type { Database, Json, PrintOrientation, SupportMode } from "@/types/db";
@@ -66,7 +68,8 @@ function defaultInstruction(bbox: [number, number, number]): {
   return { orientation: "as_is", support: "auto", note: null };
 }
 
-export async function validateAndPersistAsset(assetId: string): Promise<ValidateAssetResult> {
+/** 呼び出し元で認可した作品に対象を限定する。 */
+export async function validateAndPersistAsset(assetId: string, workId: string): Promise<ValidateAssetResult> {
   const supabase = createServiceRoleClient();
 
   // --- 1. 対象のアセットを取る ------------------------------------------------
@@ -74,6 +77,7 @@ export async function validateAndPersistAsset(assetId: string): Promise<Validate
     .from("work_assets")
     .select("id, work_id, storage_path, file_name, file_format")
     .eq("id", assetId)
+    .eq("work_id", workId)
     .single();
 
   if (assetError || !asset) {
