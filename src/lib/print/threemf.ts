@@ -1,4 +1,4 @@
-import { extractZipFile } from "./zip";
+import { extractZipFile } from "./zip.ts";
 import {
   applyTransform,
   multiplyTransform,
@@ -6,7 +6,7 @@ import {
   type Matrix4x3,
   type Mesh,
   type NamedMesh,
-} from "./mesh";
+} from "./mesh.ts";
 
 // 3MF は ZIP の中に 3D/3dmodel.model（XML）が入っている。
 // 汎用の XML パーサを積むと 313,348 三角形のようなファイルで重くなるので、

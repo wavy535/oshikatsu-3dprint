@@ -1,4 +1,4 @@
-import type { Mesh, NamedMesh } from "./mesh";
+import type { Mesh, NamedMesh } from "./mesh.ts";
 
 // STL は単位も色も持たない。1オブジェクト・単色として読み込み、
 // 「mm と解釈した」ことは検証の警告として別途出す。

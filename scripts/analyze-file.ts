@@ -2,7 +2,7 @@
 //   node --experimental-strip-types scripts/analyze-file.ts <path>
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { analyzeModelFile } from "../src/lib/print/index";
+import { analyzeModelFile } from "../src/lib/print/index.ts";
 
 const path = process.argv[2];
 if (!path) {

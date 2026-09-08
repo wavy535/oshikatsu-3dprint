@@ -4,7 +4,7 @@
 //   node scripts/verify-pipeline.js <model> > /tmp/pipeline.sql && psql -f /tmp/pipeline.sql
 import { readFileSync } from "node:fs";
 import { basename } from "node:path";
-import { analyzeModelFile } from "../src/lib/print/index";
+import { analyzeModelFile } from "../src/lib/print/index.ts";
 
 const path = process.argv[2];
 const buf = readFileSync(path);

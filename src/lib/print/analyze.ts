@@ -1,4 +1,4 @@
-import { boundsOf, boundsSize, triangleCount, type Bounds, type Mesh } from "./mesh";
+import { boundsOf, boundsSize, triangleCount, type Bounds, type Mesh } from "./mesh.ts";
 
 // メッシュの形状解析。
 // スライサーが落ちる原因（穴・法線の反転・薄すぎる壁・自己交差）を、

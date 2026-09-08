@@ -1,4 +1,4 @@
-import { analyzeMesh, type MeshAnalysis } from "./analyze";
+import { analyzeMesh, type MeshAnalysis } from "./analyze.ts";
 import {
   DEFAULT_PRICING,
   estimateFilamentGrams,
@@ -7,13 +7,13 @@ import {
   fitsOnBedParts,
   type PricingRule,
   type VariantEstimate,
-} from "./estimate";
-import { boundsSize, mergeBounds, type Mesh } from "./mesh";
-import { parseStl } from "./stl";
-import { parseThreeMf, type ThreeMfMaterial } from "./threemf";
+} from "./estimate.ts";
+import { boundsSize, mergeBounds, type Mesh } from "./mesh.ts";
+import { parseStl } from "./stl.ts";
+import { parseThreeMf, type ThreeMfMaterial } from "./threemf.ts";
 
-export * from "./estimate";
-export type { MeshAnalysis } from "./analyze";
+export * from "./estimate.ts";
+export type { MeshAnalysis } from "./analyze.ts";
 
 export type IssueSeverity = "ok" | "warning" | "error";
 
