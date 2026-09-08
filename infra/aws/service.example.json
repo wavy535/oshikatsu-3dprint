@@ -1,0 +1,29 @@
+{
+  "serviceName": "oshinest-demo",
+  "executionRoleArn": "<task-execution-role-arn>",
+  "infrastructureRoleArn": "<ecs-express-infrastructure-role-arn>",
+  "taskRoleArn": "<application-task-role-arn>",
+  "healthCheckPath": "/api/health",
+  "cpu": "1024",
+  "memory": "2048",
+  "scalingTarget": { "minTaskCount": 1, "maxTaskCount": 1 },
+  "networkConfiguration": {
+    "subnets": ["<public-subnet-in-az-1>", "<public-subnet-in-az-2>"]
+  },
+  "primaryContainer": {
+    "image": "<private-ecr-image-uri@sha256:digest>",
+    "containerPort": 3000,
+    "environment": [
+      { "name": "NEXT_PUBLIC_SUPABASE_URL", "value": "<same-url-as-build>" },
+      { "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY", "value": "<same-public-key-as-build>" },
+      { "name": "SITE_URL", "value": "<https-public-site-url>" },
+      { "name": "MAIL_PROVIDER", "value": "ses" },
+      { "name": "AWS_REGION", "value": "<ses-region>" },
+      { "name": "MAIL_FROM", "value": "<verified-sender-address>" }
+    ],
+    "secrets": [
+      { "name": "SUPABASE_SERVICE_ROLE_KEY", "valueFrom": "<secret-or-parameter-arn>" },
+      { "name": "CRON_SECRET", "valueFrom": "<secret-or-parameter-arn>" }
+    ]
+  }
+}

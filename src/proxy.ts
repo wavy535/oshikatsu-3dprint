@@ -14,8 +14,9 @@ export const config = {
      * 以下を除く全リクエストパスにマッチ:
      * - _next/static, _next/image（静的アセット）
      * - favicon.ico
+     * - ヘルスチェックと独自認証を持つメールcron
      * - 画像ファイル
      */
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!api/health$|api/cron/dispatch-emails$|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
