@@ -7,7 +7,7 @@ export const metadata = { title: "配送先・お支払い" };
 
 /**
  * Figma ④マイページ「配送先・お支払い」。
- * お支払い方法は決済（Stripe）を入れるときに足す。
+ * 現在の注文は実課金なしのため、カード情報は保存しない。
  */
 export default async function AddressesPage() {
   const { supabase, user } = await requireUser("/mypage/addresses");

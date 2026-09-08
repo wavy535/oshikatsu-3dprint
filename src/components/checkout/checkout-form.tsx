@@ -1,12 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { CreditCard, FlaskConical, ImageIcon, MapPin } from "lucide-react";
 
 import { placeOrderAction, type CheckoutActionState } from "@/lib/checkout/actions";
 import type { CartLine } from "@/lib/cart/queries";
-import type { PaymentMode } from "@/lib/payments/stripe";
 import { workImageUrl } from "@/lib/storage";
 import { yen } from "@/components/work/work-card";
 import { Button } from "@/components/ui/button";
@@ -27,25 +26,26 @@ type Address = {
 /**
  * Figma ①購入フロー「決済（チェックアウト）48:796」。
  * 左にお届け先・お支払い方法・要望、右に注文内容と合計。
- * 「注文を確定する」で place_order() → Stripe（キーがあれば）。
+ * 実課金は行わず、注文から印刷・発送までの流れを確認する。
  */
 export function CheckoutForm({
   lines,
   addresses,
   totals,
-  paymentMode,
+  requestId,
 }: {
   lines: CartLine[];
   addresses: Address[];
   totals: { goods: number; printFee: number; shipping: number; total: number };
-  paymentMode: PaymentMode;
+  requestId: string;
 }) {
   const [state, action, pending] = useActionState(placeOrderAction, initial);
+  const [checkoutRequestId] = useState(requestId);
   const defaultAddress = addresses.find((a) => a.is_default) ?? addresses[0];
 
   return (
     <form action={action} className="flex flex-col gap-5 lg:flex-row">
-      {state.orderId && <input type="hidden" name="orderId" value={state.orderId} />}
+      <input type="hidden" name="requestId" value={checkoutRequestId} />
       <div className="flex min-w-0 flex-1 flex-col gap-3.5">
         <section className="flex flex-col gap-2.5 rounded-xl border border-line bg-white p-4">
           <div className="flex items-center gap-2">
@@ -95,21 +95,13 @@ export function CheckoutForm({
             <CreditCard className="size-3.5 text-brand" aria-hidden />
             <h2 className="text-[13px] font-bold text-ink">お支払い方法</h2>
           </div>
-          {paymentMode === "stripe" ? (
-            <p className="text-[11.5px] text-muted-foreground">
-              「注文を確定する」を押すと Stripe の決済ページに移ります。クレジットカード
-              （VISA / Mastercard / JCB など）が使えます。支払いが済むと印刷の準備に入ります。
+          <div className="flex items-start gap-2 rounded-lg bg-warn-bg px-3 py-2">
+            <FlaskConical className="mt-0.5 size-3.5 flex-none text-warn" aria-hidden />
+            <p className="text-[11px] text-warn">
+              <span className="font-semibold">デモ注文</span>：実際の請求は発生しません。
+              注文後の印刷・検品・発送の流れを確認できます。
             </p>
-          ) : paymentMode === "development" ? (
-            <div className="flex items-start gap-2 rounded-lg bg-warn-bg px-3 py-2">
-              <FlaskConical className="mt-0.5 size-3.5 flex-none text-warn" aria-hidden />
-              <p className="text-[11px] text-warn">
-                <span className="font-semibold">開発モード</span>：実際の請求を行わずに注文を確定します。
-              </p>
-            </div>
-          ) : (
-            <p role="alert" className="text-xs text-danger">現在お支払いを利用できません。しばらくしてからお試しください。</p>
-          )}
+          </div>
         </section>
 
         <section className="flex flex-col gap-2.5 rounded-xl border border-line bg-white p-4">
@@ -169,18 +161,12 @@ export function CheckoutForm({
           </div>
         </dl>
 
-        <Button type="submit" size="lg" className="w-full" disabled={pending || paymentMode === "unavailable" || addresses.length === 0 || lines.length === 0}>
-          {pending ? "処理中…" : state.orderId ? "お支払いを再開する" : "注文を確定する"}
+        <Button type="submit" size="lg" className="w-full" disabled={pending || addresses.length === 0 || lines.length === 0}>
+          {pending ? "処理中…" : "デモ注文を確定する"}
         </Button>
         {state.error && <p className="text-[11px] text-danger">{state.error}</p>}
-        {state.orderId && (
-          <Link className="text-xs text-brand underline" href={`/mypage/orders/${state.orderId}`}>
-            作成済みの注文を確認・取り消す
-          </Link>
-        )}
         <p className="text-[9.5px] leading-4 text-muted-foreground">
-          「注文を確定する」を押すと利用規約に同意したものとみなされます。受注生産のため、
-          支払い後のキャンセルはできません。
+          表示金額は確認用です。カード情報の入力やお支払いは必要ありません。
         </p>
       </aside>
     </form>

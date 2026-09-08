@@ -37,7 +37,7 @@ export async function getMyOrder(id: string) {
   const { data } = await supabase
     .from("orders")
     .select(
-      `id, status, subtotal_amount, platform_fee_amount, print_cost_amount, shipping_fee_amount, total_amount,
+      `id, status, is_demo, subtotal_amount, platform_fee_amount, print_cost_amount, shipping_fee_amount, total_amount,
        created_at, shipped_at, tracking_number, ship_due_at,
        addresses(recipient_name, postal_code, prefecture, city, address_line, phone),
        order_items(${ITEM_SELECT})`

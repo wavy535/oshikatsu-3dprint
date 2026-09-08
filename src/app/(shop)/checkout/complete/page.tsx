@@ -3,19 +3,18 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, Clock } from "lucide-react";
 
 import { getCompletedOrder } from "@/lib/checkout/queries";
-import { PaymentConfirmation } from "@/components/checkout/payment-controls";
 import { yen } from "@/components/work/work-card";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "注文完了" };
 
 /**
- * 注文完了。本人の注文を表示し、決済照会は認証付きのServer Actionへ送る。
+ * 注文完了。本人の注文の確定結果だけを表示する。
  */
 export default async function CheckoutCompletePage({
   searchParams,
 }: {
-  searchParams: Promise<{ order?: string; session_id?: string }>;
+  searchParams: Promise<{ order?: string }>;
 }) {
   const sp = await searchParams;
   if (!sp.order) notFound();
@@ -23,27 +22,23 @@ export default async function CheckoutCompletePage({
   const order = await getCompletedOrder(sp.order);
   if (!order) notFound();
 
-  const paid = order.status !== "payment_pending" && order.status !== "cancelled";
+  const confirmed = order.status !== "payment_pending" && order.status !== "cancelled";
 
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col items-center gap-5 px-6 py-12 text-center">
-      {paid ? (
+      {confirmed ? (
         <CheckCircle2 className="size-12 text-ok" aria-hidden />
       ) : (
         <Clock className="size-12 text-warn" aria-hidden />
       )}
       <h1 className="text-lg font-bold text-ink">
-        {paid ? "ご注文ありがとうございます" : "お支払いの確認を待っています"}
+        {confirmed ? "ご注文ありがとうございます" : order.status === "cancelled" ? "注文は取り消されました" : "注文はまだ確定していません"}
       </h1>
       <p className="text-[12.5px] leading-5 text-muted-foreground">
-        {paid
-          ? "支払いを確認しました。運営が印刷・検品・発送を行います。進み具合は注文詳細で確認できます。"
-          : "支払いが確認できると、印刷の準備に入ります。しばらくしてから注文詳細を開いてください。"}
+        {confirmed
+          ? order.is_demo ? "デモ注文を受け付けました。実際の請求は発生していません。印刷・検品・発送の進み具合は注文詳細で確認できます。" : "注文を受け付けました。進み具合は注文詳細で確認できます。"
+          : "注文詳細で現在の状態を確認できます。"}
       </p>
-
-      {order.status === "payment_pending" && sp.session_id && (
-        <PaymentConfirmation orderId={order.id} sessionId={sp.session_id} />
-      )}
 
       <div className="w-full rounded-xl border border-line bg-white p-4 text-left">
         <p className="num text-[11px] text-muted-foreground">注文番号 #{order.id.slice(0, 8)}</p>

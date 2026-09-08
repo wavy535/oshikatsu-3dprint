@@ -2,7 +2,6 @@ import "server-only";
 
 import { requireUser } from "@/lib/auth/guards";
 import { getCart } from "@/lib/cart/queries";
-import { paymentMode } from "@/lib/payments/stripe";
 
 /**
  * 決済画面が読むもの。金額はカート（work_variant_pricing）と料金表から出すが、
@@ -39,7 +38,6 @@ export async function getCheckoutContext() {
     lines,
     addresses: addressResult.data ?? [],
     totals: { goods, printFee, shipping, total: goods + printFee + shipping },
-    paymentMode: paymentMode(),
   };
 }
 
@@ -49,7 +47,7 @@ export async function getCompletedOrder(orderId: string) {
   const { data } = await supabase
     .from("orders")
     .select(
-      `id, status, total_amount, subtotal_amount, print_cost_amount, shipping_fee_amount, ship_due_at, created_at,
+      `id, status, is_demo, total_amount, subtotal_amount, print_cost_amount, shipping_fee_amount, ship_due_at, created_at,
        order_items(id, quantity, size_label_snapshot, unit_price, works(title))`
     )
     .eq("id", orderId)

@@ -1,46 +1,50 @@
-import { beforeEach, afterEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn((url: string) => { throw new Error(`redirect:${url}`); }) }));
 vi.mock("@/lib/auth/guards", () => ({ requireUser: vi.fn() }));
-vi.mock("@/lib/payments/stripe", () => ({ paymentMode: vi.fn() }));
-vi.mock("@/lib/payments/checkout", () => ({ PaymentError: class extends Error {}, startOrderPayment: vi.fn(), syncOrderPayment: vi.fn(), cancelOrderPayment: vi.fn() }));
 
 import { requireUser } from "@/lib/auth/guards";
-import { paymentMode } from "@/lib/payments/stripe";
-import { PaymentError, startOrderPayment } from "@/lib/payments/checkout";
-import { placeOrderAction } from "@/lib/checkout/actions";
+import { placeOrderAction, confirmDemoOrderAction } from "@/lib/checkout/actions";
 const orderId = "12000000-0000-4000-8000-000000000001";
+const addressId = "12000000-0000-4000-8000-000000000002";
+const requestId = "12000000-0000-4000-8000-000000000003";
 const rpc = vi.fn();
 beforeEach(() => {
-  vi.spyOn(console, "error").mockImplementation(() => {});
-  vi.mocked(paymentMode).mockReturnValue("stripe");
   vi.mocked(requireUser).mockResolvedValue({ supabase: { rpc }, user: { id: "buyer" } } as unknown as Awaited<ReturnType<typeof requireUser>>);
   rpc.mockResolvedValue({ data: orderId, error: null });
 });
-afterEach(() => vi.restoreAllMocks());
 function input() {
   const form = new FormData();
-  form.set("addressId", "12000000-0000-4000-8000-000000000002");
+  form.set("addressId", addressId);
+  form.set("requestId", requestId);
   return form;
 }
-test("決済設定がなければ注文を作らない", async () => {
-  vi.mocked(paymentMode).mockReturnValue("unavailable");
-  expect((await placeOrderAction({ error: null }, input())).error).toBeTruthy();
+test("注文確定にはログインが必要で、認証のリダイレクトを握りつぶさない", async () => {
+  vi.mocked(requireUser).mockRejectedValueOnce(new Error("redirect:/login"));
+  await expect(placeOrderAction({ error: null }, input())).rejects.toThrow("redirect:/login");
   expect(rpc).not.toHaveBeenCalled();
 });
-test("自動再試行できない決済は運営への問い合わせを案内する", async () => {
-  vi.mocked(startOrderPayment).mockRejectedValueOnce(new PaymentError("運営へお問い合わせください"));
-  expect((await placeOrderAction({ error: null }, input())).error).toBe("運営へお問い合わせください");
+test("不正な注文入力をDBに渡さない", async () => {
+  const form = input();
+  form.set("requestId", "invalid");
+  expect((await placeOrderAction({ error: null }, form)).error).toBeTruthy();
+  expect(rpc).not.toHaveBeenCalled();
 });
-test("決済接続の失敗後も作成済み注文で再試行し、注文を増やさない", async () => {
-  vi.mocked(startOrderPayment).mockRejectedValueOnce(new Error("network failed"));
+test("注文確定が失敗したときは完了画面へ遷移しない", async () => {
+  rpc.mockResolvedValueOnce({ data: null, error: { message: "在庫が足りません" } });
+  expect(await placeOrderAction({ error: null }, input())).toEqual({ error: "在庫が足りません" });
+});
+test("再送にも同じリクエストIDを渡し、DBで確定した注文へ遷移する", async () => {
+  rpc.mockResolvedValueOnce({ data: null, error: { message: "通信に失敗しました" } });
   const failed = await placeOrderAction({ error: null }, input());
-  expect(failed.orderId).toBe(orderId);
-  const retry = input();
-  retry.set("orderId", failed.orderId!);
-  vi.mocked(startOrderPayment).mockResolvedValueOnce("https://checkout.stripe.com/test");
-  await expect(placeOrderAction(failed, retry)).rejects.toThrow("redirect:https://checkout.stripe.com/test");
-  expect(rpc).toHaveBeenCalledTimes(1);
-  expect(startOrderPayment).toHaveBeenLastCalledWith(orderId);
+  await expect(placeOrderAction(failed, input())).rejects.toThrow(`redirect:/checkout/complete?order=${orderId}`);
+  expect(rpc).toHaveBeenNthCalledWith(1, "place_demo_order", { p_address_id: addressId, p_request_id: requestId, p_note: undefined });
+  expect(rpc).toHaveBeenNthCalledWith(2, "place_demo_order", { p_address_id: addressId, p_request_id: requestId, p_note: undefined });
+});
+test("既存注文も利用者権限のRPCで確認し、拒否をそのまま返す", async () => {
+  rpc.mockResolvedValueOnce({ data: null, error: { message: "この注文を操作できません" } });
+  const form = new FormData();
+  form.set("orderId", orderId);
+  expect(await confirmDemoOrderAction({ error: null }, form)).toEqual({ error: "この注文を操作できません" });
 });

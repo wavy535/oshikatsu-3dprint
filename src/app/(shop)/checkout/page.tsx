@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check } from "lucide-react";
@@ -61,7 +62,7 @@ export default async function CheckoutPage({
         lines={ctx.lines}
         addresses={ctx.addresses}
         totals={ctx.totals}
-        paymentMode={ctx.paymentMode}
+        requestId={randomUUID()}
       />
     </div>
   );

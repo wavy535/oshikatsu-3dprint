@@ -31,7 +31,7 @@ export async function createClient() {
 }
 
 // Service-role client for trusted server-only operations (e.g. Admin
-// dashboard actions, Stripe webhooks). NEVER import this in client code.
+// asset validation, notification emails). NEVER import this in client code.
 export function createServiceRoleClient() {
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

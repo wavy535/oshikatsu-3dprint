@@ -1387,10 +1387,12 @@ export type Database = {
       orders: {
         Row: {
           buyer_id: string
+          checkout_request_id: string | null
           checkout_started_at: string | null
           created_at: string
           gift_wrapping: boolean
           id: string
+          is_demo: boolean
           platform_fee_amount: number
           platform_fee_rate: number | null
           print_cost_amount: number
@@ -1408,10 +1410,12 @@ export type Database = {
         }
         Insert: {
           buyer_id: string
+          checkout_request_id?: string | null
           checkout_started_at?: string | null
           created_at?: string
           gift_wrapping?: boolean
           id?: string
+          is_demo?: boolean
           platform_fee_amount?: number
           platform_fee_rate?: number | null
           print_cost_amount?: number
@@ -1429,10 +1433,12 @@ export type Database = {
         }
         Update: {
           buyer_id?: string
+          checkout_request_id?: string | null
           checkout_started_at?: string | null
           created_at?: string
           gift_wrapping?: boolean
           id?: string
+          is_demo?: boolean
           platform_fee_amount?: number
           platform_fee_rate?: number | null
           print_cost_amount?: number
@@ -3953,10 +3959,12 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: {
           buyer_id: string
+          checkout_request_id: string | null
           checkout_started_at: string | null
           created_at: string
           gift_wrapping: boolean
           id: string
+          is_demo: boolean
           platform_fee_amount: number
           platform_fee_rate: number | null
           print_cost_amount: number
@@ -3984,6 +3992,7 @@ export type Database = {
         Returns: number
       }
       cancel_unpaid_order: { Args: { p_order_id: string }; Returns: boolean }
+      confirm_demo_order: { Args: { p_order_id: string }; Returns: boolean }
       confirm_order_payment: {
         Args: { p_order_id: string; p_payment_ref?: string }
         Returns: boolean
@@ -4087,6 +4096,10 @@ export type Database = {
           item_id: string
           payout_amount: number
         }[]
+      }
+      place_demo_order: {
+        Args: { p_address_id: string; p_note?: string; p_request_id: string }
+        Returns: string
       }
       place_order: {
         Args: { p_address_id: string; p_note?: string }
