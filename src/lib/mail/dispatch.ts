@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { siteUrl } from "@/lib/payments/stripe";
+import { siteUrl } from "@/lib/site";
 import { KIND_LABEL } from "@/lib/notifications/queries";
 import { mailProvider, sendMail } from "@/lib/mail/send";
 import type { FunctionReturns } from "@/types/db";

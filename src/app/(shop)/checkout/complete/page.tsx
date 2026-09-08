@@ -3,16 +3,14 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, Clock } from "lucide-react";
 
 import { getCompletedOrder } from "@/lib/checkout/queries";
-import { getStripe } from "@/lib/payments/stripe";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { PaymentConfirmation } from "@/components/checkout/payment-controls";
 import { yen } from "@/components/work/work-card";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "注文完了" };
 
 /**
- * 注文完了。Stripe から戻ってきた場合は session を照会し、支払い済みなら
- * ここでも confirm_order_payment() を呼ぶ（webhook が遅れても画面が正しくなる。冪等）。
+ * 注文完了。本人の注文を表示し、決済照会は認証付きのServer Actionへ送る。
  */
 export default async function CheckoutCompletePage({
   searchParams,
@@ -21,19 +19,6 @@ export default async function CheckoutCompletePage({
 }) {
   const sp = await searchParams;
   if (!sp.order) notFound();
-
-  const stripe = getStripe();
-  if (stripe && sp.session_id) {
-    const session = await stripe.checkout.sessions.retrieve(sp.session_id);
-    const orderId = session.metadata?.order_id ?? session.client_reference_id;
-    if (orderId === sp.order && session.payment_status === "paid") {
-      const service = createServiceRoleClient();
-      await service.rpc("confirm_order_payment", {
-        p_order_id: sp.order,
-        p_payment_ref: typeof session.payment_intent === "string" ? session.payment_intent : session.id,
-      });
-    }
-  }
 
   const order = await getCompletedOrder(sp.order);
   if (!order) notFound();
@@ -55,6 +40,10 @@ export default async function CheckoutCompletePage({
           ? "支払いを確認しました。運営が印刷・検品・発送を行います。進み具合は注文詳細で確認できます。"
           : "支払いが確認できると、印刷の準備に入ります。しばらくしてから注文詳細を開いてください。"}
       </p>
+
+      {order.status === "payment_pending" && sp.session_id && (
+        <PaymentConfirmation orderId={order.id} sessionId={sp.session_id} />
+      )}
 
       <div className="w-full rounded-xl border border-line bg-white p-4 text-left">
         <p className="num text-[11px] text-muted-foreground">注文番号 #{order.id.slice(0, 8)}</p>

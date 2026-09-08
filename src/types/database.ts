@@ -1387,6 +1387,7 @@ export type Database = {
       orders: {
         Row: {
           buyer_id: string
+          checkout_started_at: string | null
           created_at: string
           gift_wrapping: boolean
           id: string
@@ -1398,6 +1399,7 @@ export type Database = {
           shipping_address_id: string | null
           shipping_fee_amount: number
           status: Database["public"]["Enums"]["order_status"]
+          stripe_checkout_session_id: string | null
           stripe_payment_intent_id: string | null
           subtotal_amount: number
           total_amount: number
@@ -1406,6 +1408,7 @@ export type Database = {
         }
         Insert: {
           buyer_id: string
+          checkout_started_at?: string | null
           created_at?: string
           gift_wrapping?: boolean
           id?: string
@@ -1417,6 +1420,7 @@ export type Database = {
           shipping_address_id?: string | null
           shipping_fee_amount?: number
           status?: Database["public"]["Enums"]["order_status"]
+          stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
           subtotal_amount: number
           total_amount: number
@@ -1425,6 +1429,7 @@ export type Database = {
         }
         Update: {
           buyer_id?: string
+          checkout_started_at?: string | null
           created_at?: string
           gift_wrapping?: boolean
           id?: string
@@ -1436,6 +1441,7 @@ export type Database = {
           shipping_address_id?: string | null
           shipping_fee_amount?: number
           status?: Database["public"]["Enums"]["order_status"]
+          stripe_checkout_session_id?: string | null
           stripe_payment_intent_id?: string | null
           subtotal_amount?: number
           total_amount?: number
@@ -3931,6 +3937,47 @@ export type Database = {
     }
     Functions: {
       accept_custom_quote: { Args: { p_quote_id: string }; Returns: string }
+      apply_stripe_checkout: {
+        Args: {
+          p_amount_total: number
+          p_currency: string
+          p_order_id: string
+          p_paid: boolean
+          p_payment_ref?: string
+          p_session_id: string
+        }
+        Returns: boolean
+      }
+      begin_order_checkout: {
+        Args: { p_order_id: string }
+        Returns: {
+          buyer_id: string
+          checkout_started_at: string | null
+          created_at: string
+          gift_wrapping: boolean
+          id: string
+          platform_fee_amount: number
+          platform_fee_rate: number | null
+          print_cost_amount: number
+          ship_due_at: string | null
+          shipped_at: string | null
+          shipping_address_id: string | null
+          shipping_fee_amount: number
+          status: Database["public"]["Enums"]["order_status"]
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          subtotal_amount: number
+          total_amount: number
+          tracking_number: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "orders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       calc_print_fee: {
         Args: { grams: number; hours: number; parts: number }
         Returns: number

@@ -7,6 +7,7 @@ import { workImageUrl } from "@/lib/storage";
 import { yen } from "@/components/work/work-card";
 import { OrderStatusStepper } from "@/components/order/order-status-stepper";
 import { ReviewForm } from "@/components/order/review-form";
+import { OrderPaymentControls } from "@/components/checkout/payment-controls";
 
 export const metadata = { title: "注文詳細" };
 
@@ -40,6 +41,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         <p className="text-[12px] text-muted-foreground">
           現在の状態: <span className="text-ink">{ORDER_STATUS_LABEL[order.status]}</span>
         </p>
+        {order.status === "payment_pending" && <OrderPaymentControls orderId={order.id} />}
         {order.tracking_number && (
           <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
             <Truck className="size-3.5" aria-hidden />

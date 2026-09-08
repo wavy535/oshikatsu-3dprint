@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 
 import { getStripe } from "@/lib/payments/stripe";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { applyCheckoutSession } from "@/lib/payments/checkout";
 
 /**
  * Stripe の webhook。支払い完了を confirm_order_payment() に渡す。
@@ -11,7 +11,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
  * 署名シークレットを STRIPE_WEBHOOK_SECRET に入れる。
  * ローカルでは `stripe listen --forward-to localhost:3000/api/stripe/webhook`。
  *
- * confirm_order_payment は冪等なので、完了画面側からも呼んで良い（二重に来ても増えない）。
+ * DB反映の失敗は非2xxを返し、Stripeからの再送で回復する。
  */
 export async function POST(request: Request) {
   const stripe = getStripe();
@@ -30,30 +30,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `invalid signature: ${(e as Error).message}` }, { status: 400 });
   }
 
-  const service = createServiceRoleClient();
-
-  switch (event.type) {
-    case "checkout.session.completed":
-    case "checkout.session.async_payment_succeeded": {
-      const session = event.data.object;
-      const orderId = session.metadata?.order_id ?? session.client_reference_id;
-      if (orderId && session.payment_status === "paid") {
-        const paymentRef =
-          typeof session.payment_intent === "string" ? session.payment_intent : session.id;
-        await service.rpc("confirm_order_payment", { p_order_id: orderId, p_payment_ref: paymentRef });
+  try {
+    switch (event.type) {
+      case "checkout.session.completed":
+      case "checkout.session.async_payment_succeeded": {
+        const session = event.data.object;
+        if (session.payment_status === "paid") await applyCheckoutSession(session, true);
+        break;
       }
-      break;
+      case "checkout.session.expired":
+      case "checkout.session.async_payment_failed": {
+        const session = event.data.object;
+        await applyCheckoutSession(session, false);
+        break;
+      }
+      default:
+        break;
     }
-    case "checkout.session.expired":
-    case "checkout.session.async_payment_failed": {
-      const session = event.data.object;
-      const orderId = session.metadata?.order_id ?? session.client_reference_id;
-      if (orderId) await service.rpc("cancel_unpaid_order", { p_order_id: orderId });
-      break;
-    }
-    default:
-      break;
+  } catch (error) {
+    console.error("Stripe event failed:", event.id, error instanceof Error ? error.message : "unknown error");
+    return NextResponse.json({ error: "payment update failed" }, { status: 500 });
   }
-
   return NextResponse.json({ received: true });
 }

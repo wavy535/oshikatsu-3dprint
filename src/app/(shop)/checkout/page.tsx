@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Check } from "lucide-react";
 
 import { getCheckoutContext } from "@/lib/checkout/queries";
-import { cancelUnpaidOrderAction } from "@/lib/checkout/actions";
 import { CheckoutForm } from "@/components/checkout/checkout-form";
 
 export const metadata = { title: "お届け先・お支払い" };
@@ -31,7 +30,7 @@ function Step({ n, label, state }: { n: number; label: string; state: "done" | "
 
 /**
  * Figma ①購入フロー「決済（チェックアウト）48:796」。
- * Stripe から「戻る」で帰ってきたとき（?cancelled=注文ID）は、その支払い前の注文を取り消す。
+ * 旧決済URLから戻った場合も、注文詳細で再開・取消を選ぶ。
  */
 export default async function CheckoutPage({
   searchParams,
@@ -40,8 +39,7 @@ export default async function CheckoutPage({
 }) {
   const sp = await searchParams;
   if (sp.cancelled) {
-    await cancelUnpaidOrderAction(sp.cancelled);
-    redirect("/checkout");
+    redirect(`/mypage/orders/${encodeURIComponent(sp.cancelled)}`);
   }
 
   const ctx = await getCheckoutContext();
@@ -63,7 +61,7 @@ export default async function CheckoutPage({
         lines={ctx.lines}
         addresses={ctx.addresses}
         totals={ctx.totals}
-        stripeEnabled={ctx.stripeEnabled}
+        paymentMode={ctx.paymentMode}
       />
     </div>
   );

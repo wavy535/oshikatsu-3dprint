@@ -2,7 +2,7 @@ import "server-only";
 
 import { requireUser } from "@/lib/auth/guards";
 import { getCart } from "@/lib/cart/queries";
-import { isStripeConfigured } from "@/lib/payments/stripe";
+import { paymentMode } from "@/lib/payments/stripe";
 
 /**
  * 決済画面が読むもの。金額はカート（work_variant_pricing）と料金表から出すが、
@@ -44,7 +44,7 @@ export async function getCheckoutContext() {
     lines,
     addresses: addresses ?? [],
     totals: { goods, printFee, shipping, total: goods + printFee + shipping },
-    stripeEnabled: isStripeConfigured(),
+    paymentMode: paymentMode(),
   };
 }
 
