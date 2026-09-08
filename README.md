@@ -668,7 +668,7 @@ npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-`supabase/migrations/0001〜0024` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
+`supabase/migrations/0001〜0025` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
 
 クリエイター申請の SMS 認証には SMS プロバイダが要ります。Authentication > Providers > Phone で Twilio などを設定し、「Confirm phone」を有効にしてください（アプリ側に鍵は不要です）。
 
@@ -700,7 +700,7 @@ docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify
 
 ## 13. 実装状況
 
-2026-09-08 時点。ルートは 51、マイグレーションは `0001〜0024`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
+2026-09-08 時点。ルートは 51、マイグレーションは `0001〜0025`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
 
 ### 実装済み
 
