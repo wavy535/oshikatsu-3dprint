@@ -64,7 +64,7 @@ export default async function Step3Page({ params }: { params: Promise<{ id: stri
         workId={work.id}
         tags={tags}
         variants={variants}
-        platformFeeRate={Number(rule?.platform_fee_rate ?? 0.1)}
+        platformFeeRate={Number(rule?.platform_fee_rate ?? 0.2)}
         feeBilling={rule?.fee_billing ?? "separate"}
         initial={{
           title: work.title,

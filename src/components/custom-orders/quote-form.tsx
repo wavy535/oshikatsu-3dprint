@@ -5,6 +5,7 @@ import { FileText, XCircle } from "lucide-react";
 
 import { createQuoteAction, declineRequestAction, type CustomOrderActionState } from "@/lib/custom-orders/actions";
 import { Button } from "@/components/ui/button";
+import { calcPrintFeeJpy, DEFAULT_PRICING } from "@/lib/print/estimate";
 
 const initial: CustomOrderActionState = { error: null };
 const FIELD =
@@ -14,6 +15,7 @@ type Rule = {
   material_yen_per_gram: number;
   machine_yen_per_hour: number;
   handling_per_part_yen: number;
+  handling_base_yen: number;
   shipping_fee_jpy: number;
   platform_fee_rate: number;
 } | null;
@@ -34,10 +36,13 @@ export function QuoteForm({ requestId, baseWorkId, rule }: { requestId: string; 
 
   const est = useMemo(() => {
     if (!rule) return null;
-    const printFee =
-      Math.round(grams * Number(rule.material_yen_per_gram)) +
-      Math.round(hours * Number(rule.machine_yen_per_hour)) +
-      rule.handling_per_part_yen * Math.max(parts, 1);
+    const printFee = calcPrintFeeJpy(grams, hours, parts, {
+      ...DEFAULT_PRICING,
+      materialYenPerGram: Number(rule.material_yen_per_gram),
+      machineYenPerHour: Number(rule.machine_yen_per_hour),
+      handlingBaseYen: rule.handling_base_yen,
+      handlingPerPartYen: rule.handling_per_part_yen,
+    });
     const payout = price - Math.round(price * Number(rule.platform_fee_rate));
     return { printFee, total: price + printFee + rule.shipping_fee_jpy, payout };
   }, [rule, price, grams, hours, parts]);

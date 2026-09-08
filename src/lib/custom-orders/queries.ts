@@ -91,7 +91,7 @@ export async function getCreatorCustomRequest(id: string) {
       .maybeSingle(),
     supabase
       .from("print_pricing_rules")
-      .select("material_yen_per_gram, machine_yen_per_hour, handling_per_part_yen, shipping_fee_jpy, platform_fee_rate")
+      .select("material_yen_per_gram, machine_yen_per_hour, handling_base_yen, handling_per_part_yen, shipping_fee_jpy, platform_fee_rate")
       .eq("is_active", true)
       .maybeSingle(),
   ]);

@@ -35,7 +35,7 @@ export const DEFAULT_PRICING: PricingRule = {
   machineYenPerHour: 75,
   handlingBaseYen: 0,
   handlingPerPartYen: 20,
-  platformFeeRate: 0.1,
+  platformFeeRate: 0.2,
   bedXMm: 220,
   bedYMm: 220,
   bedZMm: 250,

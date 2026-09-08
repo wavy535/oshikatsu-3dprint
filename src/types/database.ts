@@ -3450,6 +3450,7 @@ export type Database = {
       creator_item_settlements: {
         Row: {
           creator_id: string | null
+          creator_name: string | null
           fee_amount: number | null
           goods_amount: number | null
           is_final: boolean | null
@@ -4078,6 +4079,14 @@ export type Database = {
       order_has_creator_items: {
         Args: { p_creator_id: string; p_order_id: string }
         Returns: boolean
+      }
+      order_item_settlement_amounts: {
+        Args: { p_order_id: string }
+        Returns: {
+          fee_amount: number
+          item_id: string
+          payout_amount: number
+        }[]
       }
       place_order: {
         Args: { p_address_id: string; p_note?: string }

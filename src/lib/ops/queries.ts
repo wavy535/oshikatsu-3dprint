@@ -596,19 +596,15 @@ export async function getSales(month: string | "all") {
 
   const settlements = (rows ?? []).map(toSettlement);
   const orderIds = settlements.map((s) => s.orderId);
-  type SalesItem = {
-    order_id: string;
-    creator_id: string;
-    quantity: number;
-    unit_price: number;
-    profiles: { display_name: string } | null;
-  };
+  type SalesItem = Pick<Database["public"]["Views"]["creator_item_settlements"]["Row"],
+    "order_id" | "creator_id" | "goods_amount" | "fee_amount" | "payout_amount" | "creator_name">;
   let items: SalesItem[] = [];
   if (orderIds.length) {
-    const { data } = await supabase
-      .from("order_items")
-      .select("order_id, creator_id, quantity, unit_price, profiles!order_items_creator_id_fkey(display_name)")
+    const { data, error } = await supabase
+      .from("creator_item_settlements")
+      .select("order_id, creator_id, goods_amount, fee_amount, payout_amount, creator_name")
       .in("order_id", orderIds);
+    if (error) throw new Error("クリエイター別の精算を取得できませんでした");
     items = data ?? [];
   }
 
@@ -629,46 +625,22 @@ export async function getSales(month: string | "all") {
     payout: sum((s) => s.payout),
   };
 
-  // クリエイター別。精算は注文単位なので、明細の作品代金の割合で配る
-  // （端数は最後の明細に寄せて、注文の合計と食い違わないようにする）
-  const byOrder = new Map(settlements.map((s) => [s.orderId, s]));
-  const itemsByOrder = new Map<string, SalesItem[]>();
-  for (const i of items) {
-    const list = itemsByOrder.get(i.order_id) ?? [];
-    list.push(i);
-    itemsByOrder.set(i.order_id, list);
-  }
+  // 按分済みの同じDBビューを運営・クリエイター・受取残高で共用する。
   const byCreator = new Map<
     string,
     { creatorId: string; name: string; orders: Set<string>; goods: number; fee: number; payout: number }
   >();
-  for (const [orderId, list] of itemsByOrder) {
-    const s = byOrder.get(orderId);
-    if (!s || s.goods === 0) continue;
-    let feeLeft = s.fee;
-    let payoutLeft = s.payout;
-    list.forEach((i, idx) => {
-      const goods = i.unit_price * i.quantity;
-      const last = idx === list.length - 1;
-      const fee = last ? feeLeft : Math.round((s.fee * goods) / s.goods);
-      const payout = last ? payoutLeft : Math.round((s.payout * goods) / s.goods);
-      feeLeft -= fee;
-      payoutLeft -= payout;
-
-      const row = byCreator.get(i.creator_id) ?? {
-        creatorId: i.creator_id,
-        name: i.profiles?.display_name ?? "—",
-        orders: new Set<string>(),
-        goods: 0,
-        fee: 0,
-        payout: 0,
-      };
-      row.orders.add(orderId);
-      row.goods += goods;
-      row.fee += fee;
-      row.payout += payout;
-      byCreator.set(i.creator_id, row);
-    });
+  for (const item of items) {
+    if (!item.creator_id || !item.order_id) throw new Error("精算の明細が不正です");
+    const row = byCreator.get(item.creator_id) ?? {
+      creatorId: item.creator_id, name: item.creator_name ?? "—",
+      orders: new Set<string>(), goods: 0, fee: 0, payout: 0,
+    };
+    row.orders.add(item.order_id);
+    row.goods += item.goods_amount ?? 0;
+    row.fee += item.fee_amount ?? 0;
+    row.payout += item.payout_amount ?? 0;
+    byCreator.set(item.creator_id, row);
   }
   const paidOut = new Map<string, number>();
   const requested = new Map<string, number>();
