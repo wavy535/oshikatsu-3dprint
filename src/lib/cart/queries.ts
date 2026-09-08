@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import { getOptionalUser } from "@/lib/auth/guards";
 
 export type CartLine = {
   id: string;
@@ -7,6 +7,8 @@ export type CartLine = {
   variantId: string;
   sizeLabel: string;
   price: number | null;
+  goodsPrice: number | null;
+  printFee: number | null;
   /** null は無制限 */
   stock: number | null;
   isListed: boolean;
@@ -20,13 +22,10 @@ export type CartLine = {
  * 価格は work_variants が持つ（作品ではなくサイズが売る単位）。
  */
 export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user } = await getOptionalUser();
   if (!user) return { lines: [], subtotal: 0 };
 
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("cart_items")
     .select(
       `id, quantity, variant_id,
@@ -38,31 +37,37 @@ export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }
     )
     .eq("carts.user_id", user.id)
     .order("created_at", { ascending: true });
+  if (error) throw new Error("カートを取得できませんでした");
 
   // 金額は work_variant_pricing の buyer_total_jpy（作品価格＋印刷代行費）
   const variantIds = (data ?? []).map((r) => r.variant_id);
-  const { data: pricing } = variantIds.length
+  const { data: pricing, error: pricingError } = variantIds.length
     ? await supabase
         .from("work_variant_pricing")
-        .select("id, buyer_total_jpy")
+        .select("id, price_jpy, buyer_total_jpy")
         .in("id", variantIds)
-    : { data: [] };
-  const buyerTotalById = new Map((pricing ?? []).map((p) => [p.id, p.buyer_total_jpy] as const));
+    : { data: [], error: null };
+  if (pricingError) throw new Error("カートの価格を取得できませんでした");
+  const pricingById = new Map((pricing ?? []).map((p) => [p.id, p] as const));
 
   // オーダーメイドで承認した見積りのサイズは is_listed = false だが、本人だけは買える
-  const { data: reserved } = variantIds.length
+  const { data: reserved, error: reservedError } = variantIds.length
     ? await supabase
         .from("custom_order_quotes")
         .select("variant_id")
         .eq("buyer_id", user.id)
         .in("status", ["accepted", "ordered"])
         .in("variant_id", variantIds)
-    : { data: [] };
+    : { data: [], error: null };
+  if (reservedError) throw new Error("見積りの購入条件を確認できませんでした");
   const reservedIds = new Set((reserved ?? []).map((r) => r.variant_id));
 
   const lines: CartLine[] = (data ?? []).map((row) => {
     const v = row.work_variants;
     const w = v.works;
+    const pricing = pricingById.get(row.variant_id);
+    const price = pricing?.buyer_total_jpy ?? null;
+    const goodsPrice = pricing?.price_jpy ?? null;
     const image = [...(w.work_images ?? [])].sort(
       (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
     )[0];
@@ -71,7 +76,9 @@ export async function getCart(): Promise<{ lines: CartLine[]; subtotal: number }
       quantity: row.quantity,
       variantId: row.variant_id,
       sizeLabel: v.size_label,
-      price: buyerTotalById.get(row.variant_id) ?? v.price_jpy,
+      price,
+      goodsPrice,
+      printFee: price !== null && goodsPrice !== null ? price - goodsPrice : null,
       stock: v.stock,
       isListed: v.is_listed || reservedIds.has(row.variant_id),
       workId: w.id,

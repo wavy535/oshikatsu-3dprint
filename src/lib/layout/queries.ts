@@ -1,5 +1,5 @@
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import { getUserProfile } from "@/lib/auth/guards";
 import type { UserRole } from "@/types/db";
 
 export type ShellContext = {
@@ -35,18 +35,10 @@ const GUEST: ShellContext = {
  * 通知は DB トリガーだけが作る設計なので、数えるのも DB 側に寄せておく。
  */
 export async function getShellContext(): Promise<ShellContext> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { supabase, user, profile } = await getUserProfile();
   if (!user) return GUEST;
 
-  const [profileRes, cartRes, unreadRes, nuiRes] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name, avatar_url, role")
-      .eq("id", user.id)
-      .maybeSingle(),
+  const [cartRes, unreadRes, nuiRes] = await Promise.all([
     supabase
       .from("cart_items")
       .select("quantity, carts!inner(user_id)")
@@ -60,11 +52,11 @@ export async function getShellContext(): Promise<ShellContext> {
       .maybeSingle(),
   ]);
 
-  const role = profileRes.data?.role ?? "buyer";
+  const role = profile?.role ?? "buyer";
 
   return {
     user: { id: user.id },
-    profile: profileRes.data ?? null,
+    profile,
     isCreator: role === "creator" || role === "admin",
     isAdmin: role === "admin",
     cartCount: (cartRes.data ?? []).reduce((n, i) => n + (i.quantity ?? 0), 0),

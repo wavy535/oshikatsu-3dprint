@@ -17,12 +17,7 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { supabase, user } = await requireAdmin();
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("display_name")
-    .eq("id", user.id)
-    .maybeSingle();
+  const { profile } = await requireAdmin();
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-ground text-ink">

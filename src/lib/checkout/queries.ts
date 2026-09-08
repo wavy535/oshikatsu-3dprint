@@ -11,7 +11,7 @@ import { paymentMode } from "@/lib/payments/stripe";
 export async function getCheckoutContext() {
   const { supabase, user } = await requireUser("/checkout");
 
-  const [{ lines }, { data: addresses }, { data: rule }] = await Promise.all([
+  const [{ lines }, addressResult, ruleResult] = await Promise.all([
     getCart(),
     supabase
       .from("addresses")
@@ -26,23 +26,18 @@ export async function getCheckoutContext() {
       .maybeSingle(),
   ]);
 
-  // 作品代金と印刷代行費を分けて見せる（カートの price は buyer_total = 作品代金 + 代行費）
-  const variantIds = lines.map((l) => l.variantId);
-  const { data: pricing } = variantIds.length
-    ? await supabase
-        .from("work_variant_pricing")
-        .select("id, price_jpy, print_fee_jpy")
-        .in("id", variantIds)
-    : { data: [] };
-  const byId = new Map((pricing ?? []).map((p) => [p.id, p]));
-
-  const goods = lines.reduce((n, l) => n + (byId.get(l.variantId)?.price_jpy ?? 0) * l.quantity, 0);
-  const printFee = lines.reduce((n, l) => n + (byId.get(l.variantId)?.print_fee_jpy ?? 0) * l.quantity, 0);
-  const shipping = rule?.shipping_fee_jpy ?? 0;
+  if (addressResult.error) throw new Error("お届け先を取得できませんでした");
+  if (ruleResult.error || !ruleResult.data) throw new Error("送料を取得できませんでした");
+  if (lines.some((line) => line.goodsPrice === null || line.printFee === null)) {
+    throw new Error("価格を確認できない作品があります。カートを確認してください");
+  }
+  const goods = lines.reduce((n, l) => n + l.goodsPrice! * l.quantity, 0);
+  const printFee = lines.reduce((n, l) => n + l.printFee! * l.quantity, 0);
+  const shipping = ruleResult.data.shipping_fee_jpy;
 
   return {
     lines,
-    addresses: addresses ?? [],
+    addresses: addressResult.data ?? [],
     totals: { goods, printFee, shipping, total: goods + printFee + shipping },
     paymentMode: paymentMode(),
   };
