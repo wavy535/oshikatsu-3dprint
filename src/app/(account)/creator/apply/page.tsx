@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Box, Coins, Package } from "lucide-react";
 
 import { requireUser } from "@/lib/auth/guards";
 import { maskPhone } from "@/lib/creator/phone";
@@ -16,8 +15,8 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
- * クリエイター登録（申請）。マイページの器の中に出す。
- * 申請には SMS 認証と利用規約への同意が要る。判定は DB のトリガー（0024）が最終的に行う。
+ * クリエイター登録（申請）。SMS 認証と利用規約への同意だけで出せる。
+ * 判定は DB のトリガー（0024）が最終的に行う。
  */
 export default async function CreatorApplyPage() {
   const { supabase, user } = await requireUser("/creator/apply");
@@ -26,7 +25,7 @@ export default async function CreatorApplyPage() {
     supabase.from("profiles").select("role").eq("id", user.id).single(),
     supabase
       .from("creator_applications")
-      .select("id, status, message, admin_note, created_at, reviewed_at, terms_version")
+      .select("id, status, admin_note, created_at, reviewed_at, terms_version")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false }),
   ]);
@@ -39,7 +38,9 @@ export default async function CreatorApplyPage() {
       <div className="flex items-center gap-3">
         <h1 className="text-base font-bold text-ink">クリエイター登録</h1>
         {profile?.role === "buyer" && !latestPending && (
-          <span className="text-[12px] text-muted-foreground">申請 → 運営の審査 → 承認</span>
+          <span className="text-[12px] text-muted-foreground">
+            SMS 認証 → 利用規約に同意 → 運営の審査
+          </span>
         )}
       </div>
 
@@ -64,44 +65,12 @@ export default async function CreatorApplyPage() {
               申請日 {new Date(latestPending.created_at).toLocaleDateString("ja-JP")}
             </span>
           </div>
-          <p className="text-sm leading-6 whitespace-pre-wrap text-ink">{latestPending.message}</p>
           <p className="text-[12px] text-muted-foreground">
-            運営が内容を確認しています。結果は通知でお知らせします（通常1〜3営業日）。
+            運営が確認しています。結果は通知でお知らせします。
           </p>
         </div>
       ) : (
-        <>
-          {/* できるようになること。Top の3カードと同じ骨格 */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            {[
-              {
-                icon: <Box className="size-4" aria-hidden />,
-                title: "3Dデータを出品",
-                body: "3MF / STL を登録するだけ。自動検証とサイズ展開で 10 / 15 / 20cm に出し分け。",
-              },
-              {
-                icon: <Package className="size-4" aria-hidden />,
-                title: "印刷・発送は運営",
-                body: "プリンタも材料も梱包も不要。検品して発送するところまで運営が代行。",
-              },
-              {
-                icon: <Coins className="size-4" aria-hidden />,
-                title: "受取は実費精算",
-                body: "支払額から印刷と送料の実費を引いた残りの 80% が受取。振込は申請制。",
-              },
-            ].map((c) => (
-              <div key={c.title} className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
-                <span className="flex size-7 items-center justify-center rounded-lg bg-brand-soft text-brand">
-                  {c.icon}
-                </span>
-                <p className="text-[12.5px] font-semibold text-ink">{c.title}</p>
-                <p className="text-[11.5px] leading-5 text-muted-foreground">{c.body}</p>
-              </div>
-            ))}
-          </div>
-
-          <CreatorApplyForm initialPhoneMasked={phoneMasked} />
-        </>
+        <CreatorApplyForm initialPhoneMasked={phoneMasked} />
       )}
 
       {applications && applications.length > 0 && (

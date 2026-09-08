@@ -291,7 +291,7 @@ export type Database = {
           admin_note: string | null
           created_at: string
           id: string
-          message: string
+          message: string | null
           phone: string | null
           phone_verified_at: string | null
           portfolio_url: string | null
@@ -306,7 +306,7 @@ export type Database = {
           admin_note?: string | null
           created_at?: string
           id?: string
-          message: string
+          message?: string | null
           phone?: string | null
           phone_verified_at?: string | null
           portfolio_url?: string | null
@@ -321,7 +321,7 @@ export type Database = {
           admin_note?: string | null
           created_at?: string
           id?: string
-          message?: string
+          message?: string | null
           phone?: string | null
           phone_verified_at?: string | null
           portfolio_url?: string | null

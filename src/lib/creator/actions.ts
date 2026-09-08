@@ -105,13 +105,6 @@ export async function verifyPhoneCodeAction(
 // ───────── 申請 ─────────
 
 const applySchema = z.object({
-  message: z
-    .string()
-    .min(20, "活動内容やご希望のカテゴリなど、20文字以上でご記入ください")
-    .max(2000),
-  portfolioUrl: z
-    .union([z.literal(""), z.string().url("URL の形式で入力してください（https://…）")])
-    .transform((v) => (v === "" ? null : v)),
   agreeTerms: z.literal("on", { message: "クリエイター利用規約への同意が必要です" }),
   termsVersion: z.literal(CREATOR_TERMS_VERSION, {
     message: "利用規約が更新されました。画面を再読み込みして、最新の規約を確認してください",
@@ -134,8 +127,6 @@ export async function applyForCreatorAction(
   formData: FormData
 ): Promise<CreatorApplyActionState> {
   const parsed = applySchema.safeParse({
-    message: formData.get("message"),
-    portfolioUrl: formData.get("portfolioUrl") ?? "",
     agreeTerms: formData.get("agreeTerms"),
     termsVersion: formData.get("termsVersion"),
   });
@@ -158,8 +149,6 @@ export async function applyForCreatorAction(
 
   const { error } = await supabase.from("creator_applications").insert({
     user_id: user.id,
-    message: parsed.data.message,
-    portfolio_url: parsed.data.portfolioUrl,
     terms_version: parsed.data.termsVersion,
   });
 

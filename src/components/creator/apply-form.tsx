@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { Check, ExternalLink, MessageSquareText, ShieldCheck, Smartphone } from "lucide-react";
+import { Check, ExternalLink, ShieldCheck, Smartphone } from "lucide-react";
 
 import {
   applyForCreatorAction,
@@ -60,8 +60,8 @@ function SectionHead({
 }
 
 /**
- * クリエイター申請。活動内容 → SMS 認証 → 利用規約への同意 の3段を1ページに置く。
- * 3つとも済むまで「申請を送信する」は押せない。最終的な検査は DB のトリガー（0024）が行う。
+ * クリエイター申請。SMS 認証 → 利用規約への同意 の2段。両方済むまで送信できない。
+ * 最終的な検査は DB のトリガー（0024）が行う。
  *
  * SMS の送信・認証は申請とは別の Server Action なので、別の <form> にしてある
  * （form はネストできない）。申請フォームの中に置いた入力やボタンは form="..." 属性で
@@ -80,7 +80,6 @@ export function CreatorApplyForm({
     phoneInitial
   );
 
-  const [message, setMessage] = useState("");
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
   const [agreed, setAgreed] = useState(false);
   // 「別の番号にする」を押したら、サーバーから来た認証済み表示を一度解除する
@@ -95,8 +94,7 @@ export function CreatorApplyForm({
   const phoneVerified = Boolean(verifiedMasked);
   const sentTo = !phoneVerified && sendState !== dismissedSend ? sendState.sentTo : undefined;
 
-  const messageOk = message.trim().length >= 20;
-  const canSubmit = messageOk && phoneVerified && agreed && !applying;
+  const canSubmit = phoneVerified && agreed && !applying;
 
   if (applyState.success) {
     return (
@@ -106,9 +104,7 @@ export function CreatorApplyForm({
         </span>
         <p className="text-sm font-semibold text-ink">申請を受け付けました</p>
         <p className="text-[12px] leading-5 text-muted-foreground">
-          運営が内容を確認し、通常1〜3営業日で結果を通知でお知らせします。
-          <br />
-          承認されると、ヘッダーに「作品を投稿する」が現れます。
+          運営が確認し、結果を通知でお知らせします。
         </p>
       </div>
     );
@@ -124,63 +120,17 @@ export function CreatorApplyForm({
       </form>
 
       <form action={applyAction} className="flex flex-col gap-4">
-        {/* 1. 活動内容 */}
+        {/* 1. SMS 認証 */}
         <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
           <SectionHead
             n={1}
-            title="活動内容"
-            done={messageOk}
-            icon={<MessageSquareText className="size-4" aria-hidden />}
-          />
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="message" className="text-[12px] text-muted-foreground">
-              活動内容・投稿予定の作品（20文字以上）
-            </Label>
-            <textarea
-              id="message"
-              name="message"
-              rows={5}
-              required
-              minLength={20}
-              maxLength={2000}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="例：Blender で推しぬい用の台座や小物を制作しています。まずは 10cm / 15cm 向けの台座シリーズから投稿する予定です。"
-              className={FIELD}
-            />
-            <p className="num text-right text-[11px] text-muted-foreground">
-              {message.trim().length} / 2000
-            </p>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="portfolioUrl" className="text-[12px] text-muted-foreground">
-              SNS・ポートフォリオの URL（任意）
-            </Label>
-            <Input
-              id="portfolioUrl"
-              name="portfolioUrl"
-              type="url"
-              inputMode="url"
-              placeholder="https://x.com/your_account"
-              className={FIELD}
-            />
-            <p className="text-[11px] text-muted-foreground">
-              これまでの作品が分かるページがあると審査が早くなります。
-            </p>
-          </div>
-        </section>
-
-        {/* 2. SMS 認証 */}
-        <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
-          <SectionHead
-            n={2}
             title="SMS で本人確認"
             done={phoneVerified}
             icon={<Smartphone className="size-4" aria-hidden />}
           />
           <p className="text-[12px] leading-5 text-muted-foreground">
-            取引の連絡先として携帯電話の番号を登録します。入力した番号に6桁の認証コードを SMS
-            で送ります。番号は購入者や他のクリエイターには公開されません。
+            携帯電話の番号に6桁の認証コードを SMS で送ります。番号は取引の連絡に使い、
+            購入者や他のクリエイターには公開されません。
           </p>
 
           {phoneVerified ? (
@@ -271,10 +221,10 @@ export function CreatorApplyForm({
           )}
         </section>
 
-        {/* 3. 利用規約 */}
+        {/* 2. 利用規約 */}
         <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
           <SectionHead
-            n={3}
+            n={2}
             title="クリエイター利用規約への同意"
             done={agreed}
             icon={<ShieldCheck className="size-4" aria-hidden />}
@@ -317,7 +267,6 @@ export function CreatorApplyForm({
             />
             <span className="text-[12.5px] leading-5 text-ink">
               {CREATOR_TERMS_TITLE}（{CREATOR_TERMS_VERSION} 版）を読み、内容に同意します。
-              登録する3Dデータについて、自分が権利を持つか必要な許諾を得ていることを確認しました。
             </span>
           </label>
           <input type="hidden" name="termsVersion" value={CREATOR_TERMS_VERSION} />
@@ -331,11 +280,7 @@ export function CreatorApplyForm({
           </Button>
           {!canSubmit && !applying && (
             <p className="text-[11.5px] text-muted-foreground">
-              {!messageOk
-                ? "活動内容を20文字以上で入力してください"
-                : !phoneVerified
-                  ? "SMS 認証を済ませてください"
-                  : "利用規約に同意してください"}
+              {!phoneVerified ? "SMS 認証を済ませてください" : "利用規約に同意してください"}
             </p>
           )}
         </div>

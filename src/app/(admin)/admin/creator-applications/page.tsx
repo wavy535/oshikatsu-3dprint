@@ -22,7 +22,7 @@ export default async function CreatorApplicationsAdminPage() {
   const { data: applications } = await serviceClient
     .from("creator_applications")
     .select(
-      "id, user_id, status, message, admin_note, created_at, reviewed_at, phone, phone_verified_at, terms_version, terms_agreed_at, portfolio_url"
+      "id, user_id, status, message, admin_note, created_at, reviewed_at, phone, phone_verified_at, terms_version, terms_agreed_at"
     )
     .order("created_at", { ascending: false });
 
@@ -56,7 +56,7 @@ export default async function CreatorApplicationsAdminPage() {
                     {new Date(a.created_at).toLocaleString("ja-JP")}
                   </span>
                 </div>
-                <p className="text-sm whitespace-pre-wrap">{a.message}</p>
+                {a.message && <p className="text-sm whitespace-pre-wrap">{a.message}</p>}
                 {/* 審査に要る本人確認の情報。番号は運営だけが見る（伏せない） */}
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-ground px-3 py-2 text-[12px]">
                   <dt className="text-muted-foreground">SMS 認証</dt>
@@ -70,21 +70,6 @@ export default async function CreatorApplicationsAdminPage() {
                     {a.terms_version
                       ? `${a.terms_version} 版に同意（${new Date(a.terms_agreed_at ?? a.created_at).toLocaleString("ja-JP")}）`
                       : "未同意（旧形式の申請）"}
-                  </dd>
-                  <dt className="text-muted-foreground">ポートフォリオ</dt>
-                  <dd>
-                    {a.portfolio_url ? (
-                      <a
-                        href={a.portfolio_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="break-all text-brand hover:underline"
-                      >
-                        {a.portfolio_url}
-                      </a>
-                    ) : (
-                      <span className="text-muted-foreground">なし</span>
-                    )}
                   </dd>
                 </dl>
                 {a.status === "pending" && <ReviewButtons applicationId={a.id} />}
