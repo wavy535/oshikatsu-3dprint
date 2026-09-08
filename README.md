@@ -1,4 +1,4 @@
-# Osinest（オシネスト）
+# OshiNest（オシネスト）
 
 推し活特化型 3Dプリント受託販売ECプラットフォーム
 
@@ -6,9 +6,9 @@
 
 ## 1. サービス概要
 
-**Osinest は「3Dモデルを作れる人」と「推しぬい・推し空間を飾りたい人」をつなぎ、印刷・検品・発送を運営が丸ごと代行するマーケットプレイスです。**
+**OshiNest は「3Dモデルを作れる人」と「推しぬい・推し空間を飾りたい人」をつなぎ、印刷・検品・発送を運営が丸ごと代行するマーケットプレイスです。**
 
-一般的な3Dモデル販売サイトは「STLデータを売る」ため、買った人が自分で3Dプリンタを用意して出力する必要があります。Osinest はここを逆にし、**クリエイターは3Dデータ（3MF / STL）と印刷仕様を登録するだけ**、**購入者には完成した現物が届く**という形にしています。
+一般的な3Dモデル販売サイトは「STLデータを売る」ため、買った人が自分で3Dプリンタを用意して出力する必要があります。OshiNest はここを逆にし、**クリエイターは3Dデータ（3MF / STL）と印刷仕様を登録するだけ**、**購入者には完成した現物が届く**という形にしています。
 
 - クリエイター：造形に集中できる。プリンタ・材料・梱包・発送の負担ゼロ
 - 購入者：3Dプリンタを持っていなくても、推しぬいのサイズに合った台座や小物が手に入る
@@ -42,8 +42,11 @@
 購入者の支払額 = 販売価格 + 印刷代行費 + 送料（税込）
 
 印刷代行費   = 材料量(g) × ¥3.5 + 造形時間(h) × ¥75 + パーツ数 × ¥20
-クリエイター受取額 = 販売価格 − 販売価格 × 手数料率(10%)
+運営手数料   = （購入者の支払額 − 印刷の実費 − 送料の実費）× 手数料率(20%)
+クリエイター受取額 = 購入者の支払額 − 印刷の実費 − 送料の実費 − 運営手数料
 ```
+
+手数料は「販売価格の◯%」ではなく、**支払額から印刷と送料の実費を引いた残りにかけます**（`0015` / `0016`）。式は `order_settlements` ビューだけが持ち、発送後に実費で確定します。それまでは見積り額での見込みです。
 
 **印刷代行費は一律ではなく、アップロードされた3Dデータから自動算出します。** 体積は寸法の3乗で増えるため、一律料金にすると大きい作品で必ず赤字になります。
 
@@ -57,9 +60,9 @@
 | 印刷代行費 | ¥360 | **¥4,616** |
 | 販売価格の例 | ¥1,800 | ¥5,200 |
 | 購入者の支払額（送料別） | ¥2,160 | ¥9,816 |
-| クリエイター受取額 | ¥1,620 | ¥4,680 |
+| クリエイター受取額（実費が見積り通りのとき） | ¥1,440 | ¥4,160 |
 
-投稿画面には受取額シミュレーションを常時表示し、価格を入力した時点で手取りが分かるようにしています。売上は月次で集計し、クリエイターが振込申請 → 指定口座へ送金します。
+投稿画面には受取額シミュレーションを常時表示し、価格を入力した時点で手取りが分かるようにしています。精算は発送後に実費で確定し、クリエイターが振込申請 → 運営が処理して指定口座へ送金します。
 
 代行費の実額は運営側でも記録します。印刷ジョブに実使用フィラメント量・実造形時間・失敗回数を入力させ、見積り（`est_*`）と実績（`actual_*`）の差から単価係数を見直せるようにしています。
 
@@ -552,19 +555,57 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 
 ## 10. 技術構成
 
-- **フロントエンド**：Next.js（App Router）+ TypeScript + Tailwind CSS v4
+- **アプリケーション**：Next.js 16（App Router）+ TypeScript + Tailwind CSS v4。読み取りは RSC、変更系は Server Actions、外部からの受信（cron・Webhook）は Route Handlers
 - **UI**：Shadcn UI 互換のコンポーネント基盤（`src/components/ui`）
-- **バックエンド**：Supabase（Auth / PostgreSQL / Storage / RLS）
-- **決済**：Stripe
-- **セッション管理**：Next.js 16 の `proxy.ts`（旧 `middleware.ts`）でセッション更新と保護ルートのガード
+- **バックエンド**：Supabase（Auth / PostgreSQL / Storage / RLS / pg_cron）。集計・状態遷移・通知はすべて DB のトリガーと関数が持つ
+- **ホスティング**：AWS Amplify Hosting（Next.js の SSR に対応）。定期実行は Amazon EventBridge のスケジュールルールから API Destination 経由で `/api/cron/*` を呼ぶ
+- **メール**：Resend（開発時は Mailpit）
+- **決済**：現在は開発用の即時確定（`confirm_order_payment()` を直接呼ぶ）。Stripe Checkout + Webhook は本番前にキーを入れて有効化する（下記「今後」）
+- **セッション管理**：`src/proxy.ts`（Next.js 16 の旧 `middleware.ts`）でセッション更新と保護ルートのガード
 
-保護ルート：`/mypage`, `/creator`, `/admin`, `/checkout`
+保護ルート（`src/lib/supabase/proxy.ts`）：`/mypage`, `/creator`, `/admin`, `/checkout`。`/studio` はレイアウト側で役割を検査
+
+### 構成図
+
+```
+ 購入者 / クリエイター / 運営（ブラウザ）
+              │
+              ▼
+┌────────────────────────────────────────────────────────┐
+│ AWS                                                     │
+│                                                         │
+│  Amplify Hosting ── Next.js 16 (App Router)             │
+│    RSC            : 一覧・詳細の読み取り（anon key + RLS）│
+│    Server Actions : カート・注文・出品・検品などの変更系  │
+│    Route Handlers : /api/cron/*（cron の入口）           │
+│                     /api/stripe/webhook（今後）          │
+│                                                         │
+│  EventBridge（スケジュールルール → API Destination）      │
+│    Authorization: Bearer CRON_SECRET を付けて            │
+│    /api/cron/dispatch-emails を 5〜10 分おきに呼ぶ        │
+└──────────────┬──────────────────────────┬───────────────┘
+               │                          │
+               ▼                          ▼
+┌──────────────────────────────┐  ┌──────────────────────┐
+│ Supabase                     │  │ Resend（取引メール）  │
+│  Auth（メール＋6桁の確認コード）│  └──────────────────────┘
+│  PostgreSQL + RLS            │
+│    トリガー / 関数 / ビューが │  ┌──────────────────────┐
+│    集計・状態遷移・通知を担う │  │ Stripe（今後）        │
+│  Storage（3Dデータ・画像・   │  │  Checkout / Webhook  │
+│           検品写真）         │  └──────────────────────┘
+│  pg_cron（見積りの期限切れ）  │
+└──────────────────────────────┘
+```
+
+- アプリ側の秘密は `SUPABASE_SERVICE_ROLE_KEY` と `CRON_SECRET` の2つ。どちらもサーバーだけが持ち、ブラウザには渡さない
+- 定期実行は EventBridge の代わりに Supabase の pg_cron + pg_net から同じ URL を叩いてもよい（`0023` の見積り期限切れは pg_cron で動いている）
 
 ---
 
 ## 11. デザインシステム
 
-Figma 上に「Design System — Osinest」セクションとして定義しています。
+Figma 上に「Design System — OshiNest」セクションとして定義しています。
 
 - **カラートークン**：brand `#0096FA` / text `#1F2328` / muted `#6B7280` / surface `#FFFFFF` / surface-muted `#F5F7FB` / border `#E4E7ED` / success `#2FA36B` / danger `#E5484D` / star `#FFB020`
 - **角丸**：sm 6 / md 8 / lg 12 / pill 999
@@ -578,68 +619,95 @@ Figma 上に「Design System — Osinest」セクションとして定義して�
 
 ## 12. セットアップ
 
+### ローカルで動かす（Supabase はローカルコンテナ）
+
+Docker Desktop が必要です。
+
 ```bash
 npm install
-cp .env.local.example .env.local  # Supabase / Stripe の値を設定
+cp .env.local.example .env.local   # ローカルの Supabase の値を設定（下記）
+npx -y supabase@2.116.0 start      # 初回・停止後。API 54421 / DB 54422 / Studio 54423 / Mailpit 54424
+npx -y supabase@2.116.0 db reset   # supabase/migrations を順に適用し、supabase/seeds を投入
+node scripts/seed-storage.mjs      # ダミー画像を Storage へ（db reset では戻らない）
+npm run dev                        # http://localhost:3000
 ```
 
-### Supabase へのマイグレーション適用
+- ポートは既定の 5432x ではなく 544xx に寄せてあります（`supabase/config.toml`）。`config.toml` を変えたら `stop` → `start`
+- シードのアカウントはパスワード共通 `password123`：`buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`
+- 新規登録は6桁の確認コード方式。コードは Mailpit（http://127.0.0.1:54424）で受け取れます
+- `.env.local` の Supabase の値は `npx supabase status` で表示されるものを使います。Stripe の値は空のままでよく、空なら決済は開発用の即時確定になります
+
+### 環境変数
+
+| 変数 | 用途 |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ブラウザ・サーバー共通の Supabase 接続 |
+| `SUPABASE_SERVICE_ROLE_KEY` | サーバー専用。cron・メール送信などユーザー文脈が無い処理だけで使う |
+| `NEXT_PUBLIC_SITE_URL` | メール内リンクや決済のリダイレクト先 |
+| `CRON_SECRET` | `/api/cron/*` の合言葉。未設定なら入口は 503 |
+| `RESEND_API_KEY` / `MAIL_FROM` | 通知メールの送信。`RESEND_API_KEY` が無ければ開発時は Mailpit へ |
+| `STRIPE_SECRET_KEY` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` / `STRIPE_WEBHOOK_SECRET` | 今後。入れると決済が Stripe Checkout に切り替わる |
+
+### 本番（Supabase クラウド）へのマイグレーション適用
 
 ```bash
 npx supabase link --project-ref <your-project-ref>
 npx supabase db push
 ```
 
-適用順：`0001_init.sql` → `0002_rls.sql` → `0003_storage.sql` → `0004_creator_applications.sql` → `0005_variants_and_print_specs.sql` → `0006_print_ops.sql` → `0007_variant_part_bbox.sql` → `0008_quotes_revisions_reviews.sql` → `0009_favorite_ranking.sql` → `0010_notifications_and_nui.sql`
+`supabase/migrations/0001〜0023` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
 
-ローカルの PostgreSQL 16 で 0001〜0006 を通し、注文 → ジョブ生成 → 印刷 → 検品NG → 再印刷 → 検品OK → 発送までを実データで検証済みです（注文ステータスの自動遷移、フィラメント在庫の減算、期限超過の判定、価格下限の拒否を含む）。
+### 本番（AWS）へのデプロイ
 
-Supabase ダッシュボードの Authentication > URL Configuration で、リダイレクトURLに `http://localhost:3000/auth/callback`（本番URLも同様）を追加してください。
+1. **Amplify Hosting** で GitHub のこのリポジトリを接続する（フレームワークは Next.js SSR として自動検出）。環境変数に上表の値を入れる。`NEXT_PUBLIC_SITE_URL` は Amplify のドメイン
+2. **EventBridge** にスケジュールルール（`rate(10 minutes)`）を作り、API Destination の宛先を `https://<ドメイン>/api/cron/dispatch-emails`、Connection の認証を `Authorization: Bearer <CRON_SECRET>` にする
+3. Supabase の pg_cron（見積りの期限切れ・JST 00:05）は DB 側で動くので、AWS 側の設定は不要
+4. Stripe を有効化するときは、Webhook の宛先を `https://<ドメイン>/api/stripe/webhook` にして `STRIPE_WEBHOOK_SECRET` を入れる
 
 ### 型定義の再生成
 
 ```bash
-npx supabase gen types typescript --project-id <ref> > src/types/database.ts
+npx supabase gen types typescript --local > src/types/database.ts
 ```
 
-`src/types/database.ts` は現在手動作成の簡易版です。
+`src/types/database.ts` は生成物です（手で直さない）。アプリからは `src/types/db.ts` 経由で参照します。
 
-### 開発サーバー
+### まとめて検証する
 
 ```bash
-npm run dev
+docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify-0014-0021.sql   # 決済 → 精算 → 払込 → 修正依頼 → オーダーメイド → 通知リンク
+docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify-0022-0023.sql   # 運営メンバー・role の防護・見積り期限切れ・メール宛先
 ```
+
+どちらも最後に rollback するので何度でも流せます。
 
 ---
 
 ## 13. 実装状況
 
-### Phase 1（実装済み）
+2026-09-08 時点。ルートは 50、マイグレーションは `0001〜0023`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
 
-- Next.js scaffold（App Router / TypeScript / Tailwind v4）
-- Shadcn UI 互換コンポーネント基盤
-- Supabase クライアント（ブラウザ／サーバー／Service Role）
-- `proxy.ts` によるセッション更新・保護ルートガード
-- メール／パスワードによる登録・ログイン・ログアウト
-- DBスキーマ + RLSポリシー + Storageバケット設計
-- クリエイター申請・審査ロジック（`buyer → creator`）
-- Figma モックアップ全38画面 + デザインシステム（8レーンのユーザーフロー整理・ロゴのTop遷移／ヘッダーのベル・マイぬい／サイドバー全行のリンク付き）
-- 3Dデータの自動検証・印刷仕様・サイズ展開のスキーマ（`0005_variants_and_print_specs.sql`）
-- 運営オペレーション（印刷ジョブ・検品・発送・フィラメント台帳）のスキーマ（`0006_print_ops.sql`）
-- **3Dデータの自動検証パイプライン**（3MF/STL パーサ、メッシュ解析、見積り、DB書き込み、Server Action）
-- オーダーメイド見積り・修正依頼・レビュー軸の分離スキーマ（`0008_quotes_revisions_reviews.sql`）
-- お気に入り数の集計と人気順の並べ替えスキーマ（`0009_favorite_ranking.sql`）
-- 通知・マイぬい・内寸のスキーマ（`0010_notifications_and_nui.sql`）。既存の状態遷移から通知が自動で生まれ、ぬいと作品の相性を数値で判定するところまで、ローカルPostgreSQL 16 で23項目を検証済み
+### 実装済み
 
-### Phase 2 以降（未実装）
+| 区分 | 画面・機能 | ルート |
+|---|---|---|
+| 共通 | Top、検索・一覧（絞り込み／並べ替え／マイぬいサイズ既定）、作品詳細（サイズごとの価格と相性判定）、レビュー一覧、Q&A・発送、公開プロフィール（フォロー） | `/`, `/works`, `/works/[id]`, `/works/[id]/reviews`, `/works/[id]/qa`, `/creators/[id]` |
+| 認証 | ログイン、新規登録（メール＋パスワード → 6桁の確認コード）、クリエイター申請と審査 | `/login`, `/signup/verify`, `/creator/apply`, `/admin/creator-applications` |
+| 買う人 | お気に入り、カート、決済（お届け先・お支払い → 注文完了）、購入履歴、注文詳細、受け取り評価（2段）、通知・通知設定、マイぬい、配送先 | `/cart`, `/checkout`, `/checkout/complete`, `/mypage/**` |
+| 相談系 | メッセージ、オーダーメイド相談 → 見積り → 承認 → 専用サイズがカートへ → 決済 | `/mypage/messages`, `/mypage/custom-orders/**`, `/studio/custom-orders/**` |
+| 作る人 | 作品管理、出品フロー4STEP（3Dデータの自動検証 → 印刷指示 → 作品情報 → 公開）、売上ダッシュボード、売上の受け取り（口座・振込申請）、修正依頼への対応 | `/studio`, `/studio/works/**`, `/studio/payouts`, `/studio/revisions/**` |
+| 運営 | 印刷キュー → ジョブ詳細 → 検品・発送登録、注文一覧・注文詳細、出荷済み、フィラメント在庫、売上・手数料（実費精算）、払込管理、運営メンバーの追加・解除 | `/admin/**` |
+| 裏側 | 3MF/STL の解析と見積り、通知（DB トリガーが生成）、通知 → メール（cron 入口 + Resend/Mailpit）、見積り期限切れの日次処理（pg_cron）、role の自己昇格の防護 | `src/lib/print/`, `/api/cron/dispatch-emails`, `0022`〜`0023` |
 
-- 作品CRUD・検索／フィルタの API 実装
-- Stripe 決済フローと Webhook
-- カート・注文・レビュー・Q&A・メッセージの UI/API 実装
-- クリエイター売上ダッシュボードの実データ連携
-- Admin Dashboard の実データ連携（印刷キュー・ジョブ詳細・検品・発送登録）
-- STEP1 のアップロードUI（ファイル選択 → Storage 保存 → 検証アクション呼び出し）
+- 集計（お気に入り数・未読数）、注文ステータスの導出、通知の生成、精算の式は **DB 側**にあります。アプリは記録を書くだけです
+- ビューは全て `security_invoker`、更新系は `.select()` で行数を検査しています（RLS で黙って 0 行になる事故を防ぐため）
+
+### 今後
+
+- **Stripe の有効化**：コードと Webhook の入口（`/api/stripe/webhook`）はあり、キーを入れると Checkout に切り替わります。本番前に鍵の投入と Webhook の登録を行う
+- **プリンタ管理**（運営コンソール。最後に着手する）
+- スマホ向けの仕上げ（Figma ⑥ の下タブ）
+- 通知の「まとめ受信（daily）」の設定画面（DB の `notification_settings` は既にある）
+- 本番の cron 配線（EventBridge → `/api/cron/dispatch-emails`）
 - 推し空間コーディネート投稿
-- マイぬいの CRUD（`nui_profiles`）と、メインのぬいによる一覧の絞り込み
-- （保留）アストラ連携の撮影・生成部分。テーブル（`nui_scans` / `nui_assets` / `tryon_renders`）は `0010` にあるが未使用
-- 通知（`notifications` / `notification_preferences`）
+- （保留）アストラ連携の撮影・生成。テーブル（`nui_scans` / `nui_assets` / `tryon_renders`）は `0010` にあるが未使用
