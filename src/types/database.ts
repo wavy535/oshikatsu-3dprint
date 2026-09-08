@@ -940,6 +940,8 @@ export type Database = {
         Row: {
           body: string | null
           created_at: string
+          email_claim_token: string | null
+          email_claimed_until: string | null
           emailed_at: string | null
           id: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -954,6 +956,8 @@ export type Database = {
         Insert: {
           body?: string | null
           created_at?: string
+          email_claim_token?: string | null
+          email_claimed_until?: string | null
           emailed_at?: string | null
           id?: string
           kind: Database["public"]["Enums"]["notification_kind"]
@@ -968,6 +972,8 @@ export type Database = {
         Update: {
           body?: string | null
           created_at?: string
+          email_claim_token?: string | null
+          email_claimed_until?: string | null
           emailed_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["notification_kind"]
@@ -3992,6 +3998,21 @@ export type Database = {
         Returns: number
       }
       cancel_unpaid_order: { Args: { p_order_id: string }; Returns: boolean }
+      claim_notification_emails: {
+        Args: { p_claim_token: string; p_limit?: number }
+        Returns: {
+          body: string
+          created_at: string
+          digest: Database["public"]["Enums"]["notification_digest"]
+          digest_hour: number
+          email: string
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          link_path: string
+          title: string
+          user_id: string
+        }[]
+      }
       confirm_demo_order: { Args: { p_order_id: string }; Returns: boolean }
       confirm_order_payment: {
         Args: { p_order_id: string; p_payment_ref?: string }

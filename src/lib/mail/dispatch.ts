@@ -1,4 +1,5 @@
 import "server-only";
+import { randomUUID } from "node:crypto";
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/site";
@@ -14,21 +15,10 @@ export type DispatchSummary = {
   sent: number;
   /** メールにした通知の件数（まとめ受信は 1 通に複数件） */
   notified: number;
-  /** まとめ受信の時刻でないため今回は送らなかった件数 */
-  deferred: number;
   /** 送信に失敗した通知の件数（emailed_at は立てない。次回また拾う） */
   failed: number;
   errors: string[];
 };
-
-/** いまの JST の時（0〜23）。まとめ受信の digest_hour と比べる。 */
-function jstHour(now: Date) {
-  // ja-JP だと "4時" のような文字列になるので、parts から数字だけ取る
-  const part = new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: "Asia/Tokyo" })
-    .formatToParts(now)
-    .find((p) => p.type === "hour");
-  return Number(part?.value ?? 0) % 24;
-}
 
 function fmtDate(iso: string) {
   return new Intl.DateTimeFormat("ja-JP", {
@@ -91,86 +81,64 @@ function buildMail(items: Target[]) {
 }
 
 /**
- * 「まだメールにしていない通知」をメールにする。cron から定期的に呼ぶ想定。
- *
- *   - 対象は DB の関数 notification_email_targets()（宛先・受け取り方の解決は DB 側）
- *   - 即時（instant）の人は通知ごとに 1 通
- *   - まとめ受信（daily）の人は、いまが digest_hour の時間帯のときだけ 1 通にまとめる
- *   - 送れたものだけ emailed_at を立てる。失敗したものは次回また拾う
- *
- * 冪等: 同じ通知を二重に送らないよう、送信のたびに emailed_at を更新した行数を見る。
+ * DBで送信時刻と宛先を解決し、期限付きで確保してから配信する。
+ * 通常の同時実行は重複を避ける。送信成功後のDB書き込み失敗時は再送され得る。
  */
-export async function dispatchNotificationEmails(now = new Date()): Promise<DispatchSummary> {
-  const service = createServiceRoleClient();
-  const summary: DispatchSummary = {
-    provider: mailProvider(),
-    sent: 0,
-    notified: 0,
-    deferred: 0,
-    failed: 0,
-    errors: [],
-  };
-
-  const { data: targets, error } = await service.rpc("notification_email_targets", { p_limit: 200 });
-  if (error) {
-    summary.errors.push(`targets: ${error.message}`);
+export async function dispatchNotificationEmails(): Promise<DispatchSummary> {
+  const summary: DispatchSummary = { provider: mailProvider(), sent: 0, notified: 0, failed: 0, errors: [] };
+  if (summary.provider === "none") {
+    summary.errors.push("MAIL_PROVIDER is not configured");
     return summary;
   }
-  if (!targets || targets.length === 0) return summary;
+  const service = createServiceRoleClient();
+  const token = randomUUID();
+  const deadline = Date.now() + 45_000;
+  const { data: targets, error } = await service.rpc("claim_notification_emails", {
+    p_claim_token: token, p_limit: 20,
+  });
+  if (error) {
+    summary.errors.push(`claim: ${error.message}`);
+    return summary;
+  }
+  if (!targets?.length) return summary;
 
-  // 宛先ごとに束ねる（instant は 1 件ずつ、daily は全部まとめて 1 通）
-  const hour = jstHour(now);
   const batches: Target[][] = [];
   const dailyByUser = new Map<string, Target[]>();
-  for (const t of targets) {
-    if (t.digest === "daily") {
-      if (t.digest_hour !== hour) {
-        summary.deferred += 1;
-        continue;
-      }
-      const list = dailyByUser.get(t.user_id) ?? [];
-      list.push(t);
-      dailyByUser.set(t.user_id, list);
+  for (const target of targets) {
+    if (target.digest === "daily") {
+      const batch = dailyByUser.get(target.user_id) ?? [];
+      batch.push(target);
+      dailyByUser.set(target.user_id, batch);
     } else {
-      batches.push([t]);
+      batches.push([target]);
     }
   }
   batches.push(...dailyByUser.values());
 
-  for (const items of batches) {
-    const ids = items.map((n) => n.id);
-
-    // 先に emailed_at を立てて「自分が送る」印にする（同時実行で二重送信しない）
-    const { data: claimed, error: claimError } = await service
-      .from("notifications")
-      .update({ emailed_at: now.toISOString() })
-      .in("id", ids)
-      .is("emailed_at", null)
-      .select("id");
-    if (claimError || !claimed || claimed.length === 0) {
-      if (claimError) summary.errors.push(`claim: ${claimError.message}`);
-      continue;
-    }
-    const claimedIds = new Set(claimed.map((r) => r.id));
-    const toSend = items.filter((n) => claimedIds.has(n.id));
-
-    const mail = buildMail(toSend);
-    const result = await sendMail({ to: toSend[0].email, ...mail });
-    if (result.ok) {
+  try {
+    for (const items of batches) {
+      if (Date.now() >= deadline) break;
+      const result = await sendMail({ to: items[0].email, ...buildMail(items) });
+      if (!result.ok) {
+        summary.failed += items.length;
+        summary.errors.push(`${items[0].id}: ${result.error}`);
+        continue;
+      }
       summary.sent += 1;
-      summary.notified += toSend.length;
-    } else {
-      // 送れなかった印を戻す。次回の実行で拾い直される
-      summary.failed += toSend.length;
-      summary.errors.push(`${toSend[0].email}: ${result.error}`);
-      await service
-        .from("notifications")
-        .update({ emailed_at: null })
-        .in("id", [...claimedIds])
-        .select("id");
-      if (result.provider === "none") break; // 設定が無いなら残りも全部同じ
+      const { data: saved, error: saveError } = await service.from("notifications")
+        .update({ emailed_at: new Date().toISOString(), email_claim_token: null, email_claimed_until: null })
+        .in("id", items.map((item) => item.id)).eq("email_claim_token", token).select("id");
+      if (saveError || saved?.length !== items.length) {
+        summary.errors.push(`acknowledge: ${saveError?.message ?? "claim no longer belongs to this worker"}`);
+      } else {
+        summary.notified += items.length;
+      }
     }
+  } finally {
+    // 未送信・失敗分を次の実行へ返す。ここで落ちてもDBの確保期限が切れれば回復する。
+    const { error: releaseError } = await service.from("notifications")
+      .update({ email_claim_token: null, email_claimed_until: null }).eq("email_claim_token", token);
+    if (releaseError) summary.errors.push(`release: ${releaseError.message}`);
   }
-
   return summary;
 }

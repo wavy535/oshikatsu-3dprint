@@ -7,8 +7,7 @@ import { dispatchNotificationEmails } from "@/lib/mail/dispatch";
  *
  *   curl -H "Authorization: Bearer $CRON_SECRET" http://localhost:3000/api/cron/dispatch-emails
  *
- * 本番は EventBridge のスケジュールルール → API Destination で、Connection にこのヘッダーを持たせて呼ぶ。
- * それ以外（pg_cron + pg_net、外部の cron）でも、このヘッダーを付ければ良い。
+ * DBのpg_cron + pg_netから呼ぶ。EventBridge API Destinationの5秒制限には収まらない。
  * CRON_SECRET が未設定なら 503 を返して何もしない（開けっ放しにしない）。
  */
 export const dynamic = "force-dynamic";
@@ -24,7 +23,7 @@ async function handle(request: Request) {
   }
 
   const summary = await dispatchNotificationEmails();
-  return NextResponse.json(summary, { status: summary.errors.length > 0 ? 207 : 200 });
+  return NextResponse.json(summary, { status: summary.provider === "none" ? 503 : summary.errors.length > 0 ? 500 : 200 });
 }
 
 export const GET = handle;
