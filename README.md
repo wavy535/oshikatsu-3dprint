@@ -653,7 +653,7 @@ DB変更後は `npm run db:types` で型を再生成する。3D解析単体は `
 
 ## 13. 実装状況
 
-2026-09-09 時点。現行ベースラインは `db/migrations/0001〜0005`。`npm run dev` で **買う → デモ注文（実課金なし）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。再開時の注意は [HANDOFF.md](HANDOFF.md)、残る改善点は [docs/architecture.md](docs/architecture.md) にあります。
+2026-09-09 時点。現行ベースラインは `db/migrations/0001〜0006`。`npm run dev` で **買う → デモ注文（実課金なし）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。再開時の注意は [HANDOFF.md](HANDOFF.md)、残る改善点は [docs/architecture.md](docs/architecture.md) にあります。
 
 ### 実装済み
 
