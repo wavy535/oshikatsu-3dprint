@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { ImageIcon, Package } from "lucide-react";
 
@@ -22,20 +23,21 @@ const TONE: Record<string, string> = {
 };
 
 /** Figma ①購入フロー「購入履歴 46:2093」。 */
-export default async function OrdersPage() {
-  const orders = await listMyOrders();
+export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const sp = await searchParams;
+  const { items: orders, page, hasNext } = await listMyOrders(sp.page);
 
   return (
     <>
       <div className="flex items-center gap-3">
         <h1 className="text-base font-bold text-ink">購入履歴</h1>
-        <span className="num text-[12px] text-muted-foreground">{orders.length}件</span>
+        <span className="num text-[12px] text-muted-foreground">このページ {orders.length}件</span>
       </div>
 
       {orders.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Package className="size-6 text-line" aria-hidden />
-          <p className="text-sm font-semibold text-ink">購入した作品はまだありません</p>
+          <p className="text-sm font-semibold text-ink">このページに表示する注文はありません</p>
           <Button asChild size="sm" className="mt-2">
             <Link href="/works">作品をさがす</Link>
           </Button>
@@ -47,6 +49,7 @@ export default async function OrdersPage() {
             const needsReview = order.status === "completed" && items.some((i) => !i.reviews);
             return (
               <Link
+                prefetch={false}
                 key={order.id}
                 href={`/mypage/orders/${order.id}`}
                 className="flex flex-col gap-3 rounded-xl border border-line bg-white p-4 hover:bg-ground/40"
@@ -84,7 +87,7 @@ export default async function OrdersPage() {
                       <span className="size-14 shrink-0 overflow-hidden rounded-lg bg-ground">
                         {image ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={image} alt="" className="size-full object-cover" />
+                          <img loading="lazy" src={image} alt="" className="size-full object-cover" />
                         ) : (
                           <ImageIcon className="size-4 text-line" aria-hidden />
                         )}
@@ -105,6 +108,7 @@ export default async function OrdersPage() {
           })}
         </div>
       )}
+      <Pagination path="/mypage/orders" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

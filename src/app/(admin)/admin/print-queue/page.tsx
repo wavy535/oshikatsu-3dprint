@@ -1,13 +1,9 @@
+import { Pagination } from "@/components/ui/pagination";
 import { Suspense } from "react";
 import Link from "next/link";
 import { AlertTriangle, ImageIcon } from "lucide-react";
 
-import {
-  getQueueFilterOptions,
-  getQueueSummary,
-  listPrintQueue,
-  type QueueSearchParams,
-} from "@/lib/ops/queries";
+import { getQueueFilterOptions, getQueueSummary, listPrintQueue, type QueueSearchParams } from "@/lib/ops/printing-queries";
 import { shortDateTime } from "@/lib/ops/labels";
 import { workImageUrl } from "@/lib/storage";
 import { QueueFilters } from "@/components/ops/queue-filters";
@@ -27,7 +23,7 @@ export default async function PrintQueuePage({
   searchParams: Promise<QueueSearchParams>;
 }) {
   const sp = await searchParams;
-  const [jobs, summary, options] = await Promise.all([
+  const [{ items: jobs, page, hasNext }, summary, options] = await Promise.all([
     listPrintQueue(sp),
     getQueueSummary(),
     getQueueFilterOptions(),
@@ -159,6 +155,7 @@ export default async function PrintQueuePage({
                   </td>
                   <td className="px-2.5 py-2.5">
                     <Link
+                      prefetch={false}
                       href={
                         readyForQc
                           ? `/admin/print-queue/${job.id}/qc`
@@ -188,6 +185,7 @@ export default async function PrintQueuePage({
           </p>
         </div>
       )}
+      <Pagination path="/admin/print-queue" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

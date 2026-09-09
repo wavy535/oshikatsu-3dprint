@@ -1,4 +1,5 @@
-import { listPayoutRequests } from "@/lib/ops/queries";
+import { Pagination } from "@/components/ui/pagination";
+import { listPayoutRequests } from "@/lib/ops/sales-queries";
 import { PAYOUT_STATUS_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
 import { PayoutActions } from "@/components/ops/payout-actions";
 import { Pill } from "@/components/ops/status-badge";
@@ -13,19 +14,17 @@ const TONE: Record<string, Tone> = { requested: "warn", processing: "info", paid
  * クリエイターからの振込申請を処理する。
  * 残高の検査は申請時に DB のトリガーが済ませているので、ここは振込作業の記録だけ。
  */
-export default async function AdminPayoutsPage() {
-  const { requests, balances } = await listPayoutRequests();
-  const open = requests.filter((r) => r.status === "requested" || r.status === "processing");
-  const openTotal = open.reduce((n, r) => n + r.amount, 0);
-  const owed = balances.reduce((n, b) => n + Math.max(b.available_amount ?? 0, 0), 0);
+export default async function AdminPayoutsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const sp = await searchParams;
+  const { requests, page, hasNext, summary } = await listPayoutRequests(sp.page);
 
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="未処理の申請" tone="warn" value={open.length} note={`合計 ${yen(openTotal)}`} />
-        <StatCard label="振込済み（累計）" tone="ok" value={yen(requests.filter((r) => r.status === "paid").reduce((n, r) => n + r.amount, 0))} />
-        <StatCard label="未申請の受取可能額" value={yen(owed)} note="クリエイター全員ぶん" />
-        <StatCard label="申請の件数" value={requests.length} />
+        <StatCard label="未処理の申請" tone="warn" value={summary.open} note={`合計 ${yen(summary.openTotal)}`} />
+        <StatCard label="振込済み（累計）" tone="ok" value={yen(summary.paidTotal)} />
+        <StatCard label="未申請の受取可能額" value={yen(summary.owed)} note="クリエイター全員ぶん" />
+        <StatCard label="申請の件数" value={summary.total} />
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-white">
@@ -70,6 +69,7 @@ export default async function AdminPayoutsPage() {
           </tbody>
         </table>
       </div>
+      <Pagination path="/admin/payouts" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

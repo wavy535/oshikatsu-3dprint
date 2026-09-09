@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Info } from "lucide-react";
@@ -15,9 +16,9 @@ export const metadata = { title: "Q&A・発送" };
  * Figma ①購入フロー「作品詳細（Q&A・発送）」。
  * Q&A は公開。回答はその作品のクリエイターだけ（RLS）。
  */
-export default async function WorkQaPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const [work, qna, { user }] = await Promise.all([getWork(id), listWorkQna(id), getOptionalUser()]);
+export default async function WorkQaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ page?: string }> }) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const [work, qna, { user }] = await Promise.all([getWork(id), listWorkQna(id, sp.page), getOptionalUser()]);
   if (!work) notFound();
   const isCreator = !!user && user.id === work.creator_id;
   const answered = qna.threads.filter((t) => t.answer).length;
@@ -31,7 +32,7 @@ export default async function WorkQaPage({ params }: { params: Promise<{ id: str
       </div>
       <div className="flex gap-2">
         <Link href={`/works/${id}/reviews`} className="rounded-full border border-line bg-white px-3 py-1 text-[11px] text-ink hover:bg-ground">レビュー</Link>
-        <span className="rounded-full bg-brand px-3 py-1 text-[11px] font-semibold text-white">Q&amp;A・発送 {qna.threads.length}</span>
+        <span className="rounded-full bg-brand px-3 py-1 text-[11px] font-semibold text-white">Q&amp;A・発送</span>
       </div>
 
       <div className="flex flex-col gap-4 lg:flex-row">
@@ -39,7 +40,7 @@ export default async function WorkQaPage({ params }: { params: Promise<{ id: str
           {!isCreator && <AskQuestionForm workId={id} loggedIn={!!user} />}
           {isCreator && qna.threads.length > answered && (
             <p className="rounded-xl bg-warn-bg px-4 py-2.5 text-[11.5px] text-warn">
-              未回答の質問が {qna.threads.length - answered} 件あります。回答は作品ページに公開されます。
+              このページの未回答の質問が {qna.threads.length - answered} 件あります。回答は作品ページに公開されます。
             </p>
           )}
           {qna.threads.length === 0 ? (
@@ -100,6 +101,7 @@ export default async function WorkQaPage({ params }: { params: Promise<{ id: str
           </section>
         </aside>
       </div>
+      <Pagination path={`/works/${id}/qa`} params={sp} page={qna.page} hasNext={qna.hasNext} />
     </div>
   );
 }

@@ -3,15 +3,8 @@
 import { useActionState } from "react";
 import { Check, Pause, Play, RotateCcw } from "lucide-react";
 
-import {
-  advanceBatchAction,
-  editActualsAction,
-  finishPrintJobAction,
-  pausePrintJobAction,
-  startPrintJobAction,
-  startReprintAction,
-  type OpsActionState,
-} from "@/lib/ops/actions";
+import { advanceBatchAction, editActualsAction, finishPrintJobAction, pausePrintJobAction, startPrintJobAction, startReprintAction } from "@/lib/ops/printing-actions";
+import { type OpsActionState } from "@/lib/ops/action-state";
 import { Button } from "@/components/ui/button";
 import type { PrintJobStatus } from "@/types/db";
 

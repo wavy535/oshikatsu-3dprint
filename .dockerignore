@@ -1,0 +1,14 @@
+# アプリのビルドに必要なファイルだけを送る。環境変数・鍵・ローカルDBは含めない。
+**
+!package.json
+!package-lock.json
+!next.config.ts
+!tsconfig.json
+!postcss.config.mjs
+!src
+!src/**
+!public
+!public/**
+!infra
+!infra/aws
+!infra/aws/rds-global-bundle.pem

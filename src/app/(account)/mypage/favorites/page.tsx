@@ -1,3 +1,5 @@
+import { Pagination } from "@/components/ui/pagination";
+import { readPage } from "@/lib/db/result";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 
@@ -22,40 +24,37 @@ type FavSort = keyof typeof SORTS;
 export default async function FavoritesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; page?: string }>;
 }) {
-  const { sort } = await searchParams;
+  const sp = await searchParams;
+  const { sort } = sp;
   const active = (sort && sort in SORTS ? sort : "favorited") as FavSort;
-  const { supabase, user } = await requireUser("/mypage/favorites");
+  const { db, user } = await requireUser("/mypage/favorites");
 
-  let query = supabase.from("my_favorites").select("*").eq("user_id", user.id);
-  if (active === "popular") query = query.order("favorite_count", { ascending: false });
+  let query = db
+    .selectFrom("my_favorites")
+    .selectAll("my_favorites")
+    .select((eb) => eb.selectFrom("work_images").select("storage_path")
+      .whereRef("work_images.work_id", "=", "my_favorites.id")
+      .orderBy("sort_order", "asc").orderBy("id", "asc").limit(1).as("image_path"))
+    .where("my_favorites.user_id", "=", user.id);
+  if (active === "popular")
+    query = query.orderBy("my_favorites.favorite_count", "desc");
   else if (active === "price_asc")
-    query = query.order("min_price_jpy", { ascending: true, nullsFirst: false });
-  else query = query.order("favorited_at", { ascending: false });
+    query = query.orderBy("my_favorites.min_price_jpy", (order) =>
+      order.asc().nullsLast(),
+    );
+  else query = query.orderBy("my_favorites.favorited_at", "desc");
 
-  const { data } = await query;
-  const rows = data ?? [];
-
-  // サムネイルは別引き（ビューには画像が入っていない）
-  const ids = rows.map((r) => r.id!).filter(Boolean) as string[];
-  const { data: images } = ids.length
-    ? await supabase
-        .from("work_images")
-        .select("work_id, storage_path, sort_order")
-        .in("work_id", ids)
-        .order("sort_order", { ascending: true })
-    : { data: [] };
-  const firstImage = new Map<string, string>();
-  for (const img of images ?? []) {
-    if (!firstImage.has(img.work_id)) firstImage.set(img.work_id, img.storage_path);
-  }
+  const { items: rows, page, hasNext } = await readPage(query.orderBy("my_favorites.id", "asc"), sp.page);
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-base font-bold text-ink">お気に入り</h1>
-        <span className="num text-[12px] text-muted-foreground">{rows.length}件</span>
+        <span className="num text-[12px] text-muted-foreground">
+          このページ {rows.length}件
+        </span>
         <nav className="ml-auto flex gap-1">
           {Object.entries(SORTS).map(([k, label]) => (
             <Link
@@ -76,7 +75,9 @@ export default async function FavoritesPage({
       {rows.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Heart className="size-6 text-line" aria-hidden />
-          <p className="text-sm font-semibold text-ink">お気に入りはまだありません</p>
+          <p className="text-sm font-semibold text-ink">
+            このページに表示するお気に入りはありません
+          </p>
           <Button asChild size="sm" className="mt-2">
             <Link href="/works">作品をさがす</Link>
           </Button>
@@ -84,7 +85,7 @@ export default async function FavoritesPage({
       ) : (
         <div className="flex flex-col gap-3">
           {rows.map((r) => {
-            const image = workImageUrl(firstImage.get(r.id!));
+            const image = workImageUrl(r.image_path);
             return (
               <Link
                 key={r.id}
@@ -94,16 +95,25 @@ export default async function FavoritesPage({
                 <span className="size-20 shrink-0 overflow-hidden rounded-lg bg-ground">
                   {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={image} alt="" className="size-full object-cover" />
+                    <img
+                      loading="lazy"
+                      src={image}
+                      alt=""
+                      className="size-full object-cover"
+                    />
                   ) : null}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="truncate text-[13px] font-semibold text-ink">{r.title}</span>
+                  <span className="truncate text-[13px] font-semibold text-ink">
+                    {r.title}
+                  </span>
                   <span className="truncate text-[11px] text-muted-foreground">
                     {r.creator_name}
                   </span>
                   <span className="mt-auto flex items-center gap-2">
-                    <span className="num text-sm font-bold text-ink">{yen(r.min_price_jpy)}</span>
+                    <span className="num text-sm font-bold text-ink">
+                      {yen(r.min_price_jpy)}
+                    </span>
                     {r.dropped_since_favorited && (
                       <span className="rounded bg-danger-bg px-1.5 py-0.5 text-[10px] font-semibold text-danger">
                         追加後に値下げ
@@ -121,6 +131,7 @@ export default async function FavoritesPage({
           })}
         </div>
       )}
+      <Pagination path="/mypage/favorites" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

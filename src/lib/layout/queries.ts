@@ -1,5 +1,8 @@
+import { cache } from "react";
+import { sql } from "kysely";
+import { jsonObjectFrom } from "kysely/helpers/postgres";
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import { getUserProfile } from "@/lib/auth/guards";
 import type { UserRole } from "@/types/db";
 
 export type ShellContext = {
@@ -27,48 +30,42 @@ const GUEST: ShellContext = {
   mainNui: null,
 };
 
-/**
- * ヘッダーとサイドナビが必要とする情報を1回で集める。
- * 未ログインならクエリを投げずにゲスト既定値を返す。
- *
- * 未読数は notifications を数えず `unread_notification_count()` を呼ぶ。
- * 通知は DB トリガーだけが作る設計なので、数えるのも DB 側に寄せておく。
- */
-export async function getShellContext(): Promise<ShellContext> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+/** Header and sidebar share this result within one render, never across users. */
+export const getShellContext = cache(async (): Promise<ShellContext> => {
+  const { db, user, profile } = await getUserProfile();
   if (!user) return GUEST;
+  const counts = await db
+    .selectNoFrom((eb) => [
+      eb
+        .selectFrom("cart_items")
+        .innerJoin("carts", "carts.id", "cart_items.cart_id")
+        .select(
+          sql<number>`coalesce(sum(cart_items.quantity), 0)::integer`.as(
+            "count",
+          ),
+        )
+        .where("carts.user_id", "=", user.id)
+        .as("cartCount"),
+      sql<number>`public.unread_notification_count()`.as("unreadCount"),
+      jsonObjectFrom(
+        eb
+          .selectFrom("nui_profiles")
+          .select(["id", "name", "nui_size_cm"])
+          .where("user_id", "=", user.id)
+          .where("is_main", "=", true),
+      ).as("mainNui"),
+    ])
+    .executeTakeFirstOrThrow();
 
-  const [profileRes, cartRes, unreadRes, nuiRes] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("display_name, avatar_url, role")
-      .eq("id", user.id)
-      .maybeSingle(),
-    supabase
-      .from("cart_items")
-      .select("quantity, carts!inner(user_id)")
-      .eq("carts.user_id", user.id),
-    supabase.rpc("unread_notification_count"),
-    supabase
-      .from("nui_profiles")
-      .select("id, name, nui_size_cm")
-      .eq("user_id", user.id)
-      .eq("is_main", true)
-      .maybeSingle(),
-  ]);
-
-  const role = profileRes.data?.role ?? "buyer";
+  const role = profile?.role ?? "buyer";
 
   return {
     user: { id: user.id },
-    profile: profileRes.data ?? null,
+    profile,
     isCreator: role === "creator" || role === "admin",
     isAdmin: role === "admin",
-    cartCount: (cartRes.data ?? []).reduce((n, i) => n + (i.quantity ?? 0), 0),
-    unreadCount: unreadRes.data ?? 0,
-    mainNui: nuiRes.data ?? null,
+    cartCount: counts.cartCount ?? 0,
+    unreadCount: counts.unreadCount,
+    mainNui: counts.mainNui,
   };
-}
+});

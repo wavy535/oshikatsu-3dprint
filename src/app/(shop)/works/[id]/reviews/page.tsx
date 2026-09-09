@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Info, Star } from "lucide-react";
@@ -38,9 +39,9 @@ function AxisBar({ label, value }: { label: string; value: number | null }) {
  * Figma ①購入フロー「作品詳細（レビュー）」。作品詳細から切り出した1枚。
  * 項目別はクリエイター向けの3軸だけ。印刷品質・梱包・配送は運営あて（設計判断8）。
  */
-export default async function WorkReviewsPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const [work, reviews] = await Promise.all([getWork(id), listWorkReviews(id)]);
+export default async function WorkReviewsPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ page?: string }> }) {
+  const [{ id }, sp] = await Promise.all([params, searchParams]);
+  const [work, reviews] = await Promise.all([getWork(id), listWorkReviews(id, sp.page)]);
   if (!work) notFound();
   const max = Math.max(...reviews.distribution.map((d) => d.count), 1);
 
@@ -115,6 +116,7 @@ export default async function WorkReviewsPage({ params }: { params: Promise<{ id
           </section>
         </aside>
       </div>
+      <Pagination path={`/works/${id}/reviews`} params={sp} page={reviews.page} hasNext={reviews.hasNext} />
     </div>
   );
 }

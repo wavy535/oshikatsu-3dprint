@@ -1,6 +1,13 @@
 import type { Sort, WorkFilters } from "@/lib/works/list-options";
+import { pageNumber } from "@/lib/pagination";
 
-const SORT_VALUES: Sort[] = ["newest", "popular", "price_asc", "price_desc", "rating"];
+const SORT_VALUES: Sort[] = [
+  "newest",
+  "popular",
+  "price_asc",
+  "price_desc",
+  "rating",
+];
 
 export type RawSearchParams = Record<string, string | string[] | undefined>;
 
@@ -22,7 +29,7 @@ function int(v: string | string[] | undefined) {
  */
 export function parseWorkFilters(
   sp: RawSearchParams,
-  fallbackNuiSizeCm?: number | null
+  fallbackNuiSizeCm?: number | null,
 ): WorkFilters {
   const sortRaw = one(sp.sort) as Sort | undefined;
   const size = one(sp.nuiSize);
@@ -32,18 +39,22 @@ export function parseWorkFilters(
     category: one(sp.category) || undefined,
     worldview: one(sp.worldview) || undefined,
     nuiSizeCm:
-      size === undefined ? (fallbackNuiSizeCm ?? undefined) : size === "" ? undefined : Number(size),
+      size === undefined
+        ? (fallbackNuiSizeCm ?? undefined)
+        : size === ""
+          ? undefined
+          : Number(size),
     priceMin: int(sp.priceMin),
     priceMax: int(sp.priceMax),
     sort: sortRaw && SORT_VALUES.includes(sortRaw) ? sortRaw : "newest",
-    page: Math.max(int(sp.page) ?? 1, 1),
+    page: pageNumber(one(sp.page)),
   };
 }
 
 /** いまの絞り込みを保ったまま一部だけ差し替えたURLを作る */
 export function buildWorksHref(
   sp: RawSearchParams,
-  patch: Record<string, string | number | undefined>
+  patch: Record<string, string | number | undefined>,
 ) {
   const params = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {

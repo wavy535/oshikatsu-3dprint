@@ -2,6 +2,8 @@
 
 推し活特化型 3Dプリント受託販売ECプラットフォーム
 
+現行コード全体の問題点・簡素化候補・改善順は [全体診断とリファクタリング計画](docs/architecture.md) を参照してください。
+
 ---
 
 ## 1. サービス概要
@@ -46,7 +48,7 @@
 クリエイター受取額 = 購入者の支払額 − 印刷の実費 − 送料の実費 − 運営手数料
 ```
 
-手数料は「販売価格の◯%」ではなく、**支払額から印刷と送料の実費を引いた残りにかけます**（`0015` / `0016`）。式は `order_settlements` ビューだけが持ち、発送後に実費で確定します。それまでは見積り額での見込みです。
+手数料は「販売価格の◯%」ではなく、**支払額から印刷と送料の実費を引いた残りにかけます**。式は `order_settlements` ビューだけが持ち、発送後に実費で確定します。それまでは見積り額での見込みです。
 
 **印刷代行費は一律ではなく、アップロードされた3Dデータから自動算出します。** 体積は寸法の3乗で増えるため、一律料金にすると大きい作品で必ず赤字になります。
 
@@ -303,7 +305,7 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 
 | テーブル群 | 内容 |
 |---|---|
-| `profiles` | auth.users の拡張。`role` で購入者／クリエイター／運営を区別 |
+| `profiles` | `app_users` のプロフィール。`role` で購入者／クリエイター／運営を区別 |
 | `works` / `work_images` / `work_tags` / `tags` | 作品の共通メタ、画像、カテゴリ・世界観タグ |
 | `work_assets` / `work_asset_objects` / `work_validation_issues` | 3Dデータ本体、内包オブジェクト、自動検証の結果 |
 | `work_color_slots` | データの色定義とフィラメント割り当て |
@@ -340,8 +342,9 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 
 - 購入者は自分の注文・カート・お気に入りのみ参照可
 - クリエイターは自分の作品のみ編集可
-- 運営専用の Admin 機能は `createServiceRoleClient()`（Service Role Key）で RLS をバイパス
-- `SUPABASE_SERVICE_ROLE_KEY` はサーバー専用。クライアントに露出させないこと
+- サーバーで確認したセッションから `app_user` とユーザーIDを設定し、接続を再利用する前に消去する
+- 運営専用ページ・Actionで管理者を確認する。全体を扱う処理だけ `serviceDatabase()` の `app_service` ポリシーを使う
+- DB接続URL・認証秘密値はサーバー専用。アプリのDB接続は非管理者の `app_runtime` を使う
 
 **並べ替えの設計**
 
@@ -349,12 +352,15 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 
 値下げの表示も同じ考え方で、`works.min_price_jpy` と `previous_min_price_jpy` をバリアントの価格・公開状態の変更に追随させ、下がっていれば「値下げ」バッジを出します。一覧・検索・お気に入りは共通のビュー `work_list_items` を読み、並べ替えのキー（お気に入り数／最安値／評価／新着）をすべてそこから取ります。
 
-**Storage**
+**S3**
 
-| バケット | 公開設定 | 用途 |
+非公開バケット1個に保存し、キーのプレフィックスで用途を区別する。
+
+| プレフィックス | 取得方法 | 用途 |
 |---|---|---|
-| `work-stl` | 非公開 | 3Dデータ本体（3MF / STL）。運営のみ取得可 |
-| `work-images` / `coordinate-images` / `avatars` / `review-photos` | 公開 | 表示用画像 |
+| `work-stl` | 認可したサーバー処理 | 3Dデータ本体（3MF / STL） |
+| `qc-photos` | 閲覧権限を確認した署名付きURL | 検品写真 |
+| `work-images` / `avatars` | 公開画像ルートから署名付きURLへ転送 | 表示用画像 |
 
 ---
 
@@ -398,8 +404,8 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 | `analyze.ts` | 頂点溶接、エッジ対応によるマニフォールド判定、符号付き体積・表面積、肉厚、面の重なり |
 | `estimate.ts` | フィラメント量・造形時間・代行費・ベッド判定・サイズ展開 |
 | `index.ts` | 上記をまとめ、`work_validation_issues` に入る形の検証結果を返す |
-| `src/lib/works/asset-validation.ts` | Storage からのダウンロード → 解析 → DB書き込み |
-| `src/lib/works/actions.ts` | STEP1 の「検証する / 再検証」から呼ぶ Server Action（所有者チェック付き） |
+| `src/lib/works/asset-validation.ts` | S3からのダウンロード → 解析 → DB書き込み |
+| `src/lib/works/step-actions.ts` | STEP1 の「検証する / 再検証」から呼ぶ Server Action（所有者チェック付き） |
 
 **検証項目**（すべて `severity` 付きで1行ずつ返す。OK の項目も返すので、STEP1 のチェックリストがそのまま描ける）
 
@@ -476,7 +482,7 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 ### うちの子で見る（アストラ連携）— 構想（保留中）
 
 > **いまは保留です。** アストラ側の連携方式が確定していないため、本線から外して Figma の ⑦ レーンに参考として残してあります。マイぬいは当面「手入力で採寸値を登録するだけ」で、作品詳細に合成イメージへの導線は置いていません。
-> DB は `0010` で作ってあるので（`nui_scans` / `nui_assets` / `tryon_renders`）、連携方式が決まれば撮影と生成の部分だけ足せば動きます。**相性判定（`fit_*_mm` と `nui_fit_*()`）はアストラに依存しないので、いまも使えます。**
+> DBにはテーブルがあるので（`nui_scans` / `nui_assets` / `tryon_renders`）、連携方式が決まれば撮影と生成の部分だけ足せば動きます。**相性判定（`fit_*_mm` と `nui_fit_*()`）はアストラに依存しないので、いまも使えます。**
 
 以下は保留時点での設計メモです。
 
@@ -512,7 +518,7 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 | 高さ | 作品の内寸（背もたれの高さなど） vs ぬいの座高 | 16.2 / 15.0cm → 余裕 1.2cm |
 | 奥行 | 作品の内寸（座面の奥行） vs ぬいの抱き幅 | 10.5 / 12.0cm → 足が前に出ます |
 
-これを出すには **作品側に「ぬいが収まる内寸」が必要** です。外形の `bbox_*_mm` では「入るかどうか」は分かりません。`0010` で `work_variants.fit_width_mm / fit_height_mm / fit_depth_mm` を足し、STEP3 の右カラムに入力欄を置きました。原寸だけ入れれば、他のサイズは `scale_ratio` を掛けてトリガーが自動で埋めます（`fit_source='auto'`）。
+これを出すには **作品側に「ぬいが収まる内寸」が必要** です。外形の `bbox_*_mm` では「入るかどうか」は分かりません。`work_variants.fit_width_mm / fit_height_mm / fit_depth_mm` を使い、STEP3 の右カラムに入力欄を置きました。原寸だけ入れれば、他のサイズは `scale_ratio` を掛けてトリガーが自動で埋めます（`fit_source='auto'`）。
 
 判定のしきい値は `judge_axis()` に置いてあり、画面の文言と1対1で対応します。
 
@@ -528,7 +534,7 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 
 #### 想定するデータ
 
-`0010_notifications_and_nui.sql` で作成済みです。
+`db/migrations/0002_business.sql` に含まれます。
 
 | テーブル | 役割 |
 |---|---|
@@ -567,51 +573,25 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 
 ## 10. 技術構成
 
-- **アプリケーション**：Next.js 16（App Router）+ TypeScript + Tailwind CSS v4。読み取りは RSC、変更系は Server Actions、外部からの受信（cron・Webhook）は Route Handlers
-- **UI**：Shadcn UI 互換のコンポーネント基盤（`src/components/ui`）
-- **バックエンド**：Supabase（Auth / PostgreSQL / Storage / RLS / pg_cron）。集計・状態遷移・通知はすべて DB のトリガーと関数が持つ
-- **ホスティング**：AWS Amplify Hosting（Next.js の SSR に対応）。定期実行は Amazon EventBridge のスケジュールルールから API Destination 経由で `/api/cron/*` を呼ぶ
-- **メール**：Resend（開発時は Mailpit）
-- **決済**：現在は開発用の即時確定（`confirm_order_payment()` を直接呼ぶ）。Stripe Checkout + Webhook は本番前にキーを入れて有効化する（下記「今後」）
-- **セッション管理**：`src/proxy.ts`（Next.js 16 の旧 `middleware.ts`）でセッション更新と保護ルートのガード
+- Next.js 16 / React / TypeScript / Tailwind CSS v4。RSCで読み取り、Server Actionsで変更する。
+- AWS Lambda上のNode.js 24コンテナで、Lambda Web Adapterを使ってアプリとBetter Authを実行する構成。常時起動は不要。
+- Aurora Serverless v2のPostgreSQLへKysely + pgで直接接続する。0〜1 ACU、接続なし5分で自動停止する設定例を用意。セッション、RLS、注文のトランザクションもPostgreSQLに置く。
+- 非公開S3にファイルを保存し、権限を確認して署名付きPOST / GETを発行する。
+- 認証・通知メールはSES、電話番号の確認はSNS。ローカルではMailpitを利用する。
+- アプリ内通知を維持し、通知メール送信と期限切れデータの整理は `/admin/maintenance` から手動で行う。定期処理は実行しない。
+- 注文は実課金なしのデモ。作成・在庫更新・印刷ジョブ作成を1トランザクションで確定する。
 
-保護ルート（`src/lib/supabase/proxy.ts`）：`/mypage`, `/creator`, `/admin`, `/checkout`。`/studio` はレイアウト側で役割を検査
-
-### 構成図
-
-```
- 購入者 / クリエイター / 運営（ブラウザ）
-              │
-              ▼
-┌────────────────────────────────────────────────────────┐
-│ AWS                                                     │
-│                                                         │
-│  Amplify Hosting ── Next.js 16 (App Router)             │
-│    RSC            : 一覧・詳細の読み取り（anon key + RLS）│
-│    Server Actions : カート・注文・出品・検品などの変更系  │
-│    Route Handlers : /api/cron/*（cron の入口）           │
-│                     /api/stripe/webhook（今後）          │
-│                                                         │
-│  EventBridge（スケジュールルール → API Destination）      │
-│    Authorization: Bearer CRON_SECRET を付けて            │
-│    /api/cron/dispatch-emails を 5〜10 分おきに呼ぶ        │
-└──────────────┬──────────────────────────┬───────────────┘
-               │                          │
-               ▼                          ▼
-┌──────────────────────────────┐  ┌──────────────────────┐
-│ Supabase                     │  │ Resend（取引メール）  │
-│  Auth（メール＋6桁の確認コード）│  └──────────────────────┘
-│  PostgreSQL + RLS            │
-│    トリガー / 関数 / ビューが │  ┌──────────────────────┐
-│    集計・状態遷移・通知を担う │  │ Stripe（今後）        │
-│  Storage（3Dデータ・画像・   │  │  Checkout / Webhook  │
-│           検品写真）         │  └──────────────────────┘
-│  pg_cron（見積りの期限切れ）  │
-└──────────────────────────────┘
+```mermaid
+flowchart LR
+    browser[ブラウザ] --> app[Function URL / Lambda / Next.js + Better Auth]
+    app --> db[Aurora PostgreSQL / 自動停止]
+    browser -->|署名付きアップロード| files[S3]
+    app --> files
+    app --> mail[SES / メール]
+    app --> sms[SNS / SMS]
 ```
 
-- アプリ側の秘密は `SUPABASE_SERVICE_ROLE_KEY` と `CRON_SECRET` の2つ。どちらもサーバーだけが持ち、ブラウザには渡さない
-- 定期実行は EventBridge の代わりに Supabase の pg_cron + pg_net から同じ URL を叩いてもよい（`0023` の見積り期限切れは pg_cron で動いている）
+[AWS構成・配備手順](infra/aws/README.md)、[改善状況と残る課題](docs/architecture.md)を参照。
 
 ---
 
@@ -631,76 +611,49 @@ Figma 上に「Design System — OshiNest」セクションとして定義して
 
 ## 12. セットアップ
 
-### ローカルで動かす（Supabase はローカルコンテナ）
-
-Docker Desktop が必要です。
+Node.js 24とDocker Composeを使用する。
 
 ```bash
-npm install
-cp .env.local.example .env.local   # ローカルの Supabase の値を設定（下記）
-npx -y supabase@2.116.0 start      # 初回・停止後。API 54421 / DB 54422 / Studio 54423 / Mailpit 54424
-npx -y supabase@2.116.0 db reset   # supabase/migrations を順に適用し、supabase/seeds を投入
-node scripts/seed-storage.mjs      # ダミー画像を Storage へ（db reset では戻らない）
-npm run dev                        # http://localhost:3000
+npm ci
+cp .env.local.example .env.local
+# openssl rand -hex 32 で生成した値を .env.local の AUTH_SECRET に設定
+npm run dev:services
+npm run db:migrate
+npm run db:seed   # 初回の空DBだけ。アカウント・作品・画像を作成
+npm run dev
 ```
 
-- ポートは既定の 5432x ではなく 544xx に寄せてあります（`supabase/config.toml`）。`config.toml` を変えたら `stop` → `start`
-- シードのアカウントはパスワード共通 `password123`：`buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`
-- 新規登録は6桁の確認コード方式。コードは Mailpit（http://127.0.0.1:54424）で受け取れます
-- クリエイター申請の SMS 認証は、ローカルでは `config.toml` の `[auth.sms.test_otp]` にある番号だけ通ります（`090-0000-0001`〜`0003`、コードは `123456`）
-- `.env.local` の Supabase の値は `npx supabase status` で表示されるものを使います。Stripe の値は空のままでよく、空なら決済は開発用の即時確定になります
+- アプリ: http://localhost:3000
+- PostgreSQL: `127.0.0.1:55432`、S3: `http://127.0.0.1:59000`、管理画面: `http://localhost:59001`
+- Mailpit: http://localhost:58025 （認証メール、通知メール、開発用SMSコード）
+- 開発アカウント: `buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`、共通パスワード `password123`
+- 既存環境の再開は `npm run dev:services` → `npm run db:migrate` → `npm run dev`。再シードやDB初期化は不要。
+- `docker compose stop` でサービスを停止する。ボリュームにDBとファイルを保持する。
 
-### 環境変数
+環境変数は [.env.local.example](.env.local.example) を参照。`DATABASE_URL` はアプリ用、`MIGRATION_DATABASE_URL` は管理用で、アプリの配備に後者を渡さない。AWSの設定は [infra/aws/README.md](infra/aws/README.md) を使用する。秘密値と接続先は実行時に設定し、公開ビルド変数は不要。
 
-| 変数 | 用途 |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ブラウザ・サーバー共通の Supabase 接続 |
-| `SUPABASE_SERVICE_ROLE_KEY` | サーバー専用。cron・メール送信などユーザー文脈が無い処理だけで使う |
-| `NEXT_PUBLIC_SITE_URL` | メール内リンクや決済のリダイレクト先 |
-| `CRON_SECRET` | `/api/cron/*` の合言葉。未設定なら入口は 503 |
-| `RESEND_API_KEY` / `MAIL_FROM` | 通知メールの送信。`RESEND_API_KEY` が無ければ開発時は Mailpit へ |
-| `STRIPE_SECRET_KEY` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` / `STRIPE_WEBHOOK_SECRET` | 今後。入れると決済が Stripe Checkout に切り替わる |
-
-### 本番（Supabase クラウド）へのマイグレーション適用
+### 検証
 
 ```bash
-npx supabase link --project-ref <your-project-ref>
-npx supabase db push
+npm run lint
+npx tsc --noEmit
+npm test
+TEST_DATABASE=true npm test  # ローカルDBで接続プールと権限制御も検証
+npm run test:db              # PostgreSQLの業務・認可テスト。fixtureはロールバック
+npx playwright install chromium # ブラウザの初回準備
+npm run test:e2e             # 起動中のローカルアプリとMailpitでブラウザ確認
+npm run build
 ```
 
-`supabase/migrations/0001〜0026` を CLI が番号順に適用します。Authentication > URL Configuration のリダイレクト URL に本番ドメインの `/auth/callback` を追加してください。
+ブラウザテストは開発用会員・デモ注文・下書き作品を追加するため、ローカル専用。メール確認・SMS再送制限・注文の閲覧権限・STL解析・画像アップロードを確認する。
 
-クリエイター申請の SMS 認証には SMS プロバイダが要ります。Authentication > Providers > Phone で Twilio などを設定し、「Confirm phone」を有効にしてください（アプリ側に鍵は不要です）。
-
-### 本番（AWS）へのデプロイ
-
-1. **Amplify Hosting** で GitHub のこのリポジトリを接続する（フレームワークは Next.js SSR として自動検出）。環境変数に上表の値を入れる。`NEXT_PUBLIC_SITE_URL` は Amplify のドメイン
-2. **EventBridge** にスケジュールルール（`rate(10 minutes)`）を作り、API Destination の宛先を `https://<ドメイン>/api/cron/dispatch-emails`、Connection の認証を `Authorization: Bearer <CRON_SECRET>` にする
-3. Supabase の pg_cron（見積りの期限切れ・JST 00:05）は DB 側で動くので、AWS 側の設定は不要
-4. Stripe を有効化するときは、Webhook の宛先を `https://<ドメイン>/api/stripe/webhook` にして `STRIPE_WEBHOOK_SECRET` を入れる
-
-### 型定義の再生成
-
-```bash
-npx supabase gen types typescript --local > src/types/database.ts
-```
-
-`src/types/database.ts` は生成物です（手で直さない）。アプリからは `src/types/db.ts` 経由で参照します。
-
-### まとめて検証する
-
-```bash
-docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify-0014-0021.sql   # 決済 → 精算 → 払込 → 修正依頼 → オーダーメイド → 通知リンク
-docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify-0022-0023.sql   # 運営メンバー・role の防護・見積り期限切れ・メール宛先
-```
-
-どちらも最後に rollback するので何度でも流せます。
+DB変更後は `npm run db:types` で型を再生成する。3D解析単体は `npm run analyze -- tests/fixtures/tetrahedron.stl` で確認できる。
 
 ---
 
 ## 13. 実装状況
 
-2026-09-08 時点。ルートは 53、マイグレーションは `0001〜0026`。`npm run dev` で **買う → 決済（開発用の即時確定）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。詳しい動かし方と触るときの注意は `docs/引き継ぎ_実装_2026-09-08.md`、守る設計判断は `HANDOFF.md` にあります。
+2026-09-09 時点。現行ベースラインは `db/migrations/0001〜0006`。`npm run dev` で **買う → デモ注文（実課金なし）→ 印刷 → 検品 → 発送 → 受け取り評価 → 実費精算 → 振込申請** まで一本で動きます。再開時の注意は [HANDOFF.md](HANDOFF.md)、残る改善点は [docs/architecture.md](docs/architecture.md) にあります。
 
 ### 実装済み
 
@@ -712,17 +665,17 @@ docker exec -i supabase_db_osinest psql -U postgres -d postgres < scripts/verify
 | 相談系 | メッセージ、オーダーメイド相談 → 見積り → 承認 → 専用サイズがカートへ → 決済 | `/mypage/messages`, `/mypage/custom-orders/**`, `/studio/custom-orders/**` |
 | 作る人 | 作品管理、出品フロー4STEP（3Dデータの自動検証 → 印刷指示 → 作品情報 → 公開）、売上ダッシュボード、売上の受け取り（口座・振込申請）、修正依頼への対応 | `/studio`, `/studio/works/**`, `/studio/payouts`, `/studio/revisions/**` |
 | 運営 | 印刷キュー → ジョブ詳細 → 検品・発送登録、注文一覧・注文詳細、出荷済み、フィラメント在庫、売上・手数料（実費精算）、払込管理、運営メンバーの追加・解除 | `/admin/**` |
-| 裏側 | 3MF/STL の解析と見積り、通知（DB トリガーが生成）、通知 → メール（cron 入口 + Resend/Mailpit）、見積り期限切れの日次処理（pg_cron）、role の自己昇格の防護 | `src/lib/print/`, `/api/cron/dispatch-emails`, `0022`〜`0023` |
+| 裏側 | 3MF/STLの解析と見積り、アプリ内通知、管理者による通知メール送信・期限切れデータ整理、roleの自己昇格の防護 | `src/lib/print/`, `src/lib/mail/`, `src/lib/ops/maintenance-actions.ts`, `db/migrations/` |
 
 - 集計（お気に入り数・未読数）、注文ステータスの導出、通知の生成、精算の式は **DB 側**にあります。アプリは記録を書くだけです
-- ビューは全て `security_invoker`、更新系は `.select()` で行数を検査しています（RLS で黙って 0 行になる事故を防ぐため）
+- ビューは `security_invoker`、複数テーブルの更新はRPCを使います。残る多段更新・取得失敗の扱いは [全体診断](docs/architecture.md) を参照してください
 
 ### 今後
 
-- **Stripe の有効化**：コードと Webhook の入口（`/api/stripe/webhook`）はあり、キーを入れると Checkout に切り替わります。本番前に鍵の投入と Webhook の登録を行う
+- 実決済は当面対象外。必要になった時点で、デモ注文と分けて要件・連携先を設計する
 - **プリンタ管理**（運営コンソール。最後に着手する）
 - スマホ向けの仕上げ（Figma ⑥ の下タブ）
 - 通知の「まとめ受信（daily）」の設定画面（DB の `notification_settings` は既にある）
-- 本番の cron 配線（EventBridge → `/api/cron/dispatch-emails`）
+- AWSへの配備、RDS・S3・SES・SNSの設定（設定例は `infra/aws/`）
 - 推し空間コーディネート投稿
-- （保留）アストラ連携の撮影・生成。テーブル（`nui_scans` / `nui_assets` / `tryon_renders`）は `0010` にあるが未使用
+- （保留）アストラ連携の撮影・生成。テーブル（`nui_scans` / `nui_assets` / `tryon_renders`）はDBにあるが未使用

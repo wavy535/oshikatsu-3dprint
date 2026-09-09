@@ -1,7 +1,8 @@
+import { Pagination } from "@/components/ui/pagination";
 import { Suspense } from "react";
 import Link from "next/link";
 
-import { getShipmentSummary, listShipments, type ShipmentSearchParams } from "@/lib/ops/queries";
+import { getShipmentSummary, listShipments, type ShipmentSearchParams } from "@/lib/ops/shipping-queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { CARRIER_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
 import { ListFilters } from "@/components/ops/list-filters";
@@ -21,7 +22,7 @@ export default async function AdminShipmentsPage({
   searchParams: Promise<ShipmentSearchParams>;
 }) {
   const sp = await searchParams;
-  const [shipments, summary] = await Promise.all([listShipments(sp), getShipmentSummary()]);
+  const [{ items: shipments, page, hasNext }, summary] = await Promise.all([listShipments(sp), getShipmentSummary()]);
 
   return (
     <>
@@ -94,7 +95,7 @@ export default async function AdminShipmentsPage({
                   <td className={`${TD} num text-ink`}>{shortDateTime(s.shipped_at)}</td>
                   <td className={`${TD} num font-semibold text-brand`}>
                     {o ? (
-                      <Link href={`/admin/orders/${o.id}`} className="hover:underline">
+                      <Link prefetch={false} href={`/admin/orders/${o.id}`} className="hover:underline">
                         #{o.id.slice(0, 8)}
                       </Link>
                     ) : (
@@ -147,6 +148,7 @@ export default async function AdminShipmentsPage({
           </tbody>
         </table>
       </div>
+      <Pagination path="/admin/shipments" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

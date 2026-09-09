@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { isSalesMonth, monthKey, shiftMonth } from "@/lib/sales/months";
 import { ImageIcon, TrendingDown, TrendingUp } from "lucide-react";
 
 import { getCreatorDashboard } from "@/lib/sales/queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
-import { monthKey, monthLabel, shortDateTime } from "@/lib/ops/labels";
+import { monthLabel, shortDateTime } from "@/lib/ops/labels";
 import { workImageUrl } from "@/lib/storage";
 import { yen } from "@/components/work/work-card";
 import { RequestPayoutButton } from "@/components/sales/payout-forms";
@@ -21,9 +22,9 @@ export default async function StudioDashboardPage({
   searchParams: Promise<{ month?: string }>;
 }) {
   const sp = await searchParams;
-  const now = new Date();
-  const months = Array.from({ length: 12 }, (_, i) => monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
-  const month = sp.month && /^\d{4}-\d{2}$/.test(sp.month) ? sp.month : months[0];
+  const currentMonth = monthKey();
+  const months = Array.from({ length: 12 }, (_, i) => shiftMonth(currentMonth, -i));
+  const month = isSalesMonth(sp.month) ? sp.month : months[0];
 
   const d = await getCreatorDashboard(month);
   const b = d.balance;

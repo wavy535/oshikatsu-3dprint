@@ -134,11 +134,6 @@ export const PAYOUT_STATUS_LABEL: Record<string, string> = {
   rejected: "却下",
 };
 
-/** 「2026-09」形式の月キー。売上画面の期間指定に使う。 */
-export function monthKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
 export function monthLabel(key: string) {
   const [y, m] = key.split("-");
   return `${y}年${Number(m)}月`;

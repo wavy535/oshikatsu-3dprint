@@ -1,3 +1,4 @@
+import { queryResult } from "@/lib/db/result";
 import Link from "next/link";
 
 import { requireUser } from "@/lib/auth/guards";
@@ -16,22 +17,40 @@ const STATUS_LABEL: Record<string, string> = {
 
 /**
  * クリエイター登録（申請）。SMS 認証と利用規約への同意だけで出せる。
- * 判定は DB のトリガー（0024）が最終的に行う。
+ * 判定は DB のトリガーが最終的に行う。
  */
 export default async function CreatorApplyPage() {
-  const { supabase, user } = await requireUser("/creator/apply");
+  const { db, user } = await requireUser("/creator/apply");
 
   const [{ data: profile }, { data: applications }] = await Promise.all([
-    supabase.from("profiles").select("role").eq("id", user.id).single(),
-    supabase
-      .from("creator_applications")
-      .select("id, status, admin_note, created_at, reviewed_at, terms_version")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false }),
+    queryResult(
+      db
+        .selectFrom("profiles")
+        .select(["profiles.role"])
+        .where("profiles.id", "=", user.id)
+        .executeTakeFirstOrThrow(),
+    ),
+    queryResult(
+      db
+        .selectFrom("creator_applications")
+        .select([
+          "creator_applications.id",
+          "creator_applications.status",
+          "creator_applications.admin_note",
+          "creator_applications.created_at",
+          "creator_applications.reviewed_at",
+          "creator_applications.terms_version",
+        ])
+        .where("creator_applications.user_id", "=", user.id)
+        .orderBy("creator_applications.created_at", "desc")
+        .execute(),
+    ),
   ]);
 
   const latestPending = applications?.find((a) => a.status === "pending");
-  const phoneMasked = user.phone_confirmed_at ? maskPhone(user.phone) : null;
+  const phoneMasked = user.phoneNumberVerified
+    ? maskPhone(user.phoneNumber)
+    : null;
 
   return (
     <>
@@ -62,7 +81,8 @@ export default async function CreatorApplyPage() {
           <div className="flex items-center gap-2">
             <Badge variant="brand">審査中</Badge>
             <span className="num text-[12px] text-muted-foreground">
-              申請日 {new Date(latestPending.created_at).toLocaleDateString("ja-JP")}
+              申請日{" "}
+              {new Date(latestPending.created_at).toLocaleDateString("ja-JP")}
             </span>
           </div>
           <p className="text-[12px] text-muted-foreground">
@@ -85,7 +105,9 @@ export default async function CreatorApplyPage() {
                 <span className="num text-ink">
                   {new Date(a.created_at).toLocaleDateString("ja-JP")}
                 </span>
-                <span className="text-muted-foreground">{STATUS_LABEL[a.status]}</span>
+                <span className="text-muted-foreground">
+                  {STATUS_LABEL[a.status]}
+                </span>
                 {a.terms_version && (
                   <span className="num text-[11px] text-muted-foreground">
                     規約 {a.terms_version} 版に同意

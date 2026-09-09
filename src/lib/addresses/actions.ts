@@ -1,26 +1,31 @@
 "use server";
+import { queryResult } from "@/lib/db/result";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { createClient } from "@/lib/supabase/server";
+import { getOptionalUser } from "@/lib/auth/guards";
 
 export type AddressActionState = { error: string | null; ok?: boolean };
 
 const addressSchema = z.object({
   id: z.uuid().optional(),
   recipientName: z.string().min(1, "お名前を入力してください").max(60),
-  postalCode: z.string().regex(/^\d{7}$/, "郵便番号は数字7桁で入力してください"),
+  postalCode: z
+    .string()
+    .regex(/^\d{7}$/, "郵便番号は数字7桁で入力してください"),
   prefecture: z.string().min(1, "都道府県を入力してください").max(10),
   city: z.string().min(1, "市区町村を入力してください").max(60),
   addressLine: z.string().min(1, "番地・建物名を入力してください").max(120),
-  phone: z.string().regex(/^\d{10,11}$/, "電話番号は数字10〜11桁で入力してください"),
+  phone: z
+    .string()
+    .regex(/^\d{10,11}$/, "電話番号は数字10〜11桁で入力してください"),
   isDefault: z.boolean(),
 });
 
 export async function saveAddressAction(
   _prev: AddressActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AddressActionState> {
   const parsed = addressSchema.safeParse({
     id: formData.get("id") || undefined,
@@ -33,13 +38,12 @@ export async function saveAddressAction(
     isDefault: formData.get("isDefault") === "on",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
   if (!user) return { error: "ログインが必要です" };
 
   const values = {
@@ -54,22 +58,35 @@ export async function saveAddressAction(
 
   // 既定は1件だけ。先に全部落としてから立てる
   if (values.is_default) {
-    await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
+    await queryResult(
+      db
+        .updateTable("addresses")
+        .set({ is_default: false })
+        .where("addresses.user_id", "=", user.id)
+        .execute(),
+    );
   }
 
   const { data, error } = parsed.data.id
-    ? await supabase
-        .from("addresses")
-        .update(values)
-        .eq("id", parsed.data.id)
-        .eq("user_id", user.id)
-        .select("id")
-    : await supabase
-        .from("addresses")
-        .insert({ ...values, user_id: user.id })
-        .select("id");
+    ? await queryResult(
+        db
+          .updateTable("addresses")
+          .set(values)
+          .where("addresses.id", "=", parsed.data.id)
+          .where("addresses.user_id", "=", user.id)
+          .returning(["id"])
+          .execute(),
+      )
+    : await queryResult(
+        db
+          .insertInto("addresses")
+          .values({ ...values, user_id: user.id })
+          .returning(["id"])
+          .execute(),
+      );
 
-  if (error || !data || data.length === 0) return { error: "保存できませんでした" };
+  if (error || !data || data.length === 0)
+    return { error: "保存できませんでした" };
 
   revalidatePath("/mypage/addresses");
   return { error: null, ok: true };
@@ -77,51 +94,58 @@ export async function saveAddressAction(
 
 export async function deleteAddressAction(
   _prev: AddressActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AddressActionState> {
   const id = formData.get("id");
   if (typeof id !== "string") return { error: "対象が特定できません" };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
   if (!user) return { error: "ログインが必要です" };
 
-  const { data, error } = await supabase
-    .from("addresses")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
+  const { data, error } = await queryResult(
+    db
+      .deleteFrom("addresses")
+      .where("addresses.id", "=", id)
+      .where("addresses.user_id", "=", user.id)
+      .returning(["id"])
+      .execute(),
+  );
 
-  if (error || !data || data.length === 0) return { error: "削除できませんでした" };
+  if (error || !data || data.length === 0)
+    return { error: "削除できませんでした" };
   revalidatePath("/mypage/addresses");
   return { error: null, ok: true };
 }
 
 export async function setDefaultAddressAction(
   _prev: AddressActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AddressActionState> {
   const id = formData.get("id");
   if (typeof id !== "string") return { error: "対象が特定できません" };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
   if (!user) return { error: "ログインが必要です" };
 
-  await supabase.from("addresses").update({ is_default: false }).eq("user_id", user.id);
-  const { data, error } = await supabase
-    .from("addresses")
-    .update({ is_default: true })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
+  await queryResult(
+    db
+      .updateTable("addresses")
+      .set({ is_default: false })
+      .where("addresses.user_id", "=", user.id)
+      .execute(),
+  );
+  const { data, error } = await queryResult(
+    db
+      .updateTable("addresses")
+      .set({ is_default: true })
+      .where("addresses.id", "=", id)
+      .where("addresses.user_id", "=", user.id)
+      .returning(["id"])
+      .execute(),
+  );
 
-  if (error || !data || data.length === 0) return { error: "変更できませんでした" };
+  if (error || !data || data.length === 0)
+    return { error: "変更できませんでした" };
   revalidatePath("/mypage/addresses");
   return { error: null, ok: true };
 }

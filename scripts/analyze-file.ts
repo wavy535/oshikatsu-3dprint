@@ -1,8 +1,9 @@
 // ローカル検証用。実ファイルを解析パイプラインに通して結果を表示する。
 //   node --experimental-strip-types scripts/analyze-file.ts <path>
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { basename } from "node:path";
-import { analyzeModelFile } from "../src/lib/print/index";
+import { analyzeModelFile } from "../src/lib/print/index.ts";
+import { checkModelFileSize } from "../src/lib/print/limits.ts";
 
 const path = process.argv[2];
 if (!path) {
@@ -10,12 +11,14 @@ if (!path) {
   process.exit(1);
 }
 
+checkModelFileSize(statSync(path).size);
 const buf = readFileSync(path);
 const t0 = Date.now();
 const r = analyzeModelFile(buf, { fileName: basename(path) });
 const ms = Date.now() - t0;
 
 console.log(`--- ${basename(path)} (${(buf.length / 1024 / 1024).toFixed(1)} MB) / ${ms} ms ---`);
+console.log(`process peak RSS: ${(process.resourceUsage().maxRSS / 1024).toFixed(1)} MiB`);
 console.log(`format=${r.format} unit=${r.unit}(declared=${r.unitDeclared}:${r.declaredUnit})`);
 console.log(`objects=${r.objectCount} triangles=${r.triangleCount} vertices=${r.vertexCount}`);
 console.log(`assembled=${r.assembledBboxMm.join(" x ")} mm  plate=${r.plateBboxMm.join(" x ")}  maxPart=${r.maxPartBboxMm.join(" x ")}`);

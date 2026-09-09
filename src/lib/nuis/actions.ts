@@ -1,10 +1,11 @@
 "use server";
+import { queryResult } from "@/lib/db/result";
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { createClient } from "@/lib/supabase/server";
+import { getOptionalUser } from "@/lib/auth/guards";
 
 export type NuiActionState = { error: string | null };
 
@@ -39,17 +40,16 @@ function parse(formData: FormData) {
 
 export async function saveNuiAction(
   _prev: NuiActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<NuiActionState> {
   const parsed = parse(formData);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
   if (!user) return { error: "ログインが必要です" };
 
   const values = {
@@ -61,18 +61,25 @@ export async function saveNuiAction(
   };
 
   const { data, error } = parsed.data.id
-    ? await supabase
-        .from("nui_profiles")
-        .update(values)
-        .eq("id", parsed.data.id)
-        .eq("user_id", user.id)
-        .select("id")
-    : await supabase
-        .from("nui_profiles")
-        .insert({ ...values, user_id: user.id })
-        .select("id");
+    ? await queryResult(
+        db
+          .updateTable("nui_profiles")
+          .set(values)
+          .where("nui_profiles.id", "=", parsed.data.id)
+          .where("nui_profiles.user_id", "=", user.id)
+          .returning(["id"])
+          .execute(),
+      )
+    : await queryResult(
+        db
+          .insertInto("nui_profiles")
+          .values({ ...values, user_id: user.id })
+          .returning(["id"])
+          .execute(),
+      );
 
-  if (error || !data || data.length === 0) return { error: "保存できませんでした" };
+  if (error || !data || data.length === 0)
+    return { error: "保存できませんでした" };
 
   revalidatePath("/mypage/nuis");
   redirect("/mypage/nuis");
@@ -81,26 +88,33 @@ export async function saveNuiAction(
 /** メインを切り替える。一覧の絞り込みの既定と作品詳細の相性はメインを見る。 */
 export async function setMainNuiAction(
   _prev: NuiActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<NuiActionState> {
   const id = formData.get("id");
   if (typeof id !== "string") return { error: "対象が特定できません" };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
   if (!user) return { error: "ログインが必要です" };
 
-  await supabase.from("nui_profiles").update({ is_main: false }).eq("user_id", user.id);
-  const { data, error } = await supabase
-    .from("nui_profiles")
-    .update({ is_main: true })
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
+  await queryResult(
+    db
+      .updateTable("nui_profiles")
+      .set({ is_main: false })
+      .where("nui_profiles.user_id", "=", user.id)
+      .execute(),
+  );
+  const { data, error } = await queryResult(
+    db
+      .updateTable("nui_profiles")
+      .set({ is_main: true })
+      .where("nui_profiles.id", "=", id)
+      .where("nui_profiles.user_id", "=", user.id)
+      .returning(["id"])
+      .execute(),
+  );
 
-  if (error || !data || data.length === 0) return { error: "切り替えられませんでした" };
+  if (error || !data || data.length === 0)
+    return { error: "切り替えられませんでした" };
   revalidatePath("/mypage/nuis");
   revalidatePath("/works");
   return { error: null };
@@ -108,25 +122,25 @@ export async function setMainNuiAction(
 
 export async function deleteNuiAction(
   _prev: NuiActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<NuiActionState> {
   const id = formData.get("id");
   if (typeof id !== "string") return { error: "対象が特定できません" };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
   if (!user) return { error: "ログインが必要です" };
 
-  const { data, error } = await supabase
-    .from("nui_profiles")
-    .delete()
-    .eq("id", id)
-    .eq("user_id", user.id)
-    .select("id");
+  const { data, error } = await queryResult(
+    db
+      .deleteFrom("nui_profiles")
+      .where("nui_profiles.id", "=", id)
+      .where("nui_profiles.user_id", "=", user.id)
+      .returning(["id"])
+      .execute(),
+  );
 
-  if (error || !data || data.length === 0) return { error: "削除できませんでした" };
+  if (error || !data || data.length === 0)
+    return { error: "削除できませんでした" };
   revalidatePath("/mypage/nuis");
   return { error: null };
 }

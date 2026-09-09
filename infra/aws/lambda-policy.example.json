@@ -1,0 +1,18 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject"],
+      "Resource": ["arn:aws:s3:::<application-bucket>/*"]
+    },
+    {
+      "Effect": "Allow", "Action": "ses:SendEmail",
+      "Resource": "arn:aws:ses:<region>:569855251962:identity/<verified-identity>"
+    },
+    {
+      "Effect": "Allow", "Action": "sns:Publish", "Resource": "*",
+      "Condition": { "StringEquals": { "aws:RequestedRegion": "<region>" } }
+    }
+  ]
+}

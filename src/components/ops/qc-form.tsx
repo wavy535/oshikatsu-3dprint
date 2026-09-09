@@ -2,11 +2,24 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
-import { AlertTriangle, Check, ImageIcon, Truck, Upload, X } from "lucide-react";
+import {
+  AlertTriangle,
+  Check,
+  ImageIcon,
+  Truck,
+  Upload,
+  X,
+} from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
-import { createShipmentAction, submitQcAction, type OpsActionState } from "@/lib/ops/actions";
-import { CARRIER_LABEL, REPRINT_CAUSE_LABEL, REPRINT_CAUSE_NOTE } from "@/lib/ops/labels";
+import { uploadFile } from "@/lib/files/upload";
+import { createShipmentAction } from "@/lib/ops/shipping-actions";
+import { submitQcAction } from "@/lib/ops/printing-actions";
+import { type OpsActionState } from "@/lib/ops/action-state";
+import {
+  CARRIER_LABEL,
+  REPRINT_CAUSE_LABEL,
+  REPRINT_CAUSE_NOTE,
+} from "@/lib/ops/labels";
 import { Button } from "@/components/ui/button";
 import type { ReprintCause, ShippingCarrier } from "@/types/db";
 
@@ -51,7 +64,6 @@ export function QcForm({
     }
     setUploadError(null);
     setUploading(true);
-    const supabase = createClient();
 
     for (const file of Array.from(files).slice(0, 6 - photos.length)) {
       if (!file.type.startsWith("image/")) {
@@ -62,14 +74,20 @@ export function QcForm({
         setUploadError(`${file.name} は大きすぎます（8MBまで）`);
         continue;
       }
-      // パス規約: {work_id}/{print_job_id}/{ファイル名}（qc-photos のポリシーに合わせる）
-      const path = `${workId}/${jobId}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("qc-photos").upload(path, file);
-      if (error) {
-        setUploadError(`アップロードに失敗しました（${error.message}）`);
+      let path: string;
+      try {
+        path = await uploadFile("qc-photos", file, workId, jobId);
+      } catch (error) {
+        setUploadError(
+          error instanceof Error ? error.message : "アップロードに失敗しました",
+        );
         continue;
       }
-      setPhotos((prev) => [...prev, { path, previewUrl: URL.createObjectURL(file) }]);
+
+      setPhotos((prev) => [
+        ...prev,
+        { path, previewUrl: URL.createObjectURL(file) },
+      ]);
     }
     setUploading(false);
   }
@@ -113,8 +131,12 @@ export function QcForm({
               </span>
 
               <div className="flex flex-1 flex-col">
-                <p className="text-[11.5px] font-semibold text-ink">{c.label}</p>
-                <p className="text-[10px] text-muted-foreground">{c.description}</p>
+                <p className="text-[11.5px] font-semibold text-ink">
+                  {c.label}
+                </p>
+                <p className="text-[10px] text-muted-foreground">
+                  {c.description}
+                </p>
               </div>
 
               <div className="flex flex-none overflow-hidden rounded-md border border-line">
@@ -122,7 +144,9 @@ export function QcForm({
                   <button
                     key={v}
                     type="button"
-                    onClick={() => setAnswers((prev) => ({ ...prev, [c.code]: v }))}
+                    onClick={() =>
+                      setAnswers((prev) => ({ ...prev, [c.code]: v }))
+                    }
                     className={`px-3 py-1 text-[10.5px] font-semibold transition-colors ${
                       value === v
                         ? v === "pass"
@@ -151,7 +175,9 @@ export function QcForm({
       </section>
 
       <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-3.5">
-        <h2 className="text-[12.5px] font-semibold text-ink">検品写真（最大6枚）</h2>
+        <h2 className="text-[12.5px] font-semibold text-ink">
+          検品写真（最大6枚）
+        </h2>
         <div className="grid grid-cols-3 gap-2">
           {photos.map((p) => (
             <span
@@ -159,7 +185,11 @@ export function QcForm({
               className="flex h-16 items-center justify-center overflow-hidden rounded-lg border border-line bg-ground"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.previewUrl} alt="" className="size-full object-cover" />
+              <img
+                src={p.previewUrl}
+                alt=""
+                className="size-full object-cover"
+              />
             </span>
           ))}
           {photos.length === 0 && (
@@ -185,7 +215,9 @@ export function QcForm({
             }}
           />
         </label>
-        {uploadError && <p className="text-[11px] text-danger">{uploadError}</p>}
+        {uploadError && (
+          <p className="text-[11px] text-danger">{uploadError}</p>
+        )}
       </section>
 
       {failed.length > 0 && (
@@ -197,7 +229,9 @@ export function QcForm({
             </p>
           </div>
           <label className="flex flex-col gap-1">
-            <span className="text-[10.5px] text-muted-foreground">再印刷の原因</span>
+            <span className="text-[10.5px] text-muted-foreground">
+              再印刷の原因
+            </span>
             <select
               name="reprintCause"
               required
@@ -213,7 +247,11 @@ export function QcForm({
               ))}
             </select>
           </label>
-          {cause && <p className="text-[10.5px] text-danger">{REPRINT_CAUSE_NOTE[cause]}</p>}
+          {cause && (
+            <p className="text-[10.5px] text-danger">
+              {REPRINT_CAUSE_NOTE[cause]}
+            </p>
+          )}
         </section>
       )}
 
@@ -258,7 +296,10 @@ export function ShipmentForm({
   enabled: boolean;
   giftWrapping: boolean;
 }) {
-  const [state, action, pending] = useActionState(createShipmentAction, initial);
+  const [state, action, pending] = useActionState(
+    createShipmentAction,
+    initial,
+  );
 
   return (
     <form action={action} className="flex flex-col gap-2.5">
@@ -266,7 +307,12 @@ export function ShipmentForm({
 
       <label className="flex flex-col gap-1">
         <span className="text-[10.5px] text-muted-foreground">配送業者</span>
-        <select name="carrier" defaultValue="yamato" className={FIELD} disabled={!enabled}>
+        <select
+          name="carrier"
+          defaultValue="yamato"
+          className={FIELD}
+          disabled={!enabled}
+        >
           {(Object.keys(CARRIER_LABEL) as ShippingCarrier[]).map((c) => (
             <option key={c} value={c}>
               {CARRIER_LABEL[c]}
@@ -287,14 +333,23 @@ export function ShipmentForm({
 
       <label className="flex flex-col gap-1">
         <span className="text-[10.5px] text-muted-foreground">追跡番号</span>
-        <input name="trackingNumber" required className={FIELD} disabled={!enabled} />
+        <input
+          name="trackingNumber"
+          required
+          className={FIELD}
+          disabled={!enabled}
+        />
       </label>
 
       <label className="flex flex-col gap-1">
         <span className="text-[10.5px] text-muted-foreground">梱包資材</span>
         <input
           name="boxType"
-          defaultValue={giftWrapping ? "宅急便コンパクト箱＋ラッピング" : "宅急便コンパクト箱"}
+          defaultValue={
+            giftWrapping
+              ? "宅急便コンパクト箱＋ラッピング"
+              : "宅急便コンパクト箱"
+          }
           className={FIELD}
           disabled={!enabled}
         />
@@ -302,18 +357,43 @@ export function ShipmentForm({
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">実測重量（g）</span>
-          <input name="weightGrams" type="number" min="0" defaultValue={0} className={FIELD} disabled={!enabled} />
+          <span className="text-[10.5px] text-muted-foreground">
+            実測重量（g）
+          </span>
+          <input
+            name="weightGrams"
+            type="number"
+            min="0"
+            defaultValue={0}
+            className={FIELD}
+            disabled={!enabled}
+          />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">三辺合計（cm）</span>
-          <input name="sizeSumCm" type="number" min="0" defaultValue={0} className={FIELD} disabled={!enabled} />
+          <span className="text-[10.5px] text-muted-foreground">
+            三辺合計（cm）
+          </span>
+          <input
+            name="sizeSumCm"
+            type="number"
+            min="0"
+            defaultValue={0}
+            className={FIELD}
+            disabled={!enabled}
+          />
         </label>
       </div>
 
       <label className="flex flex-col gap-1">
         <span className="text-[10.5px] text-muted-foreground">送料（円）</span>
-        <input name="shippingFeeJpy" type="number" min="0" defaultValue={520} className={FIELD} disabled={!enabled} />
+        <input
+          name="shippingFeeJpy"
+          type="number"
+          min="0"
+          defaultValue={520}
+          className={FIELD}
+          disabled={!enabled}
+        />
       </label>
 
       <Button type="submit" disabled={!enabled || pending} className="w-full">

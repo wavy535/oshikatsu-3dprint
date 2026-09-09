@@ -1,81 +1,137 @@
+import { readPage } from "@/lib/db/result";
+import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { sql } from "kysely";
 import "server-only";
 
 import { requireCreator } from "@/lib/auth/guards";
-import { monthKey, SALES_ORDER_STATUSES } from "@/lib/ops/labels";
+import { SALES_ORDER_STATUSES } from "@/lib/ops/labels";
+import { monthStart, shiftMonth } from "./months";
 
-/**
- * クリエイターの売上ダッシュボードが読むもの。
- * 金額は creator_item_settlements（0019）から。注文の精算を明細に配ったもので、
- * 発送済みなら実費で確定、それまでは見込み。
- */
+/** 売上は月ごとの集計値と直近8明細だけを読み、精算式はDBビューを共用する。 */
 export async function getCreatorDashboard(month: string) {
-  const { supabase, user } = await requireCreator();
-
-  const [{ data: items }, { data: balance }, { data: account }, { count: followers }] =
-    await Promise.all([
-      supabase
-        .from("creator_item_settlements")
-        .select("*")
-        .eq("creator_id", user.id)
-        .in("status", [...SALES_ORDER_STATUSES])
-        .order("ordered_at", { ascending: false }),
-      supabase.from("creator_payout_balances").select("*").eq("creator_id", user.id).maybeSingle(),
-      supabase.from("payout_accounts").select("bank_name, branch_name, account_type, account_number").eq("creator_id", user.id).maybeSingle(),
-      supabase.from("creator_follows").select("follower_id", { count: "exact", head: true }).eq("creator_id", user.id),
-    ]);
-
-  const rows = items ?? [];
-  const [y, m] = month.split("-").map(Number);
-  const inMonth = (iso: string | null, key: string) => !!iso && monthKey(new Date(iso)) === key;
-  const prevKey = monthKey(new Date(y, m - 2, 1));
-
-  const thisMonth = rows.filter((r) => inMonth(r.ordered_at, month));
-  const prevMonth = rows.filter((r) => inMonth(r.ordered_at, prevKey));
-  const sum = <T,>(list: T[], pick: (r: T) => number | null) => list.reduce((n, r) => n + (pick(r) ?? 0), 0);
-
-  const goods = sum(thisMonth, (r) => r.goods_amount);
-  const prevGoods = sum(prevMonth, (r) => r.goods_amount);
-  const units = sum(thisMonth, (r) => r.quantity);
-  const prevUnits = sum(prevMonth, (r) => r.quantity);
-
-  // 直近8か月の売上（作品代金）
-  const trend: { key: string; goods: number; payout: number }[] = [];
-  for (let k = 7; k >= 0; k--) {
-    const d = new Date(y, m - 1 - k, 1);
-    const key = monthKey(d);
-    const list = rows.filter((r) => inMonth(r.ordered_at, key));
-    trend.push({ key, goods: sum(list, (r) => r.goods_amount), payout: sum(list, (r) => r.payout_amount) });
-  }
-
+  const { db, user } = await requireCreator();
+  const months = Array.from({ length: 8 }, (_, i) => shiftMonth(month, i - 7));
+  const itemsQuery = db
+    .selectFrom("creator_item_settlements")
+    .where("creator_id", "=", user.id)
+    .where("status", "in", SALES_ORDER_STATUSES);
+  const [monthly, recent, balance, account, followers] = await Promise.all([
+    itemsQuery
+      .select([
+        sql<string>`to_char(ordered_at at time zone 'Asia/Tokyo', 'YYYY-MM')`.as(
+          "key",
+        ),
+        sql<number>`coalesce(sum(goods_amount), 0)`.as("goods"),
+        sql<number>`coalesce(sum(payout_amount), 0)`.as("payout"),
+        sql<number>`coalesce(sum(quantity), 0)`.as("units"),
+      ])
+      .where("ordered_at", ">=", monthStart(months[0]))
+      .where("ordered_at", "<", monthStart(shiftMonth(month, 1)))
+      .groupBy("key")
+      .execute(),
+    itemsQuery
+      .selectAll()
+      .orderBy("ordered_at", "desc")
+      .orderBy("item_id", "asc")
+      .limit(8)
+      .execute(),
+    db
+      .selectFrom("creator_payout_balances")
+      .selectAll()
+      .where("creator_id", "=", user.id)
+      .executeTakeFirst(),
+    db
+      .selectFrom("payout_accounts")
+      .select(["bank_name", "branch_name", "account_type", "account_number"])
+      .where("creator_id", "=", user.id)
+      .executeTakeFirst(),
+    db
+      .selectFrom("creator_follows")
+      .select((eb) => eb.fn.countAll<number>().as("count"))
+      .where("creator_id", "=", user.id)
+      .executeTakeFirstOrThrow(),
+  ]);
+  const byMonth = new Map(monthly.map((row) => [row.key, row]));
+  const empty = { goods: 0, payout: 0, units: 0 };
+  const current = byMonth.get(month) ?? empty;
+  const previous = byMonth.get(shiftMonth(month, -1)) ?? empty;
   return {
     month,
-    goods,
-    goodsChangePct: prevGoods > 0 ? Math.round(((goods - prevGoods) / prevGoods) * 100) : null,
-    units,
-    unitsChange: units - prevUnits,
-    monthPayout: sum(thisMonth, (r) => r.payout_amount),
-    followers: followers ?? 0,
-    trend,
-    recent: rows.slice(0, 8),
+    goods: current.goods,
+    goodsChangePct:
+      previous.goods > 0
+        ? Math.round(((current.goods - previous.goods) / previous.goods) * 100)
+        : null,
+    units: current.units,
+    unitsChange: current.units - previous.units,
+    monthPayout: current.payout,
+    followers: followers.count,
+    trend: months.map((key) => ({
+      key,
+      goods: byMonth.get(key)?.goods ?? 0,
+      payout: byMonth.get(key)?.payout ?? 0,
+    })),
+    recent,
     balance,
     account,
   };
 }
 
 /** 払込ページ: 残高・口座・申請履歴。 */
-export async function getPayoutContext() {
-  const { supabase, user } = await requireCreator();
-  const [{ data: balance }, { data: account }, { data: requests }, { data: charges }] = await Promise.all([
-    supabase.from("creator_payout_balances").select("*").eq("creator_id", user.id).maybeSingle(),
-    supabase.from("payout_accounts").select("*").eq("creator_id", user.id).maybeSingle(),
-    supabase.from("payout_requests").select("*").eq("creator_id", user.id).order("requested_at", { ascending: false }),
-    supabase
-      .from("revision_requests")
-      .select("id, revision_no, reprint_fee_jpy, created_at, works(title)")
-      .eq("creator_id", user.id)
-      .eq("charged_to_creator", true)
-      .neq("status", "cancelled")
-      .order("created_at", { ascending: false }),
+export async function getPayoutContext(
+  requestedPage?: unknown,
+  chargesPage?: unknown,
+) {
+  const { db, user } = await requireCreator();
+  const [balance, account, requests, charges] = await Promise.all([
+    db
+      .selectFrom("creator_payout_balances")
+      .selectAll("creator_payout_balances")
+      .where("creator_payout_balances.creator_id", "=", user.id)
+      .executeTakeFirst(),
+    db
+      .selectFrom("payout_accounts")
+      .selectAll("payout_accounts")
+      .where("payout_accounts.creator_id", "=", user.id)
+      .executeTakeFirst(),
+    readPage(
+      db
+        .selectFrom("payout_requests")
+        .selectAll("payout_requests")
+        .where("payout_requests.creator_id", "=", user.id)
+        .orderBy("payout_requests.requested_at", "desc")
+        .orderBy("payout_requests.id", "desc"),
+      requestedPage,
+    ),
+    readPage(
+      db
+        .selectFrom("revision_requests")
+        .select((eb) => [
+          "revision_requests.id",
+          "revision_requests.revision_no",
+          "revision_requests.reprint_fee_jpy",
+          "revision_requests.created_at",
+          jsonObjectFrom(
+            eb
+              .selectFrom("works as r0")
+              .select(["r0.title"])
+              .whereRef("r0.id", "=", "revision_requests.work_id"),
+          ).as("works"),
+        ])
+        .where("revision_requests.creator_id", "=", user.id)
+        .where("revision_requests.charged_to_creator", "=", true)
+        .where("revision_requests.status", "!=", "cancelled")
+        .orderBy("revision_requests.created_at", "desc")
+        .orderBy("revision_requests.id", "desc"),
+      chargesPage,
+    ),
   ]);
-  return { balance, account, requests: requests ?? [], charges: charges ?? [] };
+  return {
+    balance: balance ?? null,
+    account: account ?? null,
+    requests: requests.items,
+    charges: charges.items,
+    requestPaging: { page: requests.page, hasNext: requests.hasNext },
+    chargePaging: { page: charges.page, hasNext: charges.hasNext },
+  };
 }

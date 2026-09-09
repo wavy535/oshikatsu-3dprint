@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Send } from "lucide-react";
 
 import { sendMessageAction, type MessageActionState } from "@/lib/messages/actions";
@@ -9,13 +10,19 @@ import { Button } from "@/components/ui/button";
 const initial: MessageActionState = { error: null };
 
 /** 送信欄。送れたら入力を空にする。Ctrl+Enter でも送れる。 */
-export function MessageComposer({ recipientId, orderId }: { recipientId: string; orderId?: string }) {
+export function MessageComposer({ recipientId, orderId, latestHref }: { recipientId: string; orderId?: string; latestHref?: string }) {
   const [state, action, pending] = useActionState(sendMessageAction, initial);
   const formRef = useRef<HTMLFormElement>(null);
+  const router = useRouter();
+  const handledSentAt = useRef<number | undefined>(undefined);
 
   useEffect(() => {
-    if (state.sentAt) formRef.current?.reset();
-  }, [state.sentAt]);
+    if (state.sentAt && handledSentAt.current !== state.sentAt) {
+      handledSentAt.current = state.sentAt;
+      formRef.current?.reset();
+      if (latestHref) router.replace(latestHref);
+    }
+  }, [state.sentAt, latestHref, router]);
 
   return (
     <form ref={formRef} action={action} className="flex flex-col gap-1.5 border-t border-line px-4 py-3">

@@ -11,11 +11,12 @@ export function yen(n: number | null | undefined) {
  * 作品カード。Figma ⓪共通 / 検索結果の WorkCard。
  * サイズ展開が2本以上ある作品は価格を「¥1,400〜」と出す。
  */
-export function WorkCard({ item }: { item: WorkCardItem }) {
+export function WorkCard({ item, eager = false }: { item: WorkCardItem; eager?: boolean }) {
   const image = workImageUrl(item.imagePath);
 
   return (
     <Link
+      prefetch={false}
       href={`/works/${item.id}`}
       className="group flex flex-col overflow-hidden rounded-xl border border-line bg-white transition-shadow hover:shadow-md"
     >
@@ -23,6 +24,7 @@ export function WorkCard({ item }: { item: WorkCardItem }) {
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
+            loading={eager ? "eager" : "lazy"}
             src={image}
             alt=""
             className="size-full object-cover transition-transform group-hover:scale-[1.02]"

@@ -3,12 +3,8 @@
 import { useActionState, useState } from "react";
 import { PackagePlus, Plus } from "lucide-react";
 
-import {
-  adjustFilamentStockAction,
-  createFilamentAction,
-  toggleFilamentActiveAction,
-  type OpsActionState,
-} from "@/lib/ops/actions";
+import { adjustFilamentStockAction, createFilamentAction, toggleFilamentActiveAction } from "@/lib/ops/inventory-actions";
+import { type OpsActionState } from "@/lib/ops/action-state";
 import { Button } from "@/components/ui/button";
 
 const initial: OpsActionState = { error: null };

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
-import { listFilamentLedger, listFilamentStock } from "@/lib/ops/queries";
+import { listFilamentLedger, listFilamentStock } from "@/lib/ops/inventory-queries";
 import { LEDGER_REASON_LABEL, LOW_STOCK_GRAMS, shortDateTime } from "@/lib/ops/labels";
 import { NewFilamentForm, StockAdjustForm, ToggleActiveButton } from "@/components/ops/filament-forms";
 import { Pill } from "@/components/ops/status-badge";

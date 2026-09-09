@@ -1,38 +1,61 @@
+import { queryResult, readPage } from "@/lib/db/result";
 import "server-only";
 import { requireUser } from "@/lib/auth/guards";
 import type { NotificationKind } from "@/types/db";
 
-export const KIND_LABEL: Record<NotificationKind, string> = {
-  order_shipping: "注文・発送",
-  favorite_price: "お気に入りの値下げ",
-  message: "メッセージ",
-  review: "レビュー",
-  creator: "クリエイター",
-  announcement: "お知らせ",
-};
+import { KIND_LABEL, MANDATORY_KINDS } from "./labels";
+export { KIND_LABEL, MANDATORY_KINDS } from "./labels";
 
-/** アプリ内で必ず受け取る種類（DBの check 制約と揃えている） */
-export const MANDATORY_KINDS: NotificationKind[] = ["order_shipping", "creator"];
-
-export async function listNotifications(kind?: NotificationKind) {
-  const { supabase, user } = await requireUser("/mypage/notifications");
-  let query = supabase
-    .from("notifications")
-    .select("id, kind, title, body, link_path, read_at, created_at")
-    .eq("user_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(100);
-  if (kind) query = query.eq("kind", kind);
-  const { data } = await query;
-  return data ?? [];
+export async function listNotifications(
+  kind?: NotificationKind,
+  requestedPage?: unknown,
+) {
+  const { db, user } = await requireUser("/mypage/notifications");
+  let query = db
+    .selectFrom("notifications")
+    .select([
+      "notifications.id",
+      "notifications.kind",
+      "notifications.title",
+      "notifications.body",
+      "notifications.link_path",
+      "notifications.read_at",
+      "notifications.created_at",
+    ])
+    .where("notifications.user_id", "=", user.id)
+    .orderBy("notifications.created_at", "desc")
+    .orderBy("notifications.id", "desc");
+  if (kind) query = query.where("notifications.kind", "=", kind);
+  return readPage(query, requestedPage);
 }
 
 /** 通知設定。行が無い種類は「アプリ内・メールON／プッシュOFF」が既定。 */
 export async function getNotificationPreferences() {
-  const { supabase, user } = await requireUser("/mypage/notification-settings");
+  const { db, user } = await requireUser("/mypage/notification-settings");
   const [prefsRes, settingsRes] = await Promise.all([
-    supabase.from("notification_preferences").select("kind, in_app, email, push").eq("user_id", user.id),
-    supabase.from("notification_settings").select("email_to, digest, digest_hour").eq("user_id", user.id).maybeSingle(),
+    queryResult(
+      db
+        .selectFrom("notification_preferences")
+        .select([
+          "notification_preferences.kind",
+          "notification_preferences.in_app",
+          "notification_preferences.email",
+          "notification_preferences.push",
+        ])
+        .where("notification_preferences.user_id", "=", user.id)
+        .execute(),
+    ),
+    queryResult(
+      db
+        .selectFrom("notification_settings")
+        .select([
+          "notification_settings.email_to",
+          "notification_settings.digest",
+          "notification_settings.digest_hour",
+        ])
+        .where("notification_settings.user_id", "=", user.id)
+        .executeTakeFirst(),
+    ),
   ]);
 
   const byKind = new Map((prefsRes.data ?? []).map((p) => [p.kind, p]));

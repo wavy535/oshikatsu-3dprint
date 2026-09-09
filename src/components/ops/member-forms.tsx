@@ -3,7 +3,8 @@
 import { useActionState } from "react";
 import { UserPlus } from "lucide-react";
 
-import { grantAdminAction, revokeAdminAction, type OpsActionState } from "@/lib/ops/actions";
+import { grantAdminAction, revokeAdminAction } from "@/lib/ops/members-actions";
+import { type OpsActionState } from "@/lib/ops/action-state";
 import { Button } from "@/components/ui/button";
 
 const initial: OpsActionState = { error: null };

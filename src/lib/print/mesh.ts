@@ -1,5 +1,6 @@
 // 解析で扱うメッシュの共通表現。
 // パーサ（3MF / STL）はすべてこの形に落としてから解析にかける。
+import { checkMeshSize } from "./limits.ts";
 
 export type Mesh = {
   // 頂点座標を [x0,y0,z0, x1,y1,z1, ...] で持つ（mm 単位）
@@ -51,13 +52,43 @@ export function boundsSize(b: Bounds): Vec3 {
 
 export function mergeBounds(a: Bounds, b: Bounds): Bounds {
   return {
-    min: [Math.min(a.min[0], b.min[0]), Math.min(a.min[1], b.min[1]), Math.min(a.min[2], b.min[2])],
-    max: [Math.max(a.max[0], b.max[0]), Math.max(a.max[1], b.max[1]), Math.max(a.max[2], b.max[2])],
+    min: [
+      Math.min(a.min[0], b.min[0]),
+      Math.min(a.min[1], b.min[1]),
+      Math.min(a.min[2], b.min[2]),
+    ],
+    max: [
+      Math.max(a.max[0], b.max[0]),
+      Math.max(a.max[1], b.max[1]),
+      Math.max(a.max[2], b.max[2]),
+    ],
   };
 }
 
 export function triangleCount(mesh: Mesh): number {
   return mesh.indices.length / 3;
+}
+
+/** Reject invalid geometry before welding, grid allocation or price calculation. */
+export function validateMesh(mesh: Mesh) {
+  const vertices = mesh.positions.length / 3;
+  const triangles = mesh.indices.length / 3;
+  checkMeshSize(vertices, triangles);
+  if (
+    !Number.isInteger(vertices) ||
+    !Number.isInteger(triangles) ||
+    vertices === 0 ||
+    triangles === 0
+  )
+    throw new Error("三角形メッシュの頂点・面数が不正です");
+  for (const value of mesh.positions) {
+    if (!Number.isFinite(value) || Math.abs(value) > 1_000_000)
+      throw new Error("頂点座標が不正か、対応範囲（±100万mm）を超えています");
+  }
+  for (const index of mesh.indices) {
+    if (index >= vertices)
+      throw new Error("三角形が存在しない頂点を参照しています");
+  }
 }
 
 // 行優先 4x3（3MF の transform 属性の並び）を頂点に適用する
@@ -71,7 +102,8 @@ export type Matrix4x3 = [
 export function parseTransform(text: string | undefined): Matrix4x3 | null {
   if (!text) return null;
   const n = text.trim().split(/\s+/).map(Number);
-  if (n.length !== 12 || n.some((v) => !Number.isFinite(v))) return null;
+  if (n.length !== 12 || n.some((v) => !Number.isFinite(v)))
+    throw new Error("3MFの変換行列が不正です");
   return n as Matrix4x3;
 }
 
@@ -80,7 +112,8 @@ export function multiplyTransform(a: Matrix4x3, b: Matrix4x3): Matrix4x3 {
   const out = new Array(12).fill(0) as number[];
   for (let r = 0; r < 3; r++) {
     for (let c = 0; c < 3; c++) {
-      out[r * 3 + c] = a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c];
+      out[r * 3 + c] =
+        a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c];
     }
   }
   for (let c = 0; c < 3; c++) {
@@ -93,17 +126,27 @@ export function applyTransform(mesh: Mesh, m: Matrix4x3): Mesh {
   const p = mesh.positions;
   const out = new Float64Array(p.length);
   for (let i = 0; i < p.length; i += 3) {
-    const x = p[i], y = p[i + 1], z = p[i + 2];
+    const x = p[i],
+      y = p[i + 1],
+      z = p[i + 2];
     out[i] = x * m[0] + y * m[3] + z * m[6] + m[9];
     out[i + 1] = x * m[1] + y * m[4] + z * m[7] + m[10];
     out[i + 2] = x * m[2] + y * m[5] + z * m[8] + m[11];
   }
-  return { positions: out, indices: mesh.indices, materialIndices: mesh.materialIndices };
+  return {
+    positions: out,
+    indices: mesh.indices,
+    materialIndices: mesh.materialIndices,
+  };
 }
 
 export function scaleMesh(mesh: Mesh, s: number): Mesh {
   const p = mesh.positions;
   const out = new Float64Array(p.length);
   for (let i = 0; i < p.length; i++) out[i] = p[i] * s;
-  return { positions: out, indices: mesh.indices, materialIndices: mesh.materialIndices };
+  return {
+    positions: out,
+    indices: mesh.indices,
+    materialIndices: mesh.materialIndices,
+  };
 }

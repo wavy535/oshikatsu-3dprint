@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ClipboardList,
   Layers,
+  Mail,
   Package,
   Printer,
   Truck,
@@ -48,6 +49,7 @@ const MASTER_ITEMS: Item[] = [
   { label: "売上・手数料", href: "/admin/sales", icon: BarChart3 },
   { label: "払込管理", href: "/admin/payouts", icon: Wallet },
   { label: "運営メンバー", href: "/admin/members", icon: Users },
+  { label: "通知送信・整理", href: "/admin/maintenance", inTabs: true, icon: Mail },
 ];
 
 /** href を持たない項目は、まだ画面が無いもの。押せるように見せない。 */

@@ -1,7 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 
 import { requireAdmin } from "@/lib/auth/guards";
-import { listAdminMembers } from "@/lib/ops/queries";
+import { listAdminMembers } from "@/lib/ops/members-queries";
 import { shortDateTime } from "@/lib/ops/labels";
 import { AddMemberForm, RevokeMemberButton } from "@/components/ops/member-forms";
 import { Pill } from "@/components/ops/status-badge";
@@ -12,7 +12,7 @@ export const metadata = { title: "運営メンバー" };
 /**
  * 運営メンバーの一覧と追加・解除。
  * これまで profiles.role を SQL で立てる以外に手段が無かったもの。
- * 役割の書き換えは DB の関数（0022）だけが行い、一般ユーザーの自己昇格はトリガーで止めている。
+ * 役割の書き換えは DBの管理者用関数だけが行い、一般ユーザーの自己昇格はトリガーで止めている。
  */
 export default async function AdminMembersPage() {
   const [{ user }, members] = await Promise.all([requireAdmin(), listAdminMembers()]);

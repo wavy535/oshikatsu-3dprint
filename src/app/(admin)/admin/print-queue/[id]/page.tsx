@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, ChevronLeft, ImageIcon } from "lucide-react";
 
-import { getPrintJob } from "@/lib/ops/queries";
+import { getPrintJob } from "@/lib/ops/printing-queries";
 import {
   JOB_STATUS_LABEL,
   ORIENTATION_LABEL,

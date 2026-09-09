@@ -3,13 +3,9 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { createClient } from "@/lib/supabase/server";
+import { authMutation } from "@/lib/auth/mutation";
 
-/**
- * 新規登録は「メールアドレス＋パスワード2回 → 6桁の確認コード」方式。
- * コードは10分で無効、再送は60秒間隔（supabase/config.toml の
- * otp_expiry / max_frequency と、confirmation.html の {{ .Token }} で成立させている）。
- */
+/** メールとパスワードで登録し、10分間有効の6桁コードで確認する。 */
 const signUpSchema = z
   .object({
     displayName: z.string().min(1, "表示名を入力してください").max(50),
@@ -38,7 +34,7 @@ export type AuthActionState = {
 
 export async function signUpAction(
   _prevState: AuthActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthActionState> {
   const parsed = signUpSchema.safeParse({
     displayName: formData.get("displayName"),
@@ -48,16 +44,17 @@ export async function signUpAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
 
   const { displayName, email, password } = parsed.data;
-  const supabase = await createClient();
 
-  const { error } = await supabase.auth.signUp({
+  const { error } = await authMutation("/sign-up/email", {
+    name: displayName,
     email,
     password,
-    options: { data: { display_name: displayName } },
   });
 
   if (error) {
@@ -69,7 +66,7 @@ export async function signUpAction(
 
 export async function signInAction(
   _prevState: AuthActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthActionState> {
   const parsed = signInSchema.safeParse({
     email: formData.get("email"),
@@ -77,28 +74,36 @@ export async function signInAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword(parsed.data);
+  const { error } = await authMutation("/sign-in/email", parsed.data);
 
   if (error) {
     // 未確認のアカウントは登録の続きへ戻す（コードの入力が残っているだけなので）
-    if (error.code === "email_not_confirmed") {
+    if (error.code === "EMAIL_NOT_VERIFIED") {
       redirect(`/signup/verify?email=${encodeURIComponent(parsed.data.email)}`);
     }
     return { error: "メールアドレスまたはパスワードが正しくありません" };
   }
 
   const redirectTo = formData.get("redirect");
-  redirect(typeof redirectTo === "string" && redirectTo.startsWith("/") ? redirectTo : "/");
+  redirect(
+    typeof redirectTo === "string" &&
+      redirectTo.startsWith("/") &&
+      !redirectTo.startsWith("//") &&
+      !redirectTo.includes("\\")
+      ? redirectTo
+      : "/",
+  );
 }
 
 /** 確認コードを検証する。通ればそのままログイン状態になる。 */
 export async function verifySignUpAction(
   _prevState: AuthActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthActionState> {
   const parsed = verifySchema.safeParse({
     email: formData.get("email"),
@@ -106,14 +111,14 @@ export async function verifySignUpAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "確認コードを入力してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "確認コードを入力してください",
+    };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({
+  const { error } = await authMutation("/email-otp/verify-email", {
     email: parsed.data.email,
-    token: parsed.data.token,
-    type: "signup",
+    otp: parsed.data.token,
   });
 
   if (error) {
@@ -123,18 +128,22 @@ export async function verifySignUpAction(
   redirect("/");
 }
 
-/** 確認コードの再送。間隔の制限は Supabase 側（max_frequency）が持つ。 */
+/** 確認コードの再送。認証ライブラリのDBレート制限を通す。 */
 export async function resendSignUpCodeAction(
   _prevState: AuthActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<AuthActionState> {
   const email = formData.get("email");
   if (typeof email !== "string" || !email) {
-    return { error: "メールアドレスが分かりません。最初からやり直してください" };
+    return {
+      error: "メールアドレスが分かりません。最初からやり直してください",
+    };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.resend({ type: "signup", email });
+  const { error } = await authMutation("/email-otp/send-verification-otp", {
+    type: "email-verification",
+    email,
+  });
 
   if (error) {
     return { error: "しばらく待ってから再送してください" };
@@ -143,7 +152,6 @@ export async function resendSignUpCodeAction(
 }
 
 export async function signOutAction() {
-  const supabase = await createClient();
-  await supabase.auth.signOut();
+  await authMutation("/sign-out", {});
   redirect("/");
 }

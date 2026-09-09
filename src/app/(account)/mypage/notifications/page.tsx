@@ -1,3 +1,5 @@
+import { Pagination } from "@/components/ui/pagination";
+import { getShellContext } from "@/lib/layout/queries";
 import Link from "next/link";
 import { Bell, MessageSquare, Package, Star, Tag, Wrench } from "lucide-react";
 
@@ -32,12 +34,14 @@ function timeAgo(iso: string) {
 export default async function NotificationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ kind?: string }>;
+  searchParams: Promise<{ kind?: string; page?: string }>;
 }) {
-  const { kind } = await searchParams;
+  const sp = await searchParams;
+  const { kind } = sp;
   const active = (kind && kind in KIND_LABEL ? kind : undefined) as NotificationKind | undefined;
-  const items = await listNotifications(active);
-  const unread = items.filter((n) => !n.read_at).length;
+  const [{ items, page, hasNext }, { unreadCount: unread }] = await Promise.all([
+    listNotifications(active, sp.page), getShellContext(),
+  ]);
 
   return (
     <>
@@ -45,7 +49,7 @@ export default async function NotificationsPage({
         <h1 className="text-base font-bold text-ink">通知</h1>
         {unread > 0 && (
           <span className="num rounded-full bg-danger px-2 py-0.5 text-[11px] font-semibold text-white">
-            未読 {unread}
+            すべての未読 {unread}
           </span>
         )}
         <form action={markAllReadAction} className="ml-auto">
@@ -122,6 +126,7 @@ export default async function NotificationsPage({
           })}
         </div>
       )}
+      <Pagination path="/mypage/notifications" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

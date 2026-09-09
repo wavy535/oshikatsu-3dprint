@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Gift } from "lucide-react";
 
-import { getQcContext } from "@/lib/ops/queries";
+import { getQcContext } from "@/lib/ops/printing-queries";
 import { CARRIER_LABEL, REPRINT_CAUSE_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
 import { QcForm, ShipmentForm } from "@/components/ops/qc-form";
 import { JobStatusBadge, Pill } from "@/components/ops/status-badge";

@@ -1,4 +1,5 @@
-import { analyzeMesh, type MeshAnalysis } from "./analyze";
+import { AnalysisBudget } from "./limits.ts";
+import { analyzeMesh, type MeshAnalysis } from "./analyze.ts";
 import {
   DEFAULT_PRICING,
   estimateFilamentGrams,
@@ -7,13 +8,13 @@ import {
   fitsOnBedParts,
   type PricingRule,
   type VariantEstimate,
-} from "./estimate";
-import { boundsSize, mergeBounds, type Mesh } from "./mesh";
-import { parseStl } from "./stl";
-import { parseThreeMf, type ThreeMfMaterial } from "./threemf";
+} from "./estimate.ts";
+import { boundsSize, mergeBounds, type Mesh } from "./mesh.ts";
+import { parseStl } from "./stl.ts";
+import { parseThreeMf, type ThreeMfMaterial } from "./threemf.ts";
 
-export * from "./estimate";
-export type { MeshAnalysis } from "./analyze";
+export * from "./estimate.ts";
+export type { MeshAnalysis } from "./analyze.ts";
 
 export type IssueSeverity = "ok" | "warning" | "error";
 
@@ -103,6 +104,7 @@ function extensionOf(fileName: string): string {
 }
 
 export function analyzeModelFile(buf: Buffer, opts: AnalyzeOptions): AssetAnalysis {
+  const budget = new AnalysisBudget();
   const rule = opts.rule ?? DEFAULT_PRICING;
   const sizes = opts.sizes ?? DEFAULT_SIZES;
   const minWall = opts.minWallThicknessMm ?? 0.8;
@@ -113,7 +115,7 @@ export function analyzeModelFile(buf: Buffer, opts: AnalyzeOptions): AssetAnalys
     | { format: "stl"; unitDeclared: boolean; declaredUnit: null; objects: { name: string; mesh: Mesh }[]; materials: [] };
 
   if (ext === "3mf") {
-    const parsed = parseThreeMf(buf);
+    const parsed = parseThreeMf(buf, budget);
     doc = {
       format: "3mf",
       unitDeclared: parsed.unitDeclared,
@@ -148,7 +150,7 @@ export function analyzeModelFile(buf: Buffer, opts: AnalyzeOptions): AssetAnalys
     const a = analyzeMesh(o.mesh, {
       thicknessSamples: opts.thicknessSamples,
       selfIntersectionSamples: opts.selfIntersectionSamples,
-    });
+    }, budget);
     const size = boundsSize(a.geometry.bounds);
 
     objects.push({
