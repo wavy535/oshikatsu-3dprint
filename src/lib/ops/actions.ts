@@ -28,49 +28,28 @@ function revalidateJob(jobId: string) {
   revalidatePath(`/admin/print-queue/${jobId}/qc`);
 }
 
-/**
- * ジョブのステータスを進める。
- *
- * 更新は必ず `.select()` を付けて**更新できた行数を見る**。ポリシーに引っかかると
- * エラーにならず0行更新になり、画面上は成功したように見えてしまうため。
- */
+/** 状態の検査と更新を同じSQLで行い、古い画面からの操作を拒否する。 */
 async function updateJob(
   jobId: string,
   patch: TablesUpdate<"print_jobs">,
-  allowedFrom?: PrintJobStatus[],
+  allowedFrom: PrintJobStatus[],
 ): Promise<OpsActionState> {
   const { db } = await requireAdmin();
-
-  if (allowedFrom) {
-    const { data: current } = await queryResult(
-      db
-        .selectFrom("print_jobs")
-        .select(["print_jobs.status"])
-        .where("print_jobs.id", "=", jobId)
-        .executeTakeFirst(),
-    );
-    if (!current) return { error: "ジョブが見つかりません" };
-    if (!allowedFrom.includes(current.status)) {
-      return {
-        error:
-          "このジョブの状態では実行できません（画面を読み込み直してください）",
-      };
-    }
-  }
-
   const { data, error } = await queryResult(
     db
       .updateTable("print_jobs")
       .set(patch)
-      .where("print_jobs.id", "=", jobId)
-      .returning(["id"])
-      .execute(),
+      .where("id", "=", jobId)
+      .where("status", "in", allowedFrom)
+      .returning("id")
+      .executeTakeFirst(),
   );
-
   if (error) return { error: `更新に失敗しました（${error.message}）` };
-  if (!data || data.length === 0)
-    return { error: "更新できませんでした（権限を確認してください）" };
-
+  if (!data)
+    return {
+      error:
+        "このジョブの状態では実行できません（画面を読み込み直してください）",
+    };
   revalidateJob(jobId);
   return OK;
 }
@@ -112,18 +91,23 @@ export async function advanceBatchAction(
   if (!jobId) return { error: "ジョブが指定されていません" };
 
   const { db } = await requireAdmin();
-  const { data: job } = await queryResult(
+  const { data, error } = await queryResult(
     db
-      .selectFrom("print_jobs")
-      .select(["print_jobs.batch_done", "print_jobs.batch_count"])
-      .where("print_jobs.id", "=", jobId)
+      .updateTable("print_jobs")
+      .set({ batch_done: sql`batch_done + 1` })
+      .where("id", "=", jobId)
+      .where("status", "in", ["printing", "reprinting"])
+      .whereRef("batch_done", "<", "batch_count")
+      .returning("id")
       .executeTakeFirst(),
   );
-  if (!job) return { error: "ジョブが見つかりません" };
-  if (job.batch_done >= job.batch_count)
-    return { error: "すべてのバッチが終わっています" };
-
-  return updateJob(jobId, { batch_done: job.batch_done + 1 });
+  if (error) return { error: "バッチを更新できませんでした" };
+  if (!data)
+    return {
+      error: "進められるバッチがありません（画面を読み込み直してください）",
+    };
+  revalidateJob(jobId);
+  return OK;
 }
 
 const finishSchema = z.object({
@@ -161,48 +145,38 @@ export async function finishPrintJobAction(
 
   const { db, user } = await requireAdmin();
 
-  const { data: current } = await queryResult(
-    db
-      .selectFrom("print_jobs")
-      .select(["print_jobs.status"])
-      .where("print_jobs.id", "=", jobId)
-      .executeTakeFirst(),
-  );
-  if (!current) return { error: "ジョブが見つかりません" };
-  if (current.status !== "printing" && current.status !== "reprinting") {
-    return { error: "印刷中のジョブだけ完了にできます" };
-  }
-
-  const result = await updateJob(jobId, {
-    status: "printed",
-    actual_filament_grams: actualGrams,
-    actual_print_hours: actualHours,
-    failure_count: failureCount,
-  });
-  if (result.error) return result;
-
-  if (filamentId && actualGrams > 0) {
-    const { data, error } = await queryResult(
-      db
-        .insertInto("filament_ledger")
-        .values({
-          filament_id: filamentId,
-          delta_grams: -actualGrams,
-          reason: "print",
-          print_job_id: jobId,
-          actor_id: user.id,
+  const { error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      const job = await tx
+        .updateTable("print_jobs")
+        .set({
+          status: "printed",
+          actual_filament_grams: actualGrams,
+          actual_print_hours: actualHours,
+          failure_count: failureCount,
         })
-        .returning(["id"])
-        .execute(),
-    );
-    if (error || !data || data.length === 0) {
-      // ジョブ自体は完了済みなので、ここは戻さず画面に伝えるだけにする
-      return {
-        error: null,
-        message: "完了にしましたが、フィラメント台帳への記録に失敗しました",
-      };
-    }
-  }
+        .where("id", "=", jobId)
+        .where("status", "in", ["printing", "reprinting"])
+        .returning("id")
+        .executeTakeFirst();
+      if (!job) throw new Error("印刷中のジョブだけ完了にできます");
+      if (filamentId && actualGrams > 0) {
+        await tx
+          .insertInto("filament_ledger")
+          .values({
+            filament_id: filamentId,
+            delta_grams: -actualGrams,
+            reason: "print",
+            print_job_id: jobId,
+            actor_id: user.id,
+          })
+          .execute();
+      }
+    }),
+  );
+  if (error)
+    return { error: `印刷完了を保存できませんでした（${error.message}）` };
+  revalidateJob(jobId);
 
   return { error: null, message: "実績を記録して検品待ちにしました" };
 }
@@ -269,76 +243,77 @@ export async function submitQcAction(
     return { error: "印刷が終わったジョブだけ検品できます" };
   }
 
-  const { data: definitions } = await queryResult(
-    db
-      .selectFrom("qc_check_definitions")
-      .select(["qc_check_definitions.code"])
-      .where("qc_check_definitions.is_active", "=", true)
-      .execute(),
-  );
-
-  const results = (definitions ?? []).map((d) => ({
-    code: d.code,
-    passed: formData.get(`check_${d.code}`) === "pass",
-    note: String(formData.get(`note_${d.code}`) ?? "") || null,
-  }));
-
-  const unanswered = (definitions ?? []).filter(
-    (d) => formData.get(`check_${d.code}`) === null,
-  );
-  if (unanswered.length > 0) {
-    return { error: "すべての項目に OK / NG を付けてください" };
-  }
-
-  const failed = results.filter((r) => !r.passed);
-  const result: QcResult = failed.length === 0 ? "passed" : "failed";
-  if (result === "failed" && !reprintCause) {
-    return { error: "NG があるときは再印刷の原因を選んでください" };
-  }
-
   const photoPaths = formData
     .getAll("photoPaths")
     .map((v) => String(v))
     .filter(Boolean);
 
-  if (photoPaths.length > 6 || photoPaths.some(path => !path.startsWith(`${job.work_id}/${jobId}/`))) return { error: "検品写真の指定が不正です" };
+  if (
+    photoPaths.length > 6 ||
+    photoPaths.some((path) => !path.startsWith(`${job.work_id}/${jobId}/`))
+  )
+    return { error: "検品写真の指定が不正です" };
   for (const path of photoPaths) {
-    const stored = await queryResult(checkStoredFile("qc-photos", path, 8 * 1024 * 1024));
+    const stored = await queryResult(
+      checkStoredFile("qc-photos", path, 8 * 1024 * 1024),
+    );
     if (stored.error) return { error: "検品写真を確認できませんでした" };
   }
 
-  const { data: inspection, error } = await queryResult(
-    db
-      .insertInto("qc_inspections")
-      .values({
-        print_job_id: jobId,
-        inspector_id: user.id,
-        result,
-        memo: memo ?? null,
-        photo_paths: photoPaths,
-        reprint_cause: result === "failed" ? reprintCause! : null,
-      })
-      .returning(["id"])
-      .executeTakeFirst(),
+  const { data: result, error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      // The lock also serializes the status changes made by the inspection trigger.
+      const current = await tx
+        .selectFrom("print_jobs")
+        .select("status")
+        .where("id", "=", jobId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (!current || !["printed", "qc_failed"].includes(current.status)) {
+        throw new Error("印刷が終わったジョブだけ検品できます");
+      }
+      const definitions = await tx
+        .selectFrom("qc_check_definitions")
+        .select("code")
+        .where("is_active", "=", true)
+        .execute();
+      if (!definitions.length) throw new Error("検品項目が設定されていません");
+      const results = definitions.map(({ code }) => {
+        const answer = formData.get(`check_${code}`);
+        if (answer !== "pass" && answer !== "fail")
+          throw new Error("すべての項目に OK / NG を付けてください");
+        return {
+          code,
+          passed: answer === "pass",
+          note: String(formData.get(`note_${code}`) ?? "") || null,
+        };
+      });
+      const result: QcResult = results.every((r) => r.passed)
+        ? "passed"
+        : "failed";
+      if (result === "failed" && !reprintCause)
+        throw new Error("NG があるときは再印刷の原因を選んでください");
+      const inspection = await tx
+        .insertInto("qc_inspections")
+        .values({
+          print_job_id: jobId,
+          inspector_id: user.id,
+          result,
+          memo: memo ?? null,
+          photo_paths: photoPaths,
+          reprint_cause: result === "failed" ? reprintCause! : null,
+        })
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      await tx
+        .insertInto("qc_check_results")
+        .values(results.map((r) => ({ inspection_id: inspection.id, ...r })))
+        .execute();
+      return result;
+    }),
   );
-
-  if (error || !inspection) {
-    return {
-      error: `検品結果の登録に失敗しました（${error?.message ?? "0件"}）`,
-    };
-  }
-
-  const { data: written, error: resultError } = await queryResult(
-    db
-      .insertInto("qc_check_results")
-      .values(results.map((r) => ({ inspection_id: inspection.id, ...r })))
-      .returning(["id"])
-      .execute(),
-  );
-
-  if (resultError || (written ?? []).length !== results.length) {
-    return { error: "チェック項目の記録に失敗しました" };
-  }
+  if (error)
+    return { error: `検品結果を保存できませんでした（${error.message}）` };
 
   revalidateJob(jobId);
   return {
@@ -552,40 +527,39 @@ export async function createFilamentAction(
   const v = parsed.data;
 
   const { db, user } = await requireAdmin();
-  const { data, error } = await queryResult(
-    db
-      .insertInto("filaments")
-      .values({
-        material: v.material,
-        color_name: v.colorName,
-        color_hex: v.colorHex.toUpperCase(),
-        price_per_gram: v.pricePerGram,
-        stock_grams: 0,
-      })
-      .returning(["id"])
-      .executeTakeFirst(),
-  );
-
-  if (error || !data) {
-    if (error?.code === "23505")
-      return { error: "同じ素材・色のフィラメントがすでにあります" };
-    return { error: `登録に失敗しました（${error?.message ?? "0件"}）` };
-  }
-
-  if (v.stockGrams > 0) {
-    await queryResult(
-      db
-        .insertInto("filament_ledger")
+  const { error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      const filament = await tx
+        .insertInto("filaments")
         .values({
-          filament_id: data.id,
-          delta_grams: v.stockGrams,
-          reason: "restock",
-          actor_id: user.id,
+          material: v.material,
+          color_name: v.colorName,
+          color_hex: v.colorHex.toUpperCase(),
+          price_per_gram: v.pricePerGram,
+          stock_grams: 0,
         })
-        .returning(["id"])
-        .execute(),
-    );
-  }
+        .returning("id")
+        .executeTakeFirstOrThrow();
+      if (v.stockGrams > 0) {
+        await tx
+          .insertInto("filament_ledger")
+          .values({
+            filament_id: filament.id,
+            delta_grams: v.stockGrams,
+            reason: "restock",
+            actor_id: user.id,
+          })
+          .execute();
+      }
+    }),
+  );
+  if (error)
+    return {
+      error:
+        error.code === "23505"
+          ? "同じ素材・色のフィラメントがすでにあります"
+          : `登録に失敗しました（${error.message}）`,
+    };
 
   revalidatePath("/admin/filaments");
   return {
@@ -666,47 +640,52 @@ export async function editActualsAction(
   const v = parsed.data;
 
   const { db, user } = await requireAdmin();
-  const { data: before } = await queryResult(
-    db
-      .selectFrom("print_jobs")
-      .select([
-        "print_jobs.status",
-        "print_jobs.actual_filament_grams",
-        "print_jobs.actual_print_hours",
-        "print_jobs.failure_count",
-      ])
-      .where("print_jobs.id", "=", v.jobId)
-      .executeTakeFirst(),
+  const { error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      const before = await tx
+        .selectFrom("print_jobs")
+        .select([
+          "status",
+          "actual_filament_grams",
+          "actual_print_hours",
+          "failure_count",
+        ])
+        .where("id", "=", v.jobId)
+        .forUpdate()
+        .executeTakeFirst();
+      if (
+        !before ||
+        !["printed", "qc_passed", "qc_failed"].includes(before.status)
+      ) {
+        throw new Error("実績を直せるのは印刷が終わったジョブだけです");
+      }
+      await tx
+        .updateTable("print_jobs")
+        .set({
+          actual_filament_grams: v.actualGrams,
+          actual_print_hours: v.actualHours,
+          failure_count: v.failureCount,
+        })
+        .where("id", "=", v.jobId)
+        .execute();
+      const note =
+        `実績を修正（${v.reason}）: ` +
+        `${before.actual_filament_grams ?? "—"}g→${v.actualGrams}g, ` +
+        `${before.actual_print_hours ?? "—"}h→${v.actualHours}h, ` +
+        `失敗 ${before.failure_count}→${v.failureCount}`;
+      await tx
+        .insertInto("print_job_events")
+        .values({
+          print_job_id: v.jobId,
+          status: before.status,
+          actor_id: user.id,
+          note,
+        })
+        .execute();
+    }),
   );
-  if (!before) return { error: "ジョブが見つかりません" };
-  if (!["printed", "qc_passed", "qc_failed"].includes(before.status)) {
-    return { error: "実績を直せるのは印刷が終わったジョブだけです" };
-  }
-
-  const result = await updateJob(v.jobId, {
-    actual_filament_grams: v.actualGrams,
-    actual_print_hours: v.actualHours,
-    failure_count: v.failureCount,
-  });
-  if (result.error) return result;
-
-  const note =
-    `実績を修正（${v.reason}）: ` +
-    `${before.actual_filament_grams ?? "—"}g→${v.actualGrams}g, ` +
-    `${before.actual_print_hours ?? "—"}h→${v.actualHours}h, ` +
-    `失敗 ${before.failure_count}→${v.failureCount}`;
-  await queryResult(
-    db
-      .insertInto("print_job_events")
-      .values({
-        print_job_id: v.jobId,
-        status: before.status,
-        actor_id: user.id,
-        note,
-      })
-      .returning(["id"])
-      .execute(),
-  );
+  if (error) return { error: `実績を保存できませんでした（${error.message}）` };
+  revalidateJob(v.jobId);
 
   return { error: null, message: "実績を直しました。履歴に残ります" };
 }

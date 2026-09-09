@@ -7,7 +7,7 @@ import {
   type AssetAnalysis,
   type PricingRule,
 } from "@/lib/print";
-import { serviceDatabase } from "@/lib/db/client";
+import { serviceDatabase, type Db } from "@/lib/db/client";
 import type {
   TablesInsert,
   Json,
@@ -25,19 +25,13 @@ export type ValidateAssetResult =
   | { ok: true; analysis: AssetAnalysis; variantIds: string[] }
   | { ok: false; error: string; stage: string };
 
-type PostgreSQL = ReturnType<typeof serviceDatabase>;
+async function loadPricingRule(db: Db): Promise<PricingRule> {
+  const data = await db
+    .selectFrom("print_pricing_rules")
+    .selectAll()
+    .where("is_active", "=", true)
+    .executeTakeFirstOrThrow();
 
-async function loadPricingRule(db: PostgreSQL): Promise<PricingRule | undefined> {
-  const { data } = await queryResult(
-    db
-      .selectFrom("print_pricing_rules")
-      .selectAll("print_pricing_rules")
-      .where("print_pricing_rules.is_active", "=", true)
-      .limit(1)
-      .executeTakeFirst(),
-  );
-
-  if (!data) return undefined;
   return {
     materialYenPerGram: Number(data.material_yen_per_gram),
     machineYenPerHour: Number(data.machine_yen_per_hour),
@@ -79,38 +73,26 @@ function defaultInstruction(bbox: [number, number, number]): {
   return { orientation: "as_is", support: "auto", note: null };
 }
 
-/** 呼び出し元で認可した作品に対象を限定する。 */
+/** 呼び出し元で認可した作品に対象を限定する。ダウンロードと解析はロック取得前に行う。 */
 export async function validateAndPersistAsset(
   assetId: string,
   workId: string,
 ): Promise<ValidateAssetResult> {
   const db = serviceDatabase();
-
-  // --- 1. 対象のアセットを取る ------------------------------------------------
   const { data: asset, error: assetError } = await queryResult(
     db
       .selectFrom("work_assets")
-      .select([
-        "work_assets.id",
-        "work_assets.work_id",
-        "work_assets.storage_path",
-        "work_assets.file_name",
-        "work_assets.file_format",
-      ])
-      .where("work_assets.id", "=", assetId)
-      .where("work_assets.work_id", "=", workId)
+      .select(["id", "storage_path", "file_name"])
+      .where("id", "=", assetId)
+      .where("work_id", "=", workId)
       .executeTakeFirstOrThrow(),
   );
-
-  if (assetError || !asset) {
+  if (assetError || !asset)
     return {
       ok: false,
       error: "対象の3Dデータが見つかりません",
       stage: "load_asset",
     };
-  }
-
-  // --- 2. S3から落とす --------------------------------------------------
   const { data: buffer, error: downloadError } = await queryResult(
     readModel(asset.storage_path),
   );
@@ -120,118 +102,151 @@ export async function validateAndPersistAsset(
       error: "3Dデータを読み込めませんでした",
       stage: "download",
     };
+  const { data: rule, error: ruleError } = await queryResult(
+    loadPricingRule(db),
+  );
+  if (ruleError || !rule)
+    return {
+      ok: false,
+      error: "印刷料金の設定を取得できませんでした",
+      stage: "pricing",
+    };
 
-  // --- 3. 解析 ---------------------------------------------------------------
-  const rule = await loadPricingRule(db);
   let analysis: AssetAnalysis;
   try {
     analysis = analyzeModelFile(buffer, { fileName: asset.file_name, rule });
   } catch (e) {
     const message =
       e instanceof Error ? e.message : "3Dデータを解析できませんでした";
-    // 解析自体が失敗した場合も、理由を1件の issue として残す
-    await queryResult(
-      db
-        .deleteFrom("work_validation_issues")
-        .where("work_validation_issues.asset_id", "=", assetId)
-        .execute(),
+    const { error } = await queryResult(
+      db.transaction().execute(async (tx) => {
+        await lockAsset(tx, workId, assetId);
+        await tx
+          .deleteFrom("work_validation_issues")
+          .where("asset_id", "=", assetId)
+          .execute();
+        await tx
+          .insertInto("work_validation_issues")
+          .values({
+            asset_id: assetId,
+            code: "parse",
+            severity: "error",
+            message,
+            detail: { fileName: asset.file_name },
+          })
+          .execute();
+        await tx
+          .updateTable("work_assets")
+          .set({
+            validation_status: "failed",
+            validated_at: new Date().toISOString(),
+          })
+          .where("id", "=", assetId)
+          .execute();
+      }),
     );
-    await queryResult(
-      db
-        .insertInto("work_validation_issues")
-        .values({
-          asset_id: assetId,
-          code: "parse",
-          severity: "error",
-          message,
-          detail: { fileName: asset.file_name },
-        })
-        .execute(),
-    );
-    await queryResult(
-      db
-        .updateTable("work_assets")
-        .set({
-          validation_status: "failed",
-          validated_at: new Date().toISOString(),
-        })
-        .where("work_assets.id", "=", assetId)
-        .execute(),
-    );
-    return { ok: false, error: message, stage: "analyze" };
+    return {
+      ok: false,
+      error: error ? "解析エラーを保存できませんでした" : message,
+      stage: "analyze",
+    };
   }
 
-  // --- 4. アセット本体を更新 --------------------------------------------------
-  const { error: updateError } = await queryResult(
-    db
-      .updateTable("work_assets")
-      .set({
-        file_size_bytes: buffer.byteLength,
-        unit: "mm",
-        object_count: analysis.objectCount,
-        triangle_count: analysis.triangleCount,
-        vertex_count: analysis.vertexCount,
-        total_volume_cm3: analysis.totalVolumeCm3,
-        total_surface_area_cm2: analysis.totalSurfaceAreaCm2,
-        // 表示に使うのは「組み立て後のおおよその大きさ」。
-        // プレート上の並び方をそのまま入れると、横に長い箱になってしまう。
-        bbox_x_mm: analysis.assembledBboxMm[0],
-        bbox_y_mm: analysis.assembledBboxMm[1],
-        bbox_z_mm: analysis.assembledBboxMm[2],
-        validation_status: analysis.status,
-        validated_at: new Date().toISOString(),
-      })
-      .where("work_assets.id", "=", assetId)
-      .execute(),
+  const { data: variantIds, error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      await lockAsset(tx, workId, assetId);
+      return persistAnalysis(tx, assetId, workId, buffer.byteLength, analysis);
+    }),
   );
+  if (error || !variantIds)
+    return {
+      ok: false,
+      error: error?.message ?? "解析結果を保存できませんでした",
+      stage: "persist",
+    };
+  return { ok: true, analysis, variantIds };
+}
 
-  if (updateError) {
-    return { ok: false, error: updateError.message, stage: "update_asset" };
-  }
+/** Work saves and analysis take locks in the same order. Reject a replaced asset. */
+async function lockAsset(db: Db, workId: string, assetId: string) {
+  await db
+    .selectFrom("works")
+    .select("id")
+    .where("id", "=", workId)
+    .forUpdate()
+    .executeTakeFirstOrThrow();
+  const asset = await db
+    .selectFrom("work_assets")
+    .select("id")
+    .where("id", "=", assetId)
+    .where("work_id", "=", workId)
+    .forUpdate()
+    .executeTakeFirst();
+  if (!asset)
+    throw new Error("3Dデータが更新されています。画面を読み込み直してください");
+}
 
-  // --- 5. オブジェクト（＝分割パーツ）を作り直す -------------------------------
-  // 既存の印刷指示は object_id で紐づいているので、名前で引き継ぐ
-  const { data: previousObjects } = await queryResult(
-    db
-      .selectFrom("work_asset_objects")
-      .select(["work_asset_objects.id", "work_asset_objects.name"])
-      .where("work_asset_objects.asset_id", "=", assetId)
-      .execute(),
+/** All derived rows are saved together. Query failures must escape this transaction. */
+async function persistAnalysis(
+  db: Db,
+  assetId: string,
+  workId: string,
+  bytes: number,
+  analysis: AssetAnalysis,
+) {
+  await db
+    .updateTable("work_assets")
+    .set({
+      file_size_bytes: bytes,
+      unit: "mm",
+      object_count: analysis.objectCount,
+      triangle_count: analysis.triangleCount,
+      vertex_count: analysis.vertexCount,
+      total_volume_cm3: analysis.totalVolumeCm3,
+      total_surface_area_cm2: analysis.totalSurfaceAreaCm2,
+      bbox_x_mm: analysis.assembledBboxMm[0],
+      bbox_y_mm: analysis.assembledBboxMm[1],
+      bbox_z_mm: analysis.assembledBboxMm[2],
+      validation_status: analysis.status,
+      validated_at: new Date().toISOString(),
+    })
+    .where("id", "=", assetId)
+    .execute();
+
+  // Preserve instructions by part name, and material choices by source color.
+  const previousObjects = await db
+    .selectFrom("work_asset_objects")
+    .select(["id", "name"])
+    .where("asset_id", "=", assetId)
+    .execute();
+  const previousInstructions = await db
+    .selectFrom("work_part_instructions")
+    .select([
+      "object_id",
+      "orientation",
+      "no_rotate",
+      "support",
+      "support_note",
+      "note",
+    ])
+    .where("work_id", "=", workId)
+    .execute();
+  const instructionsById = new Map(
+    previousInstructions.map((i) => [i.object_id, i]),
   );
-
-  const { data: previousInstructions } = await queryResult(
-    db
-      .selectFrom("work_part_instructions")
-      .select([
-        "work_part_instructions.object_id",
-        "work_part_instructions.orientation",
-        "work_part_instructions.no_rotate",
-        "work_part_instructions.support",
-        "work_part_instructions.support_note",
-        "work_part_instructions.note",
-      ])
-      .where("work_part_instructions.work_id", "=", asset.work_id)
-      .execute(),
+  const instructionsByName = new Map(
+    previousObjects.map((o) => [o.name, instructionsById.get(o.id)]),
   );
+  const previousSlots = await db
+    .selectFrom("work_color_slots")
+    .select(["slot_index", "source_hex", "filament_id"])
+    .where("asset_id", "=", assetId)
+    .execute();
 
-  const instructionByName = new Map<
-    string,
-    NonNullable<typeof previousInstructions>[number]
-  >();
-  for (const obj of previousObjects ?? []) {
-    const hit = (previousInstructions ?? []).find(
-      (i) => i.object_id === obj.id,
-    );
-    if (hit) instructionByName.set(obj.name, hit);
-  }
-
-  await queryResult(
-    db
-      .deleteFrom("work_asset_objects")
-      .where("work_asset_objects.asset_id", "=", assetId)
-      .execute(),
-  );
-
+  await db
+    .deleteFrom("work_asset_objects")
+    .where("asset_id", "=", assetId)
+    .execute();
   const objectRows: TablesInsert<"work_asset_objects">[] = analysis.objects.map(
     (o) => ({
       asset_id: assetId,
@@ -251,159 +266,101 @@ export async function validateAndPersistAsset(
         o.minWallThicknessMm === null ? null : round(o.minWallThicknessMm, 2),
     }),
   );
+  const objects = objectRows.length
+    ? await db
+        .insertInto("work_asset_objects")
+        .values(objectRows)
+        .returning(["id", "object_index"])
+        .execute()
+    : [];
+  const objectIdByIndex = new Map(objects.map((o) => [o.object_index, o.id]));
 
-  const { data: insertedObjects, error: objectError } = await queryResult(
-    db
-      .insertInto("work_asset_objects")
-      .values(objectRows)
-      .returning(["id", "object_index", "name"])
-      .execute(),
-  );
+  await db
+    .deleteFrom("work_validation_issues")
+    .where("asset_id", "=", assetId)
+    .execute();
+  if (analysis.issues.length)
+    await db
+      .insertInto("work_validation_issues")
+      .values(
+        analysis.issues.map((i) => ({
+          asset_id: assetId,
+          object_id:
+            i.objectIndex === undefined
+              ? null
+              : (objectIdByIndex.get(i.objectIndex) ?? null),
+          code: i.code,
+          severity: i.severity,
+          message: i.message,
+          detail: i.detail as Json,
+        })),
+      )
+      .execute();
 
-  if (objectError || !insertedObjects) {
+  await db
+    .deleteFrom("work_color_slots")
+    .where("asset_id", "=", assetId)
+    .execute();
+  if (analysis.colorSlots.length)
+    await db
+      .insertInto("work_color_slots")
+      .values(
+        analysis.colorSlots.map((c) => ({
+          work_id: workId,
+          asset_id: assetId,
+          slot_index: c.slotIndex,
+          source_name: c.sourceName,
+          source_hex: c.sourceHex,
+          face_count: c.faceCount,
+          filament_id:
+            previousSlots.find(
+              (p) =>
+                p.slot_index === c.slotIndex && p.source_hex === c.sourceHex,
+            )?.filament_id ?? null,
+        })),
+      )
+      .execute();
+
+  const instructions = analysis.objects.map((o) => {
+    const carried = instructionsByName.get(o.name);
+    const defaults = defaultInstruction(o.bboxMm);
     return {
-      ok: false,
-      error: objectError?.message ?? "パーツを保存できませんでした",
-      stage: "objects",
-    };
-  }
-
-  const objectIdByIndex = new Map<number, string>();
-  for (const row of insertedObjects)
-    objectIdByIndex.set(row.object_index, row.id);
-
-  // --- 6. 検証結果 -----------------------------------------------------------
-  await queryResult(
-    db
-      .deleteFrom("work_validation_issues")
-      .where("work_validation_issues.asset_id", "=", assetId)
-      .execute(),
-  );
-
-  const issueRows = analysis.issues.map((i) => ({
-    asset_id: assetId,
-    object_id:
-      i.objectIndex !== undefined
-        ? (objectIdByIndex.get(i.objectIndex) ?? null)
-        : null,
-    code: i.code,
-    severity: i.severity,
-    message: i.message,
-    detail: i.detail as Json,
-  }));
-
-  const { error: issueError } = await queryResult(
-    db.insertInto("work_validation_issues").values(issueRows).execute(),
-  );
-  if (issueError) {
-    return { ok: false, error: issueError.message, stage: "issues" };
-  }
-
-  // --- 7. 色スロット ---------------------------------------------------------
-  // 既に運営在庫のフィラメントを割り当て済みなら、その選択は残す
-  const { data: previousSlots } = await queryResult(
-    db
-      .selectFrom("work_color_slots")
-      .select([
-        "work_color_slots.slot_index",
-        "work_color_slots.source_hex",
-        "work_color_slots.filament_id",
-      ])
-      .where("work_color_slots.asset_id", "=", assetId)
-      .execute(),
-  );
-
-  await queryResult(
-    db
-      .deleteFrom("work_color_slots")
-      .where("work_color_slots.asset_id", "=", assetId)
-      .execute(),
-  );
-
-  if (analysis.colorSlots.length > 0) {
-    const slotRows = analysis.colorSlots.map((c) => {
-      const previous = (previousSlots ?? []).find(
-        (p) => p.slot_index === c.slotIndex && p.source_hex === c.sourceHex,
-      );
-      return {
-        work_id: asset.work_id,
-        asset_id: assetId,
-        slot_index: c.slotIndex,
-        source_name: c.sourceName,
-        source_hex: c.sourceHex,
-        face_count: c.faceCount,
-        filament_id: previous?.filament_id ?? null,
-      };
-    });
-    const { error: slotError } = await queryResult(
-      db.insertInto("work_color_slots").values(slotRows).execute(),
-    );
-    if (slotError)
-      return { ok: false, error: slotError.message, stage: "color_slots" };
-  }
-
-  // --- 8. パーツごとの印刷指示（既定値を用意しておく） --------------------------
-  const instructionRows = analysis.objects.map((o) => {
-    const objectId = objectIdByIndex.get(o.objectIndex)!;
-    const carried = instructionByName.get(o.name);
-    if (carried) {
-      return {
-        work_id: asset.work_id,
-        object_id: objectId,
-        orientation: carried.orientation,
-        no_rotate: carried.no_rotate,
-        support: carried.support,
-        support_note: carried.support_note,
-        note: carried.note,
-      };
-    }
-    const d = defaultInstruction(o.bboxMm);
-    return {
-      work_id: asset.work_id,
-      object_id: objectId,
-      orientation: d.orientation,
-      no_rotate: d.orientation === "flat",
-      support: d.support,
-      support_note: null,
-      note: d.note,
+      work_id: workId,
+      object_id: objectIdByIndex.get(o.objectIndex)!,
+      orientation: carried?.orientation ?? defaults.orientation,
+      no_rotate: carried?.no_rotate ?? defaults.orientation === "flat",
+      support: carried?.support ?? defaults.support,
+      support_note: carried?.support_note ?? null,
+      note: carried ? carried.note : defaults.note,
     };
   });
+  if (instructions.length)
+    await db
+      .insertInto("work_part_instructions")
+      .values(instructions)
+      .execute();
 
-  const { error: instructionError } = await queryResult(
-    db.insertInto("work_part_instructions").values(instructionRows).execute(),
+  // Prices, stock and publishing choices belong to the creator; retain them on reanalysis.
+  const previousVariants = await db
+    .selectFrom("work_variants")
+    .select([
+      "id",
+      "size_label",
+      "price_jpy",
+      "stock",
+      "is_listed",
+      "batch_count_override",
+    ])
+    .where("work_id", "=", workId)
+    .execute();
+  const variantsBySize = new Map(
+    previousVariants.map((v) => [v.size_label, v]),
   );
-  if (instructionError) {
-    return {
-      ok: false,
-      error: instructionError.message,
-      stage: "part_instructions",
-    };
-  }
-
-  // --- 9. サイズ展開 ---------------------------------------------------------
-  // 価格・在庫・公開設定はクリエイターが決めるものなので、既存値を引き継ぐ
-  const { data: previousVariants } = await queryResult(
-    db
-      .selectFrom("work_variants")
-      .select([
-        "work_variants.id",
-        "work_variants.size_label",
-        "work_variants.price_jpy",
-        "work_variants.stock",
-        "work_variants.is_listed",
-        "work_variants.batch_count_override",
-      ])
-      .where("work_variants.work_id", "=", asset.work_id)
-      .execute(),
-  );
-
   const variantIds: string[] = [];
   for (const v of analysis.variants) {
-    const previous = (previousVariants ?? []).find(
-      (p) => p.size_label === v.sizeLabel,
-    );
+    const previous = variantsBySize.get(v.sizeLabel);
     const row = {
-      work_id: asset.work_id,
+      work_id: workId,
       size_label: v.sizeLabel,
       nui_size_cm: v.nuiSizeCm,
       scale_ratio: round(v.scaleRatio, 4),
@@ -419,62 +376,37 @@ export async function validateAndPersistAsset(
       est_filament_grams: v.grams,
       est_print_hours: v.hours,
       part_count: v.partCount,
-      // print_fee_jpy / batch_count / is_printable は
-      // sync_work_variant トリガーが単価マスタから計算し直す
       batch_count_override: previous?.batch_count_override ?? null,
       price_jpy: previous?.price_jpy ?? null,
       stock: previous?.stock ?? null,
       is_listed: v.isPrintable ? (previous?.is_listed ?? false) : false,
     };
-
-    // トリガーが計算し直した代行費・バッチ数・印刷可否を読み戻す。
-    // 画面には必ずDBの値を出す（JS側の計算と1円でもずれると混乱するため）。
-      const { data: saved, error: variantError } = previous
-      ? await queryResult(
-          db
-            .updateTable("work_variants")
-            .set(row)
-            .where("work_variants.id", "=", previous.id)
-            .returning([
-              "id",
-              "print_fee_jpy",
-              "batch_count",
-              "is_printable",
-              "unprintable_reason",
-            ])
-            .executeTakeFirstOrThrow(),
-        )
-      : await queryResult(
-          db
-            .insertInto("work_variants")
-            .values(row)
-            .returning([
-              "id",
-              "print_fee_jpy",
-              "batch_count",
-              "is_printable",
-              "unprintable_reason",
-            ])
-            .executeTakeFirstOrThrow(),
-        );
-
-    if (variantError) {
-      return {
-        ok: false,
-        error: variantError.message,
-        stage: `variant:${v.sizeLabel}`,
-      };
-    }
-    if (saved) {
-      variantIds.push(saved.id);
-      v.printFeeJpy = saved.print_fee_jpy ?? v.printFeeJpy;
-      v.batchCount = saved.batch_count;
-      v.isPrintable = saved.is_printable;
-      v.unprintableReason = saved.unprintable_reason;
-    }
+    const returning = [
+      "id",
+      "print_fee_jpy",
+      "batch_count",
+      "is_printable",
+      "unprintable_reason",
+    ] as const;
+    const saved = previous
+      ? await db
+          .updateTable("work_variants")
+          .set(row)
+          .where("id", "=", previous.id)
+          .returning(returning)
+          .executeTakeFirstOrThrow()
+      : await db
+          .insertInto("work_variants")
+          .values(row)
+          .returning(returning)
+          .executeTakeFirstOrThrow();
+    variantIds.push(saved.id);
+    v.printFeeJpy = saved.print_fee_jpy ?? v.printFeeJpy;
+    v.batchCount = saved.batch_count;
+    v.isPrintable = saved.is_printable;
+    v.unprintableReason = saved.unprintable_reason;
   }
-
-  return { ok: true, analysis, variantIds };
+  return variantIds;
 }
 
 function round(v: number, digits: number): number {

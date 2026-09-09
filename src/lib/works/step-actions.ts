@@ -1,4 +1,5 @@
 "use server";
+import { sql } from "kysely";
 import { checkStoredFile } from "@/lib/files/s3";
 import { queryResult, countResult } from "@/lib/db/result";
 
@@ -107,6 +108,12 @@ export async function registerAssetAction(
   const { data: asset, error } = await queryResult(
     db.transaction().execute(async (tx) => {
       await tx
+        .selectFrom("works")
+        .select("id")
+        .where("id", "=", parsed.data.workId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      await tx
         .deleteFrom("work_assets")
         .where("work_id", "=", parsed.data.workId)
         .execute();
@@ -203,38 +210,40 @@ export async function savePrintInstructionsAction(
   if (!owned.ok) return { error: owned.error };
   const { db } = owned;
 
-  for (const ins of parsed.data.instructions) {
-    const { data, error } = await queryResult(
-      db
-        .updateTable("work_part_instructions")
-        .set({
-          orientation: ins.orientation,
-          support: ins.support,
-          no_rotate: ins.noRotate,
-          note: ins.note,
-        })
-        .where("work_part_instructions.id", "=", ins.id)
-        .returning(["id"])
-        .execute(),
-    );
-    if (error || !data || data.length === 0) {
-      return { error: "印刷指示を保存できませんでした" };
-    }
-  }
-
-  for (const slot of parsed.data.slots) {
-    const { data, error } = await queryResult(
-      db
-        .updateTable("work_color_slots")
-        .set({ filament_id: slot.filamentId })
-        .where("work_color_slots.id", "=", slot.id)
-        .returning(["id"])
-        .execute(),
-    );
-    if (error || !data || data.length === 0) {
-      return { error: "色の割り当てを保存できませんでした" };
-    }
-  }
+  const { error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      await tx
+        .selectFrom("works")
+        .select("id")
+        .where("id", "=", parsed.data.workId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      for (const ins of parsed.data.instructions) {
+        await tx
+          .updateTable("work_part_instructions")
+          .set({
+            orientation: ins.orientation,
+            support: ins.support,
+            no_rotate: ins.noRotate,
+            note: ins.note,
+          })
+          .where("id", "=", ins.id)
+          .where("work_id", "=", parsed.data.workId)
+          .returning("id")
+          .executeTakeFirstOrThrow();
+      }
+      for (const slot of parsed.data.slots) {
+        await tx
+          .updateTable("work_color_slots")
+          .set({ filament_id: slot.filamentId })
+          .where("id", "=", slot.id)
+          .where("work_id", "=", parsed.data.workId)
+          .returning("id")
+          .executeTakeFirstOrThrow();
+      }
+    }),
+  );
+  if (error) return { error: "印刷指示と色の割り当てを保存できませんでした" };
 
   revalidatePath(`/studio/works/${parsed.data.workId}/steps/2`);
   redirect(`/studio/works/${parsed.data.workId}/steps/3`);
@@ -254,7 +263,7 @@ const infoSchema = z.object({
     customSize: z.boolean(),
     otherRequest: z.boolean(),
   }),
-  /** 原寸の内寸（mm）。他サイズは scale_fit_dims トリガーが埋める */
+  /** 原寸の内寸（mm）。保存時に他サイズの自動寸法へ一括反映する */
   fit: z.object({
     widthMm: z.number().positive().max(1000).nullable(),
     heightMm: z.number().positive().max(1000).nullable(),
@@ -292,124 +301,91 @@ export async function saveWorkInfoAction(
   if (!owned.ok) return { error: owned.error };
   const { db } = owned;
 
-  const { data: updated, error } = await queryResult(
-    db
-      .updateTable("works")
-      .set({
-        title: parsed.data.title,
-        description: parsed.data.description,
-        accepts_color_change: parsed.data.accepts.colorChange,
-        accepts_mirror: parsed.data.accepts.mirror,
-        accepts_stand_hole: parsed.data.accepts.standHole,
-        accepts_custom_size: parsed.data.accepts.customSize,
-        accepts_other_request: parsed.data.accepts.otherRequest,
-      })
-      .where("works.id", "=", parsed.data.workId)
-      .returning(["id"])
-      .execute(),
-  );
+  const v = parsed.data;
+  const { error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      // Updating the parent first serializes saves and model-analysis writes for this work.
+      await tx
+        .updateTable("works")
+        .set({
+          title: v.title,
+          description: v.description,
+          accepts_color_change: v.accepts.colorChange,
+          accepts_mirror: v.accepts.mirror,
+          accepts_stand_hole: v.accepts.standHole,
+          accepts_custom_size: v.accepts.customSize,
+          accepts_other_request: v.accepts.otherRequest,
+        })
+        .where("id", "=", v.workId)
+        .returning("id")
+        .executeTakeFirstOrThrow();
 
-  if (error || !updated || updated.length === 0)
-    return { error: "作品情報を保存できませんでした" };
+      await tx
+        .deleteFrom("work_tags")
+        .where("work_id", "=", v.workId)
+        .execute();
+      if (v.tagIds.length) {
+        await tx
+          .insertInto("work_tags")
+          .values(
+            [...new Set(v.tagIds)].map((tag_id) => ({
+              work_id: v.workId,
+              tag_id,
+            })),
+          )
+          .execute();
+      }
 
-  // タグは付け替え
-  await queryResult(
-    db
-      .deleteFrom("work_tags")
-      .where("work_tags.work_id", "=", parsed.data.workId)
-      .execute(),
-  );
-  if (parsed.data.tagIds.length > 0) {
-    const { error: tagError } = await queryResult(
-      db
-        .insertInto("work_tags")
-        .values(
-          parsed.data.tagIds.map((tag_id) => ({
-            work_id: parsed.data.workId,
-            tag_id,
-          })),
-        )
-        .execute(),
-    );
-    if (tagError) return { error: "タグを保存できませんでした" };
-  }
-
-  // 内寸は原寸だけ入力する。他サイズは scale_ratio からトリガーが埋める（設計判断6）
-  const base = parsed.data.variants.length
-    ? await queryResult(
-        db
-          .selectFrom("work_variants")
-          .select(["work_variants.id"])
-          .where("work_variants.work_id", "=", parsed.data.workId)
-          .where("work_variants.is_base", "=", true)
-          .executeTakeFirst(),
-      )
-    : { data: null };
-
-  if (base.data) {
-    const { error: fitError } = await queryResult(
-      db
+      await tx
         .updateTable("work_variants")
         .set({
-          fit_width_mm: parsed.data.fit.widthMm,
-          fit_height_mm: parsed.data.fit.heightMm,
-          fit_depth_mm: parsed.data.fit.depthMm,
+          fit_width_mm: v.fit.widthMm,
+          fit_height_mm: v.fit.heightMm,
+          fit_depth_mm: v.fit.depthMm,
+          fit_source: "creator",
         })
-        .where("work_variants.id", "=", base.data.id)
-        .returning(["id"])
-        .execute(),
-    );
-    if (fitError) return { error: "内寸を保存できませんでした" };
-
-    // 他サイズの内寸は scale_fit_dims が計算する。ただしトリガーは
-    // 「自分が値を持っていたら触らない」ので、原寸を変えたときに追随させるには
-    // 一度 null に戻して scale_ratio を書き直す必要がある（式はDB側に置いたまま）
-    const { error: rescaleError } = await queryResult(
-      db
+        .where("work_id", "=", v.workId)
+        .where("is_base", "=", true)
+        .execute();
+      // Recalculate derived dimensions in one statement; preserve explicitly entered dimensions.
+      // No dummy scale_ratio updates or per-variant reads are needed.
+      await tx
         .updateTable("work_variants")
-        .set({ fit_width_mm: null, fit_height_mm: null, fit_depth_mm: null })
-        .where("work_variants.work_id", "=", parsed.data.workId)
-        .where("work_variants.is_base", "=", false)
-        .execute(),
-    );
-    if (rescaleError) return { error: "内寸を反映できませんでした" };
+        .set({
+          fit_width_mm: sql`round(${v.fit.widthMm}::numeric * scale_ratio, 2)`,
+          fit_height_mm: sql`round(${v.fit.heightMm}::numeric * scale_ratio, 2)`,
+          fit_depth_mm: sql`round(${v.fit.depthMm}::numeric * scale_ratio, 2)`,
+          fit_source: "auto",
+        })
+        .where("work_id", "=", v.workId)
+        .where("is_base", "=", false)
+        .where((eb) =>
+          eb.or([
+            eb("fit_source", "=", "auto"),
+            eb("fit_width_mm", "is", null),
+          ]),
+        )
+        .execute();
 
-    const { data: others } = await queryResult(
-      db
-        .selectFrom("work_variants")
-        .select(["work_variants.id", "work_variants.scale_ratio"])
-        .where("work_variants.work_id", "=", parsed.data.workId)
-        .where("work_variants.is_base", "=", false)
-        .execute(),
-    );
-
-    for (const o of others ?? []) {
-      await queryResult(
-        db
+      for (const variant of v.variants) {
+        const saved = await tx
           .updateTable("work_variants")
-          .set({ scale_ratio: o.scale_ratio })
-          .where("work_variants.id", "=", o.id)
-          .execute(),
-      );
-    }
-  }
-
-  for (const v of parsed.data.variants) {
-    const { data, error: variantError } = await queryResult(
-      db
-        .updateTable("work_variants")
-        .set({ price_jpy: v.priceJpy, stock: v.stock, is_listed: v.isListed })
-        .where("work_variants.id", "=", v.id)
-        .returning(["id"])
-        .execute(),
-    );
-    if (variantError) {
-      // 価格の下限は sync_work_variant が例外で止める。文言をそのまま出す
-      return { error: variantError.message };
-    }
-    if (!data || data.length === 0)
-      return { error: "サイズ展開を保存できませんでした" };
-  }
+          .set({
+            price_jpy: variant.priceJpy,
+            stock: variant.stock,
+            is_listed: variant.isListed,
+          })
+          .where("id", "=", variant.id)
+          .where("work_id", "=", v.workId)
+          .returning("id")
+          .executeTakeFirst();
+        if (!saved)
+          throw new Error("この作品に含まれないサイズが指定されています");
+      }
+    }),
+  );
+  if (error)
+    return { error: `作品情報を保存できませんでした（${error.message}）` };
 
   revalidatePath(`/studio/works/${parsed.data.workId}/steps/3`);
   redirect(`/studio/works/${parsed.data.workId}/steps/4`);
