@@ -574,17 +574,17 @@ works（作品の共通メタ：タイトル・説明・タグ・オーダーメ
 ## 10. 技術構成
 
 - Next.js 16 / React / TypeScript / Tailwind CSS v4。RSCで読み取り、Server Actionsで変更する。
-- AWSのNode.js 24コンテナ（ECS / Fargate）で、アプリとBetter Authを実行する。
-- RDS PostgreSQLへKysely + pgで直接接続する。セッション、RLS、価格スナップショット、注文のトランザクションもPostgreSQLに置く。
+- AWS Lambda上のNode.js 24コンテナで、Lambda Web Adapterを使ってアプリとBetter Authを実行する構成。常時起動は不要。
+- Aurora Serverless v2のPostgreSQLへKysely + pgで直接接続する。0〜1 ACU、接続なし5分で自動停止する設定例を用意。セッション、RLS、注文のトランザクションもPostgreSQLに置く。
 - 非公開S3にファイルを保存し、権限を確認して署名付きPOST / GETを発行する。
 - 認証・通知メールはSES、電話番号の確認はSNS。ローカルではMailpitを利用する。
-- アプリ内通知を維持し、通知配信・見積り期限切れは常駐アプリ内の5分ごとの処理で行う。
+- アプリ内通知を維持し、通知メール送信と期限切れデータの整理は `/admin/maintenance` から手動で行う。定期処理は実行しない。
 - 注文は実課金なしのデモ。作成・在庫更新・印刷ジョブ作成を1トランザクションで確定する。
 
 ```mermaid
 flowchart LR
-    browser[ブラウザ] --> app[ECS / Next.js + Better Auth]
-    app --> db[RDS PostgreSQL]
+    browser[ブラウザ] --> app[Function URL / Lambda / Next.js + Better Auth]
+    app --> db[Aurora PostgreSQL / 自動停止]
     browser -->|署名付きアップロード| files[S3]
     app --> files
     app --> mail[SES / メール]
@@ -665,7 +665,7 @@ DB変更後は `npm run db:types` で型を再生成する。3D解析単体は `
 | 相談系 | メッセージ、オーダーメイド相談 → 見積り → 承認 → 専用サイズがカートへ → 決済 | `/mypage/messages`, `/mypage/custom-orders/**`, `/studio/custom-orders/**` |
 | 作る人 | 作品管理、出品フロー4STEP（3Dデータの自動検証 → 印刷指示 → 作品情報 → 公開）、売上ダッシュボード、売上の受け取り（口座・振込申請）、修正依頼への対応 | `/studio`, `/studio/works/**`, `/studio/payouts`, `/studio/revisions/**` |
 | 運営 | 印刷キュー → ジョブ詳細 → 検品・発送登録、注文一覧・注文詳細、出荷済み、フィラメント在庫、売上・手数料（実費精算）、払込管理、運営メンバーの追加・解除 | `/admin/**` |
-| 裏側 | 3MF/STL の解析と見積り、通知（DB トリガーが生成）、通知 → メール（SES/Mailpit）、見積り期限切れの定期処理、role の自己昇格の防護 | `src/lib/print/`, `src/lib/jobs/`, `db/migrations/` |
+| 裏側 | 3MF/STLの解析と見積り、アプリ内通知、管理者による通知メール送信・期限切れデータ整理、roleの自己昇格の防護 | `src/lib/print/`, `src/lib/mail/`, `src/lib/ops/maintenance-actions.ts`, `db/migrations/` |
 
 - 集計（お気に入り数・未読数）、注文ステータスの導出、通知の生成、精算の式は **DB 側**にあります。アプリは記録を書くだけです
 - ビューは `security_invoker`、複数テーブルの更新はRPCを使います。残る多段更新・取得失敗の扱いは [全体診断](docs/architecture.md) を参照してください

@@ -31,6 +31,10 @@ export function scopedPool(pool: Pool, actor: Actor): PostgresPool {
       return {
         query: client.query.bind(client),
         release() {
+          if (pool.options.maxUses === 1) {
+            client.release(true);
+            return;
+          }
           // Kysely's pool contract has a synchronous release. Reserve the raw
           // client until cleanup finishes; destroy it if cleanup cannot succeed.
           void client
@@ -60,7 +64,7 @@ export function database(userId?: string): Db {
   });
 }
 
-/** Call only after authorizing the operation, or from a trusted background job. */
+/** Call only after authorizing the operation. */
 export function serviceDatabase(): Db {
   return new Kysely<Database>({
     dialect: new PostgresDialect({

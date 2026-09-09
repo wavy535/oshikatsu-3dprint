@@ -10,10 +10,14 @@ export function getPool(kind: "auth" | "data") {
   if (!state.appPools) {
     const connectionString = process.env.DATABASE_URL?.trim();
     if (!connectionString) throw new Error("DATABASE_URL is required");
+    const isLambda = Boolean(process.env.AWS_LAMBDA_FUNCTION_NAME);
     const config = {
       ...connectionOptions(connectionString),
-      max: 5,
-      connectionTimeoutMillis: 5_000,
+      max: isLambda ? 2 : 5,
+      // A frozen Lambda cannot run idle timers. Close released connections so
+      // they cannot keep Aurora awake; allow time for a paused DB to resume.
+      maxUses: isLambda ? 1 : Infinity,
+      connectionTimeoutMillis: isLambda ? 60_000 : 5_000,
       idleTimeoutMillis: 30_000,
       statement_timeout: 30_000,
     };

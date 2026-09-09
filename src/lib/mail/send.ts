@@ -28,7 +28,7 @@ export async function sendMail(mail: Mail): Promise<SendResult> {
           provider,
           error: "AWS_REGION and MAIL_FROM are required for SES",
         };
-      // 認証はECSのタスクロールなど、SDKの標準認証経路を使う。
+      // 認証はLambdaの実行ロールなど、SDKの標準認証経路を使う。
       // 応答喪失時の自動再送を避け、再試行は通知の配信処理へ戻す。
       const ses = new SESv2Client({ region, maxAttempts: 1 });
       try {

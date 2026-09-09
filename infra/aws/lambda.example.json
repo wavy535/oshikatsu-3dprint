@@ -1,0 +1,30 @@
+{
+  "FunctionName": "oshinest-demo",
+  "Description": "Learning environment: Next.js with Lambda Web Adapter",
+  "PackageType": "Image",
+  "Code": {
+    "ImageUri": "569855251962.dkr.ecr.<region>.amazonaws.com/oshinest@sha256:<image-digest>"
+  },
+  "Role": "arn:aws:iam::569855251962:role/<lambda-execution-role>",
+  "Architectures": ["x86_64"],
+  "MemorySize": 1024,
+  "Timeout": 120,
+  "VpcConfig": {
+    "SubnetIds": ["<dual-stack-subnet-a>", "<dual-stack-subnet-b>"],
+    "SecurityGroupIds": ["<lambda-security-group>"],
+    "Ipv6AllowedForDualStack": true
+  },
+  "Environment": {
+    "Variables": {
+      "SITE_URL": "https://<function-url-id>.lambda-url.<region>.on.aws",
+      "DATABASE_URL": "postgresql://app_runtime:<url-encoded-password>@<cluster-writer-endpoint>:5432/oshinest",
+      "DATABASE_SSL_CA": "/app/certs/rds-global-bundle.pem",
+      "AUTH_SECRET": "<random-secret-at-least-32-characters>",
+      "AWS_USE_DUALSTACK_ENDPOINT": "true",
+      "S3_BUCKET": "<application-bucket>",
+      "MAIL_PROVIDER": "ses",
+      "MAIL_FROM": "<verified-sender-email>",
+      "SMS_PROVIDER": "sns"
+    }
+  }
+}

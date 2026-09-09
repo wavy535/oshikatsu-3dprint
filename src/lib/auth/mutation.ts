@@ -22,7 +22,13 @@ export async function authMutation(
 ) {
   const incoming = await headers();
   const requestHeaders = new Headers({ "content-type": "application/json" });
-  for (const name of ["cookie", "origin", "user-agent", "x-forwarded-for"]) {
+  for (const name of [
+    "cookie",
+    "origin",
+    "user-agent",
+    "x-forwarded-for",
+    "x-amzn-request-context",
+  ]) {
     const value = incoming.get(name);
     if (value) requestHeaders.set(name, value);
   }
