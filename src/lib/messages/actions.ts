@@ -10,6 +10,20 @@ import { requireUser } from "@/lib/auth/guards";
 
 export type MessageActionState = { error: string | null; sentAt?: number };
 
+/** Only messages rendered for this recipient may be marked; never mutate on GET/prefetch. */
+export async function markMessagesReadAction(ids: string[]) {
+  const valid = z.array(idSchema).min(1).max(50).parse(ids);
+  const { db, user } = await requireUser("/mypage/messages");
+  const result = await db
+    .updateTable("messages")
+    .set({ read_at: new Date().toISOString() })
+    .where("recipient_id", "=", user.id)
+    .where("id", "in", valid)
+    .where("read_at", "is", null)
+    .executeTakeFirst();
+  if (result.numUpdatedRows > BigInt(0)) revalidatePath("/mypage/messages");
+}
+
 const schema = z.object({
   recipientId: idSchema,
   body: z

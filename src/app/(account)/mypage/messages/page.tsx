@@ -1,3 +1,5 @@
+import { Pagination } from "@/components/ui/pagination";
+import { MessageReadReceipt } from "@/components/messages/message-read-receipt";
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 
@@ -23,15 +25,20 @@ function dayLabel(iso: string) {
 export default async function MessagesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ with?: string; filter?: string; order?: string }>;
+  searchParams: Promise<{ with?: string; filter?: string; order?: string; page?: string; before?: string }>;
 }) {
   const sp = await searchParams;
   const withId = await resolveCounterpart(sp.with);
-  const [threads, thread] = await Promise.all([listThreads(), withId ? getThread(withId) : null]);
-
   const unreadOnly = sp.filter === "unread";
-  const visible = unreadOnly ? threads.filter((t) => t.unread > 0) : threads;
-  const totalUnread = threads.reduce((n, t) => n + t.unread, 0);
+  const [{ items: visible, page, hasNext, totalUnread }, thread] = await Promise.all([
+    listThreads(sp.page, unreadOnly), withId ? getThread(withId, sp.before) : null,
+  ]);
+  const latestParams = new URLSearchParams(
+    Object.entries(sp).filter((entry): entry is [string, string] => typeof entry[1] === "string"),
+  );
+  latestParams.delete("before");
+  if (withId) latestParams.set("with", withId);
+  const latestHref = `/mypage/messages?${latestParams}`;
 
   return (
     <>
@@ -50,6 +57,7 @@ export default async function MessagesPage({
               { key: "unread", label: "未読", href: `/mypage/messages?filter=unread${sp.with ? `&with=${sp.with}` : ""}` },
             ].map((c) => (
               <Link
+                prefetch={false}
                 key={c.key}
                 href={c.href}
                 className={cn(
@@ -68,6 +76,7 @@ export default async function MessagesPage({
           ) : (
             visible.map((t) => (
               <Link
+                prefetch={false}
                 key={t.counterpartId}
                 href={`/mypage/messages?with=${t.counterpartId}${unreadOnly ? "&filter=unread" : ""}`}
                 className={cn(
@@ -92,6 +101,7 @@ export default async function MessagesPage({
               </Link>
             ))
           )}
+          <Pagination path="/mypage/messages" params={sp} page={page} hasNext={hasNext} label="スレッド一覧のページ切り替え" />
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-line bg-white">
@@ -102,7 +112,7 @@ export default async function MessagesPage({
               <p className="text-[12px] text-muted-foreground">
                 作品ページの「メッセージを送る」や、注文の「運営に問い合わせ」から新しいやりとりを始められます。
               </p>
-              <Link href="/mypage/messages?with=admin" className="text-[12px] font-semibold text-brand hover:underline">
+              <Link prefetch={false} href="/mypage/messages?with=admin" className="text-[12px] font-semibold text-brand hover:underline">
                 運営に問い合わせる
               </Link>
             </div>
@@ -117,7 +127,7 @@ export default async function MessagesPage({
                   </span>
                 </span>
                 {thread.counterpart.role === "creator" && (
-                  <Link href={`/creators/${thread.counterpart.id}`} className="ml-auto text-[11px] text-brand hover:underline">
+                  <Link prefetch={false} href={`/creators/${thread.counterpart.id}`} className="ml-auto text-[11px] text-brand hover:underline">
                     プロフィール
                   </Link>
                 )}
@@ -145,6 +155,7 @@ export default async function MessagesPage({
                       )}
                       {order && (!prev || prev.order_id !== m.order_id) && (
                         <Link
+                          prefetch={false}
                           href={`/mypage/orders/${order.id}`}
                           className="flex items-center gap-2 self-center rounded-lg border border-brand bg-white px-3 py-1.5 text-[10.5px] text-ink hover:bg-brand-soft"
                         >
@@ -176,7 +187,12 @@ export default async function MessagesPage({
                 })}
               </div>
 
-              <MessageComposer recipientId={thread.counterpart.id} orderId={sp.order} />
+              <MessageReadReceipt ids={thread.messages.filter((m) => m.recipient_id === thread.me && !m.read_at).map((m) => m.id)} />
+              <div className="flex justify-center gap-3 py-2 text-xs text-brand">
+                {thread.olderCursor && <Link prefetch={false} href={`${latestHref}&before=${thread.olderCursor}`}>過去のメッセージ</Link>}
+                {sp.before && <Link prefetch={false} href={latestHref}>最新のメッセージ</Link>}
+              </div>
+              <MessageComposer key={thread.counterpart.id} recipientId={thread.counterpart.id} orderId={sp.order} latestHref={sp.before ? latestHref : undefined} />
             </>
           )}
         </section>

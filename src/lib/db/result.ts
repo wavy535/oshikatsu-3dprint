@@ -1,5 +1,21 @@
 import "server-only";
 import type { SelectQueryBuilder } from "kysely";
+import { pageNumber } from "@/lib/pagination";
+
+/** Lists without a total fetch one extra row instead of running COUNT as well.
+ * The caller supplies a stable order (including a unique tie-breaker). */
+export async function readPage<D, T extends keyof D, O>(
+  query: SelectQueryBuilder<D, T, O>,
+  requestedPage: unknown,
+  size = 30,
+) {
+  const page = pageNumber(requestedPage);
+  const rows = await query
+    .limit(size + 1)
+    .offset((page - 1) * size)
+    .execute();
+  return { items: rows.slice(0, size), page, hasNext: rows.length > size };
+}
 
 export type DatabaseError = { message: string; code?: string; detail?: string };
 /** Form actions can display domain errors raised by PostgreSQL functions. */
