@@ -72,6 +72,10 @@ export default async function NotificationSettingsPage() {
       <p className="text-[11.5px] text-muted-foreground">
         メールの宛先: <span className="text-ink">{email}</span>
       </p>
+      <p className="text-[11.5px] text-muted-foreground">
+        学習環境の通知メールは、管理者が送信操作をした時に届きます。
+        登録時の確認メールは、その場で送信します。
+      </p>
     </>
   );
 }
