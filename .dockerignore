@@ -9,3 +9,6 @@
 !src/**
 !public
 !public/**
+!infra
+!infra/aws
+!infra/aws/rds-global-bundle.pem

@@ -1,58 +1,73 @@
-# AWSで動かす構成
+# AWSへの配備
 
-2026-09-09。Next.jsをAWSのNode.jsコンテナで動かし、Auth・PostgreSQL・Storageは当面Supabaseを継続する。実決済は提供せず、アプリ内通知と通知メールは維持する。
+2026-09-09。アプリと認証はECS、業務データとセッションはRDS PostgreSQL、ファイルはS3、メールはSESで完結する。実課金・送金は行わず、デモ注文、アプリ内通知、通知メールを維持する。
 
-## 配備するもの
-
-| 役割 | 配備先・構成 |
+| 役割 | 構成 |
 | --- | --- |
-| Web / Server Actions / 3D解析 | ECS Express ModeのFargateコンテナ。Node.js 24、Next.js standalone |
-| TLS・HTTP入口 | Express Modeが管理するALB |
-| 認証・DB・画像・3Dファイル | Supabase。RLS・業務RPC・DBトリガーを継続 |
-| アプリ内通知 | 既存のnotificationsテーブル。専用サービスは追加しない |
-| 通知メール | 同じWebコンテナからSES API。認証はECSタスクロール |
-| 定期実行 | Supabase pg_cron。見積り期限切れはSQL、メールはpg_netでWebのcron入口を呼ぶ |
+| Web・Server Actions・認証・3D解析 | Node.js 24 / Next.js 16 standalone、ECS Express Mode / Fargate |
+| HTTP・TLS | ECS Express Modeが管理するALB |
+| DB | RDS PostgreSQL 17。Kysely + pgで直接接続。RLSと業務トランザクションを継続 |
+| 認証 | 同じアプリ内のBetter Auth。メール・パスワード、6桁メール確認、DBセッション、電話番号確認 |
+| ファイル | 非公開S3バケット1個。work-stl / work-images / qc-photos / avatarsをキーのプレフィックスにする |
+| メール・SMS | SES v2 / SNS。SDKはECSタスクロールの一時認証を使う |
+| 定期処理 | 常駐するWebタスク内で5分ごとに実行。通知配信・見積り期限切れ・期限切れ認証データの削除 |
 
-[Amplify公式の対応表](https://docs.aws.amazon.com/amplify/latest/userguide/ssr-amplify-support.html)にはNext.js 15までとあるため、16.3.4をそのまま配備できる前提を外した。Dockerは通常のNode.jsサーバーとして動かし、ホスティング固有のNext.jsアダプターを追加しない。
+[ECS Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)の設定例は1 vCPU / 2 GiB、1タスク固定。新しい認証サービス・REST DBサーバー・Realtimeサーバー・常駐メールワーカーは設けない。固定費の中心はFargate・ALB・RDSで、メール/SMS・S3・ログは利用量による。実際の見積りはリージョンと負荷を決めてから行う。
 
-[ECS Express Mode](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-overview.html)はALB・HTTPS・Fargateサービスなどを管理する。設定例はデモ用に1タスク固定、1 vCPU / 2 GiB。停止中もFargateの稼働分・ALBなどの料金があるため、アプリ全体の固定費は別途見積もる。通知のための常駐タスクは増やさない。
-
-メールの主な追加費用は送信通数で、標準の従量料金は1,000通あたり0.10 USD、ほかにデータ転送等がある。[SES料金](https://aws.amazon.com/jp/ses/pricing/)。DB保存量・アプリ処理・ログも増えるので、追加費用が厳密にゼロという意味ではない。
-
-## イメージの作成
+## ビルドとローカル確認
 
 ```bash
-# 公開値だけをビルドへ渡す。値は対象Supabaseプロジェクトのものにする。
-export NEXT_PUBLIC_SUPABASE_URL='https://PROJECT.supabase.co'
-export NEXT_PUBLIC_SUPABASE_ANON_KEY='PUBLIC_ANON_KEY'
-docker build --platform linux/amd64 \
-  --build-arg NEXT_PUBLIC_SUPABASE_URL \
-  --build-arg NEXT_PUBLIC_SUPABASE_ANON_KEY \
-  -t oshinest:demo .
-```
-
-[Dockerfile](../../Dockerfile)は開発依存を含むビルド用ステージと実行用ステージを分け、実行時は非rootユーザーにする。[.dockerignore](../../.dockerignore)はソース・公開アセット・ビルド設定だけを許可し、`.env.local`、AWS認証情報、DB、テストを送らない。サービスキーなどの秘密をbuild argへ入れない。
-
-`NEXT_PUBLIC_*`はNext.jsがビルド時にブラウザ用コードへ埋め込む。別のSupabaseプロジェクトへ向ける場合は再ビルドする。実行時のURL・anon keyも同じ値に揃える。`SITE_URL`と秘密値は実行時だけに設定する。
-
-ローカルのSupabaseと本番用イメージを組み合わせる確認例（Linux）：
-
-```bash
+docker build --platform linux/amd64 -t oshinest:demo .
+# Linux。先にREADMEのローカルサービスとDBを準備する。
 docker run --rm --network host --env-file .env.local \
-  -e PORT=3001 -e SITE_URL=http://localhost:3001 oshinest:demo
-# http://localhost:3001/api/health と /works を確認
+  -e PORT=3001 -e SITE_URL=http://localhost:3001 \
+  -e BACKGROUND_JOBS_ENABLED=false oshinest:demo
 ```
 
-`/api/health`はアプリの生存確認専用でDBへ接続しない。DB障害で全コンテナを再起動させないため。DBの可用性・ログイン・注文は別途監視する。
+ビルド引数・DB・AWSの認証情報はビルド時に不要。同じイメージを環境変数だけ変えて配備できる。Dockerは非rootで実行し、`.env.local`をイメージに含めない。ローカルの本番モード確認ではメールはMailpitを利用できるが、SMSのMailpit代替は開発モード限定。
 
-## AWSへの配備手順
+`/api/health`はプロセスの生存確認で、DBに依存しない。ログイン・注文・DB接続は別途監視する。
 
-対象アカウントはDXR `569855251962`、CLIプロファイルは `dxr`。ワークロードのリージョン、VPC・サブネット、公開ドメイン、Supabaseプロジェクトは配備時に決定する。ログイン先の `us-east-1` からワークロードのリージョンを決めない。
+## DBの準備とマイグレーション
 
-1. 対象と費用を確定し、ECRへイメージを登録する。デプロイ対象はイメージのdigestで固定する。
-2. 下表のIAMロールと秘密値を用意する。SESの検証済み差出人・対象リージョンも揃える。
-3. [service.example.json](service.example.json)のプレースホルダーを埋めて、作業用ファイルを `/tmp/oshinest-service.json` などへ保存する。秘密値はARN参照にする。
-4. 確定済みリージョンを `OSHINEST_AWS_REGION` に設定し、サービスを作成する。
+専用RDS PostgreSQL 17を非公開で作成し、5432番の受信はアプリのセキュリティグループと管理用経路に限定する。暗号化・バックアップ保持・削除保護・可用性はデータの重要度に合わせて設定する。コンテナの一時ディスクへDBやアップロードファイルを置かない。
+
+1. DB作成者の接続URLを作業環境の `MIGRATION_DATABASE_URL` に設定する。これはアプリのタスクへ渡さない。
+2. `DATABASE_SSL_CA=infra/aws/rds-global-bundle.pem` を設定し、`npm run db:migrate` を実行する。マイグレーションは番号順、1ファイル1トランザクションで、チェックサムと排他ロックを持つ。既存の適用済みファイルを書き換えず、新しいファイルを追加する。
+3. `app_runtime` をLOGIN可能にし、生成したパスワードを設定する。パスワードは管理接続で `\password app_runtime` など対話入力し、シェル履歴・SQLファイルへ残さない。接続URLをSecrets Managerへ保存する。
+4. アプリの `DATABASE_URL` はこの `app_runtime` にする。テーブル作成者やRDS管理ユーザーでアプリを動かさない。`app_runtime` はNOINHERIT、業務処理は `app_guest` / `app_user` / `app_service` へ明示的に切り替える。
+
+`db/bootstrap.sql` は管理用のロール作成を含む。RDSユーザーにその権限が無い場合はDB管理者が先に適用する。ローカルの既知パスワード・`db:seed` はAWSには使わない。`db:seed` はローカルComposeの空DBに限定し、既存データを削除しない。
+
+アプリには `DATABASE_SSL_CA=/app/certs/rds-global-bundle.pem` を設定する。イメージに入るのはAWSが公開したCA証明書で、秘密鍵ではない。URLにはSSLオプションを重ねず、CAとホスト名の検証を有効にする。[RDSのTLS接続](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL.Concepts.General.SSL.html)、[CA配布元](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)。証明書のローテーション時はバンドルを更新して再ビルドする。
+
+新構成は空のPostgreSQLへ適用するベースライン。旧環境のデータやログイン情報を自動変換する処理は含めない。既存データを移す場合は、バックアップ・ユーザーID対応・パスワード再設定・ファイルコピーを含む移送を別途行う。今回、旧ローカルDBのボリュームは保持している。
+
+## S3・メール・SMS
+
+S3はBlock Public Accessを有効にし、ブラウザのPOSTを許可するCORSを公開ドメインに限定する。[s3-cors.example.json](s3-cors.example.json)を使用する。アップロードの所有者・運営権限・サイズ・形式をサーバーで検査し、2分間有効な署名付きPOSTを発行する。登録時にもオブジェクトの存在とサイズを確認する。
+
+作品画像は `/api/files/public/work-images/...` から短時間の署名付きURLへリダイレクトする。3Dファイル・検品写真を公開プレフィックスへ置かない。署名付きURLは有効期限内に共有できるため、短期間で失効させる。
+
+認証メールと通知メールは共通のSES送信処理を使う。検証済み送信元を `MAIL_FROM`、SES/SNS/S3を使うリージョンを `AWS_REGION` に設定する。公開前に [SES production access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html) と [SNS SMS sandbox](https://docs.aws.amazon.com/sns/latest/dg/sns-sms-sandbox.html) の制約を確認し、必要な送信許可・SMS送信元・利用上限を設定する。
+
+## ECS設定とIAM
+
+DXRアカウント `569855251962`、CLIプロファイル `dxr`。実際のワークロードリージョン・VPC・ドメインは配備前に決定する。AWSログインに使う `us-east-1` とローカルS3の署名用リージョンから配備先を推測しない。
+
+[service.example.json](service.example.json)のプレースホルダーを埋める。ECRのイメージdigestを固定し、DATABASE_URLと32文字以上のランダムなAUTH_SECRETはSecrets ManagerのARNで指定する。`SITE_URL` は実際のHTTPSオリジンに一致させる。AWSでは `S3_ENDPOINT`、ローカルS3キー、Mailpit設定を渡さない。
+
+| IAMロール | 権限 |
+| --- | --- |
+| Task execution role | ECR pull、CloudWatch Logs、指定したDB/Auth秘密の取得。カスタムKMSキーを使うなら対象キーのDecrypt |
+| Infrastructure role | ECS Express ModeのALB・ターゲット・サービス管理 |
+| Application task role | 対象バケット内のGetObject/PutObject、検証済みSES identityへのSendEmail、電話番号へのSNS Publish |
+
+[task-policy.example.json](task-policy.example.json)はアプリロール用の例。SNSの電話番号宛送信はResourceを電話番号ARNへ限定できないため、sns:Publishを送信先リージョンに限定し、SMS利用上限も設定する。アプリのHTTP受信はALBからに限定し、ALBのX-Forwarded-Forはappend設定で使用する。
+
+アプリとRDSのネットワーク到達性を確認する。例はpublic subnetのFargateタスクから非公開RDSへ接続する構成で、DBをpublicにする必要はない。private subnetでFargateを動かす場合はECR・ログ・S3・SES・SNSへの経路と費用も用意する。
+
+配備するリソース・アカウント・リージョン・範囲を確認し、設定ファイルを作業用に用意した後で実行する。
 
 ```bash
 aws ecs create-express-gateway-service --profile dxr \
@@ -60,34 +75,10 @@ aws ecs create-express-gateway-service --profile dxr \
   --cli-input-json file:///tmp/oshinest-service.json
 ```
 
-| ロール | 必要な権限 |
-| --- | --- |
-| Task execution role | ECRからのpull、CloudWatch Logsへの出力、指定したSSM Parameter / Secrets Managerの読み取り。カスタムKMSキーなら対象キーのDecrypt |
-| Infrastructure role | ECS Express Mode用のインフラ管理権限（ALB・ターゲット・サービス等） |
-| Application task role | 検証済み送信元のSES identity ARNに限定した `ses:SendEmail` |
+この変更ではAWSリソースの作成・IAM変更・実メール/SMSの送信は行っていない。
 
-タスク実行ロールとアプリのロールは用途が異なる。[AWSのタスク実行ロールの説明](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/task_execution_IAM_role.html)。コンテナへAWSアクセスキーを保存せず、アプリのSDKがタスクロールの一時認証を使う。
+## 定期処理の運用
 
-例は2 AZのpublic subnetを明示し、コンテナへの受信は管理されたALBに限定する。public subnetでのExpress Modeはタスクへpublic IPを割り当てる。[ネットワーク設定](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/express-service-work.html)。private subnetを使う場合は外部Supabaseへの通信経路とその費用も設計する。
+`BACKGROUND_JOBS_ENABLED=true` の常駐タスクが5分ごとに処理する。スケールを0にすると処理も止まるため、最低1タスクを維持する。別のキュー・スケジューラ・公開cron URLは不要。プロセス内では処理を重ねず、複数タスク間はDBの通知リースで重複取得を防ぐ。
 
-初回にAWS発行ドメインを使う場合は、作成後のURLを `SITE_URL` に反映してサービスを更新する。Supabase AuthのSite URL・許可するリダイレクトURLも更新する。SESがsandboxのままなら検証済み宛先しか送れないため、一般公開前に[production access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)を申請する。認証用の確認コードメールはSupabase AuthのSMTP設定で扱い、この通知メール経路とは別。
-
-このリポジトリ変更では、AWSリソースの作成・IAM変更・SESの実送信は行っていない。
-
-## 通知メールの定期実行
-
-1. 実行時の `MAIL_PROVIDER=ses`、`AWS_REGION`、`MAIL_FROM`、`SITE_URL`、`SUPABASE_SERVICE_ROLE_KEY`、`CRON_SECRET` を設定する。メールを止める間は `MAIL_PROVIDER=none` にする。
-2. 対象SupabaseのVaultへ `oshinest_site_url` と `oshinest_cron_secret` を登録する。後者はアプリの `CRON_SECRET` と同じ値で32文字以上。
-3. [schedule-emails.sql](schedule-emails.sql)を対象DBへ適用する。5分間隔、HTTPタイムアウト60秒。見積り期限切れも同じpg_cronで管理する。
-
-[pg_cron・pg_net・Vaultの組み合わせ](https://supabase.com/docs/guides/functions/schedule-functions)を使う。EventBridge API Destinationは[応答の上限が5秒](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-api-destinations.html)なので、複数メールを同期送信するこの入口の呼び出しには使わない。
-
-1回で最大20通知を確保し、約45秒で新規の送信開始を打ち切る。各送信は5秒で中断する。処理中の確保は5分で失効し、停止後の次回実行で回復する。まとめ受信は同じバッチ内の同一ユーザー分を1通にするため、20件を超えた場合は分かれる。
-
-SES受理直後にDBの記録が失敗した場合などは、次回に同じメールが届き得る。送信の完全な一回保証はしない。`cron.job_run_details`だけでなく`net._http_response`のHTTPステータスとアプリログも確認する（HTTP投入の成功と配信成功は異なる）。`emailed_at is null` の件数・最古の時刻も監視し、送信が止まったまま既存の7日保持対象期間を超えないようにする。
-
-## 実決済を使わない注文
-
-常にデモ注文として動く。StripeのSDK・Webhook・秘密設定は不要。DBの `place_demo_order()` が価格の確定、注文・履歴・印刷ジョブの作成、在庫更新、カート消去を同じトランザクションで行う。再送には同じrequest IDを使い、注文に `is_demo=true` を記録する。
-
-過去のマイグレーションと注文データは保持し、旧Stripe用RPCの公開実行は停止している。外部決済の履歴がある既存注文は、デモ注文へ変換しない。売上・精算画面も現在は動作確認用で、実際の課金・送金は行わない。
+1回に最大20通知、送信開始の期限45秒、各メール5秒、リース5分。異常終了しても次回に再取得できる。SES受理後にDBの配信記録が失敗した場合は再送され得る。CloudWatchの `Background jobs failed` / `Notification delivery` と、未配信通知の最古時刻を監視する。負荷が増えたらバッチ量または専用ワーカーを検討する。

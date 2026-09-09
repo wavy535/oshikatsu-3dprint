@@ -6,24 +6,62 @@
   "healthCheckPath": "/api/health",
   "cpu": "1024",
   "memory": "2048",
-  "scalingTarget": { "minTaskCount": 1, "maxTaskCount": 1 },
+  "scalingTarget": {
+    "minTaskCount": 1,
+    "maxTaskCount": 1
+  },
   "networkConfiguration": {
-    "subnets": ["<public-subnet-in-az-1>", "<public-subnet-in-az-2>"]
+    "subnets": [
+      "<public-subnet-in-az-1>",
+      "<public-subnet-in-az-2>"
+    ]
   },
   "primaryContainer": {
     "image": "<private-ecr-image-uri@sha256:digest>",
     "containerPort": 3000,
     "environment": [
-      { "name": "NEXT_PUBLIC_SUPABASE_URL", "value": "<same-url-as-build>" },
-      { "name": "NEXT_PUBLIC_SUPABASE_ANON_KEY", "value": "<same-public-key-as-build>" },
-      { "name": "SITE_URL", "value": "<https-public-site-url>" },
-      { "name": "MAIL_PROVIDER", "value": "ses" },
-      { "name": "AWS_REGION", "value": "<ses-region>" },
-      { "name": "MAIL_FROM", "value": "<verified-sender-address>" }
+      {
+        "name": "SITE_URL",
+        "value": "<https-public-site-url>"
+      },
+      {
+        "name": "AWS_REGION",
+        "value": "<workload-region>"
+      },
+      {
+        "name": "MAIL_PROVIDER",
+        "value": "ses"
+      },
+      {
+        "name": "MAIL_FROM",
+        "value": "<verified-sender-address>"
+      },
+      {
+        "name": "SMS_PROVIDER",
+        "value": "sns"
+      },
+      {
+        "name": "S3_BUCKET",
+        "value": "<private-application-bucket>"
+      },
+      {
+        "name": "DATABASE_SSL_CA",
+        "value": "/app/certs/rds-global-bundle.pem"
+      },
+      {
+        "name": "BACKGROUND_JOBS_ENABLED",
+        "value": "true"
+      }
     ],
     "secrets": [
-      { "name": "SUPABASE_SERVICE_ROLE_KEY", "valueFrom": "<secret-or-parameter-arn>" },
-      { "name": "CRON_SECRET", "valueFrom": "<secret-or-parameter-arn>" }
+      {
+        "name": "DATABASE_URL",
+        "valueFrom": "<runtime-database-url-secret-arn>"
+      },
+      {
+        "name": "AUTH_SECRET",
+        "valueFrom": "<auth-secret-arn>"
+      }
     ]
   }
 }
