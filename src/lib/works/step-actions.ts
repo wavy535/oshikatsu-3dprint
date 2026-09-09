@@ -8,8 +8,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { getDatabase, getOptionalUser } from "@/lib/auth/guards";
-import { validateAndPersistAsset } from "@/lib/works/asset-validation";
+import { replaceAsset, validateAndPersistAsset } from "@/lib/works/asset-validation";
 import { idSchema } from "@/lib/validation";
+import { MODEL_LIMITS } from "@/lib/print/limits";
 
 export type StepActionState = { error: string | null; ok?: boolean };
 
@@ -64,7 +65,7 @@ const assetSchema = z.object({
   workId: z.uuid(),
   storagePath: z.string().min(1),
   fileName: z.string().min(1).max(200),
-  fileSize: z.coerce.number().int().positive(),
+  fileSize: z.coerce.number().int().positive().max(MODEL_LIMITS.fileBytes),
 });
 
 /**
@@ -87,7 +88,7 @@ export async function registerAssetAction(
 
   const owned = await requireOwnWork(parsed.data.workId);
   if (!owned.ok) return { error: owned.error };
-  const { db, user } = owned;
+  const { user } = owned;
 
   const ext = parsed.data.fileName.split(".").pop()?.toLowerCase();
   if (ext !== "stl" && ext !== "3mf") {
@@ -99,42 +100,11 @@ export async function registerAssetAction(
     return { error: "アップロード先が不正です" };
   }
 
-  const stored = await queryResult(
-    checkStoredFile("work-stl", parsed.data.storagePath, 80 * 1024 * 1024),
-  );
-  if (stored.error || stored.data !== parsed.data.fileSize)
-    return { error: "アップロード済みファイルを確認できませんでした" };
-  // Keep the previous asset if replacement fails part way through.
-  const { data: asset, error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      await tx
-        .selectFrom("works")
-        .select("id")
-        .where("id", "=", parsed.data.workId)
-        .forUpdate()
-        .executeTakeFirstOrThrow();
-      await tx
-        .deleteFrom("work_assets")
-        .where("work_id", "=", parsed.data.workId)
-        .execute();
-      return tx
-        .insertInto("work_assets")
-        .values({
-          work_id: parsed.data.workId,
-          storage_path: parsed.data.storagePath,
-          file_name: parsed.data.fileName,
-          file_format: ext,
-          file_size_bytes: stored.data!,
-          is_primary: true,
-        })
-        .returning("id")
-        .executeTakeFirstOrThrow();
-    }),
-  );
-
-  if (error || !asset) return { error: "3Dデータを登録できませんでした" };
-
-  const result = await validateAndPersistAsset(asset.id, parsed.data.workId);
+  const result = await replaceAsset(parsed.data.workId, {
+    storage_path: parsed.data.storagePath,
+    file_name: parsed.data.fileName,
+    file_size_bytes: parsed.data.fileSize,
+  });
   revalidatePath(`/studio/works/${parsed.data.workId}/steps/1`);
 
   if (!result.ok) return { error: result.error };

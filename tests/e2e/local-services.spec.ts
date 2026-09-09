@@ -1,4 +1,6 @@
 import { randomInt, randomUUID } from "node:crypto";
+import { modelXml, modelZip } from "../helpers/model-files";
+import { MODEL_LIMITS } from "../../src/lib/print/limits";
 import {
   expect,
   test,
@@ -150,7 +152,7 @@ test("a buyer places a demo order and can read it after reloading", async ({
   expect(denied?.status()).toBe(404);
 });
 
-test("a creator uploads and validates STL data and stores a public thumbnail in S3", async ({
+test("a creator recovers from a 3MF limit error, validates 3MF and STL, and stores a thumbnail in S3", async ({
   page,
 }) => {
   await signIn(page, "creator@example.com");
@@ -158,6 +160,30 @@ test("a creator uploads and validates STL data and stores a public thumbnail in 
   await page.getByRole("button", { name: "作品を投稿する" }).click();
   await expect(page).toHaveURL(/\/studio\/works\/[\w-]+\/steps\/1$/);
   const step1 = page.url();
+  const oversized = modelZip(modelXml());
+  const directory = oversized.readUInt32LE(oversized.length - 6);
+  oversized.writeUInt32LE(MODEL_LIMITS.xmlBytes + 1, directory + 24);
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "oversized.3mf",
+    mimeType: "application/octet-stream",
+    buffer: oversized,
+  });
+  await expect(
+    page
+      .getByText("3MFの展開後のモデルは64MiBまでです。", { exact: false })
+      .first(),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "ファイルを選ぶ", exact: true })).toBeEnabled();
+  await page.locator('input[type="file"]').setInputFiles({
+    name: "tetrahedron.3mf",
+    mimeType: "application/octet-stream",
+    buffer: modelZip(modelXml()),
+  });
+  await expect(
+    page.getByText("tetrahedron.3mf", { exact: false }),
+  ).toBeVisible();
+  await expect(page.getByText("閉じたメッシュ", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "ファイルを選ぶ", exact: true })).toBeEnabled();
   await page
     .locator('input[type="file"]')
     .setInputFiles("tests/fixtures/tetrahedron.stl");

@@ -73,7 +73,117 @@ function defaultInstruction(bbox: [number, number, number]): {
   return { orientation: "as_is", support: "auto", note: null };
 }
 
-/** 呼び出し元で認可した作品に対象を限定する。ダウンロードと解析はロック取得前に行う。 */
+type AssetFile = {
+  storage_path: string;
+  file_name: string;
+  file_size_bytes?: number;
+};
+type AnalysisResult =
+  | { ok: true; analysis: AssetAnalysis; bytes: number }
+  | Extract<ValidateAssetResult, { ok: false }>;
+
+async function analyzeFile(db: Db, asset: AssetFile): Promise<AnalysisResult> {
+  const { data: buffer, error: downloadError } = await queryResult(
+    readModel(asset.storage_path),
+  );
+  if (
+    downloadError ||
+    !buffer ||
+    (asset.file_size_bytes !== undefined &&
+      buffer.byteLength !== asset.file_size_bytes)
+  ) {
+    return {
+      ok: false,
+      error: "3Dデータを読み込めないか、アップロード時のサイズと一致しません",
+      stage: "download",
+    };
+  }
+  const { data: rule, error: ruleError } = await queryResult(
+    loadPricingRule(db),
+  );
+  if (ruleError || !rule)
+    return {
+      ok: false,
+      error: "印刷料金の設定を取得できませんでした",
+      stage: "pricing",
+    };
+  try {
+    return {
+      ok: true,
+      analysis: analyzeModelFile(buffer, { fileName: asset.file_name, rule }),
+      bytes: buffer.byteLength,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "3Dデータを解析できませんでした",
+      stage: "analyze",
+    };
+  }
+}
+
+/** Caller authorizes the work and upload path. Keep the current asset until parsing succeeds. */
+export async function replaceAsset(
+  workId: string,
+  file: AssetFile,
+): Promise<ValidateAssetResult> {
+  const db = serviceDatabase();
+  const result = await analyzeFile(db, file);
+  if (!result.ok) return result;
+  const { analysis, bytes } = result;
+  const { data: variantIds, error } = await queryResult(
+    db.transaction().execute(async (tx) => {
+      await tx
+        .selectFrom("works")
+        .select("id")
+        .where("id", "=", workId)
+        .forUpdate()
+        .executeTakeFirstOrThrow();
+      const previous = await tx
+        .selectFrom("work_assets")
+        .select("id")
+        .where("work_id", "=", workId)
+        .orderBy("is_primary", "desc")
+        .orderBy("created_at", "desc")
+        .orderBy("id", "desc")
+        .limit(1)
+        .executeTakeFirst();
+      const values = {
+        storage_path: file.storage_path,
+        file_name: file.file_name,
+        file_format: analysis.format,
+        file_size_bytes: bytes,
+        is_primary: true,
+      };
+      // Reuse the ID referenced by variants and preserve instructions through persistAnalysis.
+      const asset = previous
+        ? await tx
+            .updateTable("work_assets")
+            .set(values)
+            .where("id", "=", previous.id)
+            .returning("id")
+            .executeTakeFirstOrThrow()
+        : await tx
+            .insertInto("work_assets")
+            .values({ ...values, work_id: workId })
+            .returning("id")
+            .executeTakeFirstOrThrow();
+      return persistAnalysis(tx, asset.id, workId, bytes, analysis);
+    }),
+  );
+  if (error || !variantIds)
+    return {
+      ok: false,
+      error: "3Dデータを保存できませんでした。もう一度お試しください",
+      stage: "persist",
+    };
+  return { ok: true, analysis, variantIds };
+}
+
+/** Reanalyze the authorized asset; reject results if a replacement completed meanwhile. */
 export async function validateAndPersistAsset(
   assetId: string,
   workId: string,
@@ -93,34 +203,12 @@ export async function validateAndPersistAsset(
       error: "対象の3Dデータが見つかりません",
       stage: "load_asset",
     };
-  const { data: buffer, error: downloadError } = await queryResult(
-    readModel(asset.storage_path),
-  );
-  if (downloadError || !buffer)
-    return {
-      ok: false,
-      error: "3Dデータを読み込めませんでした",
-      stage: "download",
-    };
-  const { data: rule, error: ruleError } = await queryResult(
-    loadPricingRule(db),
-  );
-  if (ruleError || !rule)
-    return {
-      ok: false,
-      error: "印刷料金の設定を取得できませんでした",
-      stage: "pricing",
-    };
-
-  let analysis: AssetAnalysis;
-  try {
-    analysis = analyzeModelFile(buffer, { fileName: asset.file_name, rule });
-  } catch (e) {
-    const message =
-      e instanceof Error ? e.message : "3Dデータを解析できませんでした";
+  const result = await analyzeFile(db, asset);
+  if (!result.ok) {
+    if (result.stage !== "analyze") return result;
     const { error } = await queryResult(
       db.transaction().execute(async (tx) => {
-        await lockAsset(tx, workId, assetId);
+        await lockAsset(tx, workId, assetId, asset.storage_path);
         await tx
           .deleteFrom("work_validation_issues")
           .where("asset_id", "=", assetId)
@@ -131,7 +219,7 @@ export async function validateAndPersistAsset(
             asset_id: assetId,
             code: "parse",
             severity: "error",
-            message,
+            message: result.error,
             detail: { fileName: asset.file_name },
           })
           .execute();
@@ -146,16 +234,15 @@ export async function validateAndPersistAsset(
       }),
     );
     return {
-      ok: false,
-      error: error ? "解析エラーを保存できませんでした" : message,
-      stage: "analyze",
+      ...result,
+      error: error ? "解析エラーを保存できませんでした" : result.error,
     };
   }
-
+  const { analysis, bytes } = result;
   const { data: variantIds, error } = await queryResult(
     db.transaction().execute(async (tx) => {
-      await lockAsset(tx, workId, assetId);
-      return persistAnalysis(tx, assetId, workId, buffer.byteLength, analysis);
+      await lockAsset(tx, workId, assetId, asset.storage_path);
+      return persistAnalysis(tx, assetId, workId, bytes, analysis);
     }),
   );
   if (error || !variantIds)
@@ -167,8 +254,12 @@ export async function validateAndPersistAsset(
   return { ok: true, analysis, variantIds };
 }
 
-/** Work saves and analysis take locks in the same order. Reject a replaced asset. */
-async function lockAsset(db: Db, workId: string, assetId: string) {
+async function lockAsset(
+  db: Db,
+  workId: string,
+  assetId: string,
+  storagePath: string,
+) {
   await db
     .selectFrom("works")
     .select("id")
@@ -180,6 +271,7 @@ async function lockAsset(db: Db, workId: string, assetId: string) {
     .select("id")
     .where("id", "=", assetId)
     .where("work_id", "=", workId)
+    .where("storage_path", "=", storagePath)
     .forUpdate()
     .executeTakeFirst();
   if (!asset)

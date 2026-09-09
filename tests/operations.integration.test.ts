@@ -36,7 +36,7 @@ import { scopedPool, serviceDatabase } from "@/lib/db/client";
 import { requireAdmin, getOptionalUser } from "@/lib/auth/guards";
 import { readModel } from "@/lib/files/s3";
 import { advanceBatchAction, finishPrintJobAction, submitQcAction } from "@/lib/ops/printing-actions";
-import { saveWorkInfoAction } from "@/lib/works/step-actions";
+import { registerAssetAction, saveWorkInfoAction } from "@/lib/works/step-actions";
 import { validateAndPersistAsset } from "@/lib/works/asset-validation";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
@@ -408,4 +408,61 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
       ).rows[0].id,
     ).toBe(object.rows[0].id);
   });
+  const modelFile = readFileSync("tests/fixtures/tetrahedron.stl");
+  function registerModel(name: string) {
+    return registerAssetAction({ error: null }, form({
+      workId, storagePath: `${creatorId}/${workId}/${name}.stl`,
+      fileName: "tetrahedron.stl", fileSize: String(modelFile.length),
+    }));
+  }
+  async function assetSnapshot() {
+    return (await owner.query(`select jsonb_build_object(
+      'assets', (select jsonb_agg(a order by a.id) from work_assets a where a.work_id=$1),
+      'objects', (select jsonb_agg(o order by o.id) from work_asset_objects o join work_assets a on a.id=o.asset_id where a.work_id=$1),
+      'variants', (select jsonb_agg(v order by v.id) from work_variants v where v.work_id=$1),
+      'instructions', (select jsonb_agg(i order by i.id) from work_part_instructions i where i.work_id=$1)
+    ) as snapshot`, [workId])).rows[0].snapshot;
+  }
+  test("replacement keeps asset and variant references, prices and matching part instructions", async () => {
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    expect(await registerModel("first")).toEqual({ error: null, ok: true });
+    const first = await assetSnapshot();
+    await owner.query("update work_part_instructions set note='keep this',no_rotate=true where work_id=$1", [workId]);
+    await owner.query("update work_variants set price_jpy=3210,stock=7,is_listed=true where id=$1", [variantId]);
+    expect(await registerModel("replacement")).toEqual({ error: null, ok: true });
+    const after = await assetSnapshot();
+    expect(after.assets).toHaveLength(1);
+    expect(after.assets[0]).toMatchObject({ id: first.assets[0].id, storage_path: `${creatorId}/${workId}/replacement.stl` });
+    expect(after.variants.find((v: { id: string }) => v.id === variantId)).toMatchObject({ asset_id: first.assets[0].id, price_jpy: 3210, stock: 7, is_listed: true });
+    expect(after.instructions[0]).toMatchObject({ note: "keep this", no_rotate: true });
+    expect((await owner.query("select variant_id from print_jobs where id=$1", [jobId])).rows[0].variant_id).toBe(variantId);
+  });
+  test("failed parsing and failed replacement transactions preserve the previous file and derived rows", async () => {
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    expect((await registerModel("first")).ok).toBe(true);
+    const first = await assetSnapshot();
+    // Same uploaded byte count; invalid format must be rejected during analysis.
+    vi.mocked(readModel).mockResolvedValueOnce(Buffer.alloc(modelFile.length));
+    expect((await registerModel("bad")).error).toBeTruthy();
+    expect(await assetSnapshot()).toEqual(first);
+    failQuery = 'insert into "work_validation_issues"';
+    expect((await registerModel("failed-save")).error).toBeTruthy();
+    expect(await assetSnapshot()).toEqual(first);
+  });
+  test.each([false, true])("stale reanalysis cannot overwrite a replaced asset (parse failure: %s)", async (invalid) => {
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    expect((await registerModel("first")).ok).toBe(true);
+    const first = await assetSnapshot();
+    const id = first.assets[0].id;
+    vi.mocked(readModel).mockImplementationOnce(async () => {
+      await owner.query("update work_assets set storage_path='newer.stl' where id=$1", [id]);
+      return invalid ? Buffer.alloc(modelFile.length) : modelFile;
+    });
+    expect((await validateAndPersistAsset(id, workId)).ok).toBe(false);
+    const after = await assetSnapshot();
+    expect(after.assets[0].storage_path).toBe("newer.stl");
+    after.assets[0].storage_path = first.assets[0].storage_path;
+    expect(after).toEqual(first);
+  });
+
 });
