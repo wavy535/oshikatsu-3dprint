@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { getSales } from "@/lib/ops/queries";
+import { getSales } from "@/lib/ops/sales-queries";
 import { monthKey, monthLabel, shortDateTime, yen } from "@/lib/ops/labels";
 import { MonthSelect } from "@/components/ops/month-select";
 import { Pill } from "@/components/ops/status-badge";

@@ -12,11 +12,9 @@ import {
 } from "lucide-react";
 
 import { uploadFile } from "@/lib/files/upload";
-import {
-  createShipmentAction,
-  submitQcAction,
-  type OpsActionState,
-} from "@/lib/ops/actions";
+import { createShipmentAction } from "@/lib/ops/shipping-actions";
+import { submitQcAction } from "@/lib/ops/printing-actions";
+import { type OpsActionState } from "@/lib/ops/action-state";
 import {
   CARRIER_LABEL,
   REPRINT_CAUSE_LABEL,

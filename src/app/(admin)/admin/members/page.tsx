@@ -1,7 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 
 import { requireAdmin } from "@/lib/auth/guards";
-import { listAdminMembers } from "@/lib/ops/queries";
+import { listAdminMembers } from "@/lib/ops/members-queries";
 import { shortDateTime } from "@/lib/ops/labels";
 import { AddMemberForm, RevokeMemberButton } from "@/components/ops/member-forms";
 import { Pill } from "@/components/ops/status-badge";

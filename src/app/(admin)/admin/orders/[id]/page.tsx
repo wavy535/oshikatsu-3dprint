@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, Gift } from "lucide-react";
 
-import { getOrderForAdmin, getOrderSettlement } from "@/lib/ops/queries";
+import { getOrderForAdmin } from "@/lib/ops/orders-queries";
+import { getOrderSettlement } from "@/lib/ops/sales-queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { CARRIER_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
 import { JobStatusBadge, Pill } from "@/components/ops/status-badge";

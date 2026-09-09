@@ -2,7 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Gift } from "lucide-react";
 
-import { getOrderSummary, listOrders, type OrderSearchParams } from "@/lib/ops/queries";
+import { getOrderSummary, listOrders, type OrderSearchParams } from "@/lib/ops/orders-queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { ORDER_STATUS_FILTERS, shortDateTime, yen } from "@/lib/ops/labels";
 import { ListFilters } from "@/components/ops/list-filters";

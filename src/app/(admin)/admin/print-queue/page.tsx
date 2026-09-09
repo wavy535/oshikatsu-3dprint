@@ -2,12 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { AlertTriangle, ImageIcon } from "lucide-react";
 
-import {
-  getQueueFilterOptions,
-  getQueueSummary,
-  listPrintQueue,
-  type QueueSearchParams,
-} from "@/lib/ops/queries";
+import { getQueueFilterOptions, getQueueSummary, listPrintQueue, type QueueSearchParams } from "@/lib/ops/printing-queries";
 import { shortDateTime } from "@/lib/ops/labels";
 import { workImageUrl } from "@/lib/storage";
 import { QueueFilters } from "@/components/ops/queue-filters";

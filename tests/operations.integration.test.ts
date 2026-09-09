@@ -35,11 +35,7 @@ vi.mock("@/lib/db/client", async (importOriginal) => ({
 import { scopedPool, serviceDatabase } from "@/lib/db/client";
 import { requireAdmin, getOptionalUser } from "@/lib/auth/guards";
 import { readModel } from "@/lib/files/s3";
-import {
-  advanceBatchAction,
-  finishPrintJobAction,
-  submitQcAction,
-} from "@/lib/ops/actions";
+import { advanceBatchAction, finishPrintJobAction, submitQcAction } from "@/lib/ops/printing-actions";
 import { saveWorkInfoAction } from "@/lib/works/step-actions";
 import { validateAndPersistAsset } from "@/lib/works/asset-validation";
 

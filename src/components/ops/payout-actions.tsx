@@ -2,7 +2,8 @@
 
 import { useActionState } from "react";
 
-import { processPayoutAction, type OpsActionState } from "@/lib/ops/actions";
+import { processPayoutAction } from "@/lib/ops/sales-actions";
+import { type OpsActionState } from "@/lib/ops/action-state";
 import type { PayoutStatus } from "@/types/db";
 
 const initial: OpsActionState = { error: null };

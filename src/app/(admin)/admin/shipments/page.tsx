@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 
-import { getShipmentSummary, listShipments, type ShipmentSearchParams } from "@/lib/ops/queries";
+import { getShipmentSummary, listShipments, type ShipmentSearchParams } from "@/lib/ops/shipping-queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { CARRIER_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
 import { ListFilters } from "@/components/ops/list-filters";
