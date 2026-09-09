@@ -52,6 +52,20 @@ async function deliveredCode(
   return code;
 }
 
+test("the auth HTTP API accepts a request body and persists its session cookie", async ({
+  request,
+  baseURL,
+}) => {
+  const signedIn = await request.post("/api/auth/sign-in/email", {
+    headers: { origin: baseURL! },
+    data: { email: "buyer@example.com", password: "password123" },
+  });
+  expect(signedIn.status()).toBe(200);
+  const session = await request.get("/api/auth/get-session");
+  expect(session.status()).toBe(200);
+  expect((await session.json()).user.email).toBe("buyer@example.com");
+});
+
 test("email verification creates a persistent session; SMS verifies the signed-in account", async ({
   page,
   request,
