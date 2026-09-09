@@ -1,9 +1,9 @@
 import { jsonObjectFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
-import { monthKey, SALES_ORDER_STATUSES } from "@/lib/ops/labels";
+import { SALES_ORDER_STATUSES } from "@/lib/ops/labels";
+import { monthKey, monthStart, shiftMonth } from "@/lib/sales/months";
 import type { Tables, OrderStatus } from "@/types/db";
 
 // =============================================================================
@@ -65,213 +65,136 @@ function toSettlement(r: SettlementRow): Settlement {
 
 export async function getOrderSettlement(orderId: string) {
   const { db } = await requireAdmin();
-  const { data } = await queryResult(
-    db
-      .selectFrom("order_settlements")
-      .selectAll("order_settlements")
-      .where("order_settlements.order_id", "=", orderId)
-      .executeTakeFirst(),
-  );
+  const data = await db
+    .selectFrom("order_settlements")
+    .selectAll("order_settlements")
+    .where("order_settlements.order_id", "=", orderId)
+    .executeTakeFirst();
   return data ? toSettlement(data) : null;
 }
 
-export async function getSales(month: string | "all") {
+const SALES_PAGE_SIZE = 50;
+
+export async function getSales(month: string, requestedPage = 1) {
   const { db } = await requireAdmin();
-
-  let from: string | null = null;
-  let to: string | null = null;
-  if (month !== "all") {
-    const [y, m] = month.split("-").map(Number);
-    from = new Date(y, m - 1, 1).toISOString();
-    to = new Date(y, m, 1).toISOString();
-  }
-
-  let settlementsQuery = db
+  const allSales = db
     .selectFrom("order_settlements")
-    .selectAll("order_settlements")
-    .where(
-      sql<boolean>`${sql.ref("order_settlements.status")} = any(${[...SALES_ORDER_STATUSES]})`,
-    );
-  if (from && to)
-    settlementsQuery = settlementsQuery
-      .where("order_settlements.ordered_at", ">=", from)
-      .where("order_settlements.ordered_at", "<", to);
+    .where("status", "in", SALES_ORDER_STATUSES);
+  const selected =
+    month === "all"
+      ? allSales
+      : allSales
+          .where("ordered_at", ">=", monthStart(month))
+          .where("ordered_at", "<", monthStart(shiftMonth(month, 1)));
+  const currentMonth = monthKey();
+  const months = Array.from({ length: 6 }, (_, i) =>
+    shiftMonth(currentMonth, i - 5),
+  );
 
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setDate(1);
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
-  sixMonthsAgo.setHours(0, 0, 0, 0);
+  // 按分済みの精算値を集計する。ページ内の注文だけを合計しない。
+  const creatorTotals = db
+    .selectFrom("creator_item_settlements")
+    .where("order_id", "in", selected.select("order_id"))
+    .select([
+      "creator_id as creatorId",
+      sql<string>`coalesce(creator_name, '—')`.as("name"),
+      sql<number>`count(distinct order_id)`.as("orderCount"),
+      sql<number>`coalesce(sum(goods_amount), 0)`.as("goods"),
+      sql<number>`coalesce(sum(fee_amount), 0)`.as("fee"),
+      sql<number>`coalesce(sum(payout_amount), 0)`.as("payout"),
+    ])
+    .groupBy(["creator_id", "creator_name"])
+    .as("sales");
+  const payoutTotals = db
+    .selectFrom("payout_requests")
+    .select([
+      "creator_id",
+      sql<number>`coalesce(sum(amount) filter (where status = 'paid'), 0)`.as(
+        "paidOut",
+      ),
+      sql<number>`coalesce(sum(amount) filter (where status in ('requested', 'processing')), 0)`.as(
+        "requested",
+      ),
+    ])
+    .groupBy("creator_id")
+    .as("payouts");
 
-  const [
-    { data: rows },
-    { data: trendRows },
-    { data: payouts },
-    { data: rule },
-  ] = await Promise.all([
-    queryResult(
-      settlementsQuery
-        .orderBy("order_settlements.ordered_at", "desc")
-        .execute(),
-    ),
-    queryResult(
-      db
-        .selectFrom("order_settlements")
-        .select([
-          "order_settlements.ordered_at",
-          "order_settlements.pool_amount",
-          "order_settlements.fee_amount",
-          "order_settlements.is_final",
-        ])
-        .where(
-          sql<boolean>`${sql.ref("order_settlements.status")} = any(${[...SALES_ORDER_STATUSES]})`,
-        )
-        .where("order_settlements.ordered_at", ">=", sixMonthsAgo.toISOString())
-        .execute(),
-    ),
-    queryResult(
-      db
-        .selectFrom("payout_requests")
-        .select([
-          "payout_requests.creator_id",
-          "payout_requests.amount",
-          "payout_requests.status",
-        ])
-        .execute(),
-    ),
-    queryResult(
-      db
-        .selectFrom("print_pricing_rules")
-        .select(["print_pricing_rules.platform_fee_rate"])
-        .where("print_pricing_rules.is_active", "=", true)
-        .executeTakeFirst(),
-    ),
+  const [totals, creators, monthly, rule] = await Promise.all([
+    selected
+      .select([
+        sql<number>`count(*)`.as("orders"),
+        sql<number>`count(*) filter (where is_final)`.as("finalCount"),
+        sql<number>`coalesce(sum(gross_amount), 0)`.as("gross"),
+        sql<number>`coalesce(sum(goods_amount), 0)`.as("goods"),
+        sql<number>`coalesce(sum(print_fee_amount), 0)`.as("printFee"),
+        sql<number>`coalesce(sum(print_cost_used), 0)`.as("printUsed"),
+        sql<number>`coalesce(sum(shipping_charged_amount), 0)`.as(
+          "shippingCharged",
+        ),
+        sql<number>`coalesce(sum(shipping_used), 0)`.as("shippingUsed"),
+        sql<number>`coalesce(sum(pool_amount), 0)`.as("pool"),
+        sql<number>`coalesce(sum(fee_amount), 0)`.as("fee"),
+        sql<number>`coalesce(sum(payout_amount), 0)`.as("payout"),
+      ])
+      .executeTakeFirstOrThrow(),
+    db
+      .selectFrom(creatorTotals)
+      .leftJoin(payoutTotals, "payouts.creator_id", "sales.creatorId")
+      .selectAll("sales")
+      .select((eb) => [
+        eb.fn.coalesce("payouts.paidOut", eb.val(0)).as("paidOut"),
+        eb.fn.coalesce("payouts.requested", eb.val(0)).as("requested"),
+      ])
+      .orderBy("sales.goods", "desc")
+      .orderBy("sales.creatorId", "asc")
+      .execute(),
+    allSales
+      .select([
+        sql<string>`to_char(ordered_at at time zone 'Asia/Tokyo', 'YYYY-MM')`.as(
+          "key",
+        ),
+        sql<number>`coalesce(sum(pool_amount), 0)`.as("pool"),
+        sql<number>`coalesce(sum(fee_amount), 0)`.as("fee"),
+        sql<number>`count(*)`.as("count"),
+        sql<number>`count(*) filter (where is_final)`.as("finalCount"),
+      ])
+      .where("ordered_at", ">=", monthStart(months[0]))
+      .where("ordered_at", "<", monthStart(shiftMonth(currentMonth, 1)))
+      .groupBy("key")
+      .execute(),
+    db
+      .selectFrom("print_pricing_rules")
+      .select("platform_fee_rate")
+      .where("is_active", "=", true)
+      .executeTakeFirstOrThrow(),
   ]);
-
-  const settlements = (rows ?? []).map(toSettlement);
-  const orderIds = settlements.map((s) => s.orderId);
-  type SalesItem = Pick<
-    Tables<"creator_item_settlements">,
-    | "order_id"
-    | "creator_id"
-    | "goods_amount"
-    | "fee_amount"
-    | "payout_amount"
-    | "creator_name"
-  >;
-  let items: SalesItem[] = [];
-  if (orderIds.length) {
-    const { data, error } = await queryResult(
-      db
-        .selectFrom("creator_item_settlements")
-        .select([
-          "creator_item_settlements.order_id",
-          "creator_item_settlements.creator_id",
-          "creator_item_settlements.goods_amount",
-          "creator_item_settlements.fee_amount",
-          "creator_item_settlements.payout_amount",
-          "creator_item_settlements.creator_name",
-        ])
-        .where(
-          sql<boolean>`${sql.ref("creator_item_settlements.order_id")} = any(${orderIds})`,
-        )
-        .execute(),
-    );
-    if (error) throw new Error("クリエイター別の精算を取得できませんでした");
-    items = data ?? [];
-  }
-
-  const sum = (pick: (s: Settlement) => number | null) =>
-    settlements.reduce((n, s) => n + (pick(s) ?? 0), 0);
-
-  const totals = {
-    orders: settlements.length,
-    finalCount: settlements.filter((s) => s.isFinal).length,
-    gross: sum((s) => s.gross),
-    goods: sum((s) => s.goods),
-    printFee: sum((s) => s.printFee),
-    printUsed: sum((s) => s.printUsed),
-    shippingCharged: sum((s) => s.shippingCharged),
-    shippingUsed: sum((s) => s.shippingUsed),
-    pool: sum((s) => s.pool),
-    fee: sum((s) => s.fee),
-    payout: sum((s) => s.payout),
-  };
-
-  // 按分済みの同じDBビューを運営・クリエイター・受取残高で共用する。
-  const byCreator = new Map<
-    string,
-    {
-      creatorId: string;
-      name: string;
-      orders: Set<string>;
-      goods: number;
-      fee: number;
-      payout: number;
-    }
-  >();
-  for (const item of items) {
-    if (!item.creator_id || !item.order_id)
-      throw new Error("精算の明細が不正です");
-    const row = byCreator.get(item.creator_id) ?? {
-      creatorId: item.creator_id,
-      name: item.creator_name ?? "—",
-      orders: new Set<string>(),
-      goods: 0,
-      fee: 0,
-      payout: 0,
-    };
-    row.orders.add(item.order_id);
-    row.goods += item.goods_amount ?? 0;
-    row.fee += item.fee_amount ?? 0;
-    row.payout += item.payout_amount ?? 0;
-    byCreator.set(item.creator_id, row);
-  }
-  const paidOut = new Map<string, number>();
-  const requested = new Map<string, number>();
-  for (const p of payouts ?? []) {
-    if (p.status === "paid")
-      paidOut.set(p.creator_id, (paidOut.get(p.creator_id) ?? 0) + p.amount);
-    if (p.status === "requested" || p.status === "processing") {
-      requested.set(
-        p.creator_id,
-        (requested.get(p.creator_id) ?? 0) + p.amount,
-      );
-    }
-  }
-  const creators = [...byCreator.values()]
-    .map((c) => ({
-      ...c,
-      orderCount: c.orders.size,
-      paidOut: paidOut.get(c.creatorId) ?? 0,
-      requested: requested.get(c.creatorId) ?? 0,
-    }))
-    .sort((a, b) => b.goods - a.goods);
-
-  // 月別（直近6か月）
-  const trend = new Map<
-    string,
-    { pool: number; fee: number; count: number; finalCount: number }
-  >();
-  for (let k = 0; k < 6; k++) {
-    const d = new Date(sixMonthsAgo);
-    d.setMonth(d.getMonth() + k);
-    trend.set(monthKey(d), { pool: 0, fee: 0, count: 0, finalCount: 0 });
-  }
-  for (const r of trendRows ?? []) {
-    const t = trend.get(monthKey(new Date(r.ordered_at!)));
-    if (!t) continue;
-    t.pool += r.pool_amount ?? 0;
-    t.fee += r.fee_amount ?? 0;
-    t.count += 1;
-    if (r.is_final) t.finalCount += 1;
-  }
-
+  const pageCount = Math.max(1, Math.ceil(totals.orders / SALES_PAGE_SIZE));
+  const page =
+    Number.isSafeInteger(requestedPage) && requestedPage > 0
+      ? Math.min(requestedPage, pageCount)
+      : 1;
+  const rows = await selected
+    .selectAll()
+    .orderBy("ordered_at", "desc")
+    .orderBy("order_id", "asc")
+    .limit(SALES_PAGE_SIZE)
+    .offset((page - 1) * SALES_PAGE_SIZE)
+    .execute();
+  const byMonth = new Map(monthly.map((row) => [row.key, row]));
   return {
     totals,
     creators,
-    settlements,
-    trend: [...trend.entries()].map(([key, v]) => ({ key, ...v })),
-    feeRate: Number(rule?.platform_fee_rate ?? 0),
+    settlements: rows.map(toSettlement),
+    page,
+    pageCount,
+    trend: months.map((key) => ({
+      key,
+      pool: byMonth.get(key)?.pool ?? 0,
+      fee: byMonth.get(key)?.fee ?? 0,
+      count: byMonth.get(key)?.count ?? 0,
+      finalCount: byMonth.get(key)?.finalCount ?? 0,
+    })),
+    feeRate: Number(rule.platform_fee_rate),
   };
 }
 
@@ -282,57 +205,50 @@ export async function getSales(month: string | "all") {
 /** 振込申請の一覧（口座つき）と、クリエイターごとの残高。 */
 export async function listPayoutRequests() {
   const { db } = await requireAdmin();
-  const [{ data: requests }, { data: accounts }, { data: balances }] =
-    await Promise.all([
-      queryResult(
-        db
-          .selectFrom("payout_requests")
-          .select((eb) => [
-            "payout_requests.id",
-            "payout_requests.creator_id",
-            "payout_requests.amount",
-            "payout_requests.status",
-            "payout_requests.requested_at",
-            "payout_requests.processed_at",
-            jsonObjectFrom(
-              eb
-                .selectFrom("profiles as r28")
-                .select(["r28.display_name"])
-                .whereRef("r28.id", "=", "payout_requests.creator_id"),
-            ).as("profiles"),
-          ])
-          .orderBy("payout_requests.requested_at", "desc")
-          .execute(),
-      ),
-      queryResult(
-        db
-          .selectFrom("payout_accounts")
-          .select([
-            "payout_accounts.creator_id",
-            "payout_accounts.bank_name",
-            "payout_accounts.branch_name",
-            "payout_accounts.account_type",
-            "payout_accounts.account_number",
-            "payout_accounts.account_holder_name",
-          ])
-          .execute(),
-      ),
-      queryResult(
-        db
-          .selectFrom("creator_payout_balances")
-          .select([
-            "creator_payout_balances.creator_id",
-            "creator_payout_balances.available_amount",
-          ])
-          .execute(),
-      ),
-    ]);
-  const accountById = new Map((accounts ?? []).map((a) => [a.creator_id, a]));
+  const [requests, accounts, balances] = await Promise.all([
+    db
+      .selectFrom("payout_requests")
+      .select((eb) => [
+        "payout_requests.id",
+        "payout_requests.creator_id",
+        "payout_requests.amount",
+        "payout_requests.status",
+        "payout_requests.requested_at",
+        "payout_requests.processed_at",
+        jsonObjectFrom(
+          eb
+            .selectFrom("profiles as r28")
+            .select(["r28.display_name"])
+            .whereRef("r28.id", "=", "payout_requests.creator_id"),
+        ).as("profiles"),
+      ])
+      .orderBy("payout_requests.requested_at", "desc")
+      .execute(),
+    db
+      .selectFrom("payout_accounts")
+      .select([
+        "payout_accounts.creator_id",
+        "payout_accounts.bank_name",
+        "payout_accounts.branch_name",
+        "payout_accounts.account_type",
+        "payout_accounts.account_number",
+        "payout_accounts.account_holder_name",
+      ])
+      .execute(),
+    db
+      .selectFrom("creator_payout_balances")
+      .select([
+        "creator_payout_balances.creator_id",
+        "creator_payout_balances.available_amount",
+      ])
+      .execute(),
+  ]);
+  const accountById = new Map(accounts.map((a) => [a.creator_id, a]));
   return {
-    requests: (requests ?? []).map((r) => ({
+    requests: requests.map((r) => ({
       ...r,
       account: accountById.get(r.creator_id) ?? null,
     })),
-    balances: balances ?? [],
+    balances,
   };
 }

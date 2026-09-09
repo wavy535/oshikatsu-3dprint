@@ -1,7 +1,6 @@
 import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
 import { queryResult, pageResult } from "@/lib/db/result";
 import { call } from "@/lib/db/functions";
-import { sql } from "kysely";
 import "server-only";
 import { getDatabase } from "@/lib/auth/guards";
 import {
@@ -14,83 +13,67 @@ import {
 export type { Sort, WorkCardItem, WorkFilters };
 export { PAGE_SIZE };
 
-/**
- * 一覧・検索結果の本体。
- *
- * 並べ替えのキーは work_list_items ビューが全部持っているので、絞り込みと
- * 並べ替えはビューへ投げる。ただしタグと対応ぬいサイズだけはビューに無いので、
- * 先に該当する作品IDを引いてから `in` で渡している。
- */
+/** 検索条件はDBで評価し、ページ内の作品・画像・価格帯だけを取得する。 */
 export async function listWorks(filters: WorkFilters) {
   const db = await getDatabase();
-
-  // ── タグ・サイズの絞り込み。条件ごとに該当IDを集めて積集合をとる ──
-  const idSets: string[][] = [];
-
-  for (const slug of [filters.category, filters.worldview]) {
-    if (!slug) continue;
-    const { data } = await queryResult(
-      db
-        .selectFrom("work_tags")
-        .select((eb) => [
-          "work_tags.work_id",
-          jsonObjectFrom(
-            eb
-              .selectFrom("tags as r0")
-              .select(["r0.slug"])
-              .where("r0.slug", "=", slug)
-              .whereRef("r0.id", "=", "work_tags.tag_id"),
-          )
-            .$notNull()
-            .as("tags"),
-        ])
-        .where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom("tags as r0")
-              .select(["r0.slug"])
-              .where("r0.slug", "=", slug)
-              .whereRef("r0.id", "=", "work_tags.tag_id")
-              .clearSelect()
-              .select("r0.id"),
-          ),
-        )
-        .execute(),
-    );
-    idSets.push((data ?? []).map((r) => r.work_id));
-  }
-
-  if (filters.nuiSizeCm) {
-    const { data } = await queryResult(
-      db
-        .selectFrom("work_variants")
-        .select(["work_variants.work_id"])
-        .where("work_variants.is_listed", "=", true)
-        .where("work_variants.nui_size_cm", "=", filters.nuiSizeCm)
-        .execute(),
-    );
-    idSets.push((data ?? []).map((r) => r.work_id));
-  }
-
-  const idFilter: string[] | null = idSets.length
-    ? idSets.reduce((acc, ids) => acc.filter((id) => ids.includes(id)))
-    : null;
-
-  if (idFilter !== null && idFilter.length === 0) {
-    return { items: [] as WorkCardItem[], total: 0 };
-  }
-
-  // ── 一覧本体 ──
   let query = db
     .selectFrom("work_list_items")
     .selectAll("work_list_items")
+    .select((eb) => [
+      eb
+        .selectFrom("work_images")
+        .select("storage_path")
+        .whereRef("work_images.work_id", "=", "work_list_items.id")
+        .orderBy("sort_order", "asc")
+        .orderBy("id", "asc")
+        .limit(1)
+        .as("image_path"),
+      jsonObjectFrom(
+        eb
+          .selectFrom("work_variant_pricing")
+          .select((eb) => [
+            eb.fn.min<number | null>("buyer_total_jpy").as("min"),
+            eb.fn.max<number | null>("buyer_total_jpy").as("max"),
+          ])
+          .whereRef("work_variant_pricing.work_id", "=", "work_list_items.id")
+          .where("is_listed", "=", true),
+      )
+        .$notNull()
+        .as("price_range"),
+    ])
     .where("work_list_items.status", "=", "published")
     .where("work_list_items.is_available", "=", true);
 
-  if (idFilter !== null)
-    query = query.where(
-      sql<boolean>`${sql.ref("work_list_items.id")} = any(${idFilter})`,
+  for (const [type, slug] of [
+    ["category", filters.category],
+    ["worldview", filters.worldview],
+  ] as const) {
+    if (!slug) continue;
+    query = query.where((eb) =>
+      eb.exists(
+        eb
+          .selectFrom("work_tags")
+          .innerJoin("tags", "tags.id", "work_tags.tag_id")
+          .select("work_tags.work_id")
+          .whereRef("work_tags.work_id", "=", "work_list_items.id")
+          .where("tags.type", "=", type)
+          .where("tags.slug", "=", slug),
+      ),
     );
+  }
+  const nuiSizeCm = filters.nuiSizeCm;
+  if (nuiSizeCm) {
+    query = query.where((eb) =>
+      eb.exists(
+        eb
+          .selectFrom("work_variants")
+          .select("work_id")
+          .whereRef("work_variants.work_id", "=", "work_list_items.id")
+          .where("is_listed", "=", true)
+          .where("nui_size_cm", "=", nuiSizeCm),
+      ),
+    );
+  }
   if (filters.q)
     query = query.where("work_list_items.title", "ilike", `%${filters.q}%`);
   if (filters.creatorId)
@@ -134,84 +117,28 @@ export async function listWorks(filters: WorkFilters) {
   query = query.orderBy("work_list_items.id", "asc"); // 同値のときの並びを固定する
 
   const from = (filters.page - 1) * PAGE_SIZE;
-  const { data: rows, count } = await pageResult(
-    query,
-    from,
-    from + PAGE_SIZE - 1,
-  );
-  const list = rows ?? [];
-  if (list.length === 0)
-    return { items: [] as WorkCardItem[], total: count ?? 0 };
-
-  const ids = list.map((r) => r.id!).filter(Boolean) as string[];
-
-  // ── カードに要る画像と価格帯をまとめて引く ──
-  const [imagesRes, variantsRes] = await Promise.all([
-    queryResult(
-      db
-        .selectFrom("work_images")
-        .select([
-          "work_images.work_id",
-          "work_images.storage_path",
-          "work_images.sort_order",
-        ])
-        .where(sql<boolean>`${sql.ref("work_images.work_id")} = any(${ids})`)
-        .orderBy("work_images.sort_order", "asc")
-        .execute(),
-    ),
-    // 価格は work_variant_pricing の buyer_total_jpy（作品価格＋印刷代行費）を使う。
-    // 代行費は上乗せ請求（fee_billing = 'separate'）なので、price_jpy だけを出すと
-    // 実際の支払額より安く見えてしまう
-    queryResult(
-      db
-        .selectFrom("work_variant_pricing")
-        .select([
-          "work_variant_pricing.work_id",
-          "work_variant_pricing.buyer_total_jpy",
-        ])
-        .where(
-          sql<boolean>`${sql.ref("work_variant_pricing.work_id")} = any(${ids})`,
-        )
-        .where("work_variant_pricing.is_listed", "=", true)
-        .execute(),
-    ),
-  ]);
-
-  const firstImage = new Map<string, string>();
-  for (const img of imagesRes.data ?? []) {
-    if (!firstImage.has(img.work_id))
-      firstImage.set(img.work_id, img.storage_path);
-  }
-
-  const prices = new Map<string, number[]>();
-  for (const v of variantsRes.data ?? []) {
-    if (v.buyer_total_jpy === null || v.work_id === null) continue;
-    prices.set(v.work_id, [
-      ...(prices.get(v.work_id) ?? []),
-      v.buyer_total_jpy,
-    ]);
-  }
-
-  const items: WorkCardItem[] = list.map((r) => {
-    const p = prices.get(r.id!) ?? [];
-    return {
-      id: r.id!,
-      title: r.title!,
-      creatorId: r.creator_id!,
-      creatorName: r.creator_name!,
-      favoriteCount: r.favorite_count ?? 0,
-      minPrice: p.length ? Math.min(...p) : r.min_buyer_total_jpy,
-      maxPrice: p.length ? Math.max(...p) : null,
-      hasRange: p.length > 1 && Math.min(...p) !== Math.max(...p),
-      isPriceDropped: Boolean(r.is_price_dropped),
-      hasStock: Boolean(r.has_stock),
-      reviewCount: r.review_count ?? 0,
-      avgRating: r.avg_rating,
-      imagePath: firstImage.get(r.id!) ?? null,
-    };
-  });
-
-  return { items, total: count ?? items.length };
+  const {
+    data: rows,
+    count,
+    error,
+  } = await pageResult(query, from, from + PAGE_SIZE - 1);
+  if (error) throw new Error("作品を検索できませんでした", { cause: error });
+  const items: WorkCardItem[] = (rows ?? []).map((r) => ({
+    id: r.id!,
+    title: r.title!,
+    creatorId: r.creator_id!,
+    creatorName: r.creator_name!,
+    favoriteCount: r.favorite_count ?? 0,
+    minPrice: r.price_range.min ?? r.min_buyer_total_jpy,
+    maxPrice: r.price_range.max,
+    hasRange: r.price_range.min !== r.price_range.max,
+    isPriceDropped: Boolean(r.is_price_dropped),
+    hasStock: Boolean(r.has_stock),
+    reviewCount: r.review_count ?? 0,
+    avgRating: r.avg_rating,
+    imagePath: r.image_path,
+  }));
+  return { items, total: count ?? 0 };
 }
 
 /** 絞り込みサイドバーが出すタグの一覧 */

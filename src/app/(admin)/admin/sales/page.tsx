@@ -1,7 +1,8 @@
 import Link from "next/link";
+import { isSalesMonth, monthKey, shiftMonth } from "@/lib/sales/months";
 
 import { getSales } from "@/lib/ops/sales-queries";
-import { monthKey, monthLabel, shortDateTime, yen } from "@/lib/ops/labels";
+import { monthLabel, shortDateTime, yen } from "@/lib/ops/labels";
 import { MonthSelect } from "@/components/ops/month-select";
 import { Pill } from "@/components/ops/status-badge";
 import { Card, Row, StatCard, TD, TH } from "@/components/ops/stat-card";
@@ -12,19 +13,19 @@ export const metadata = { title: "売上・手数料" };
  * 売上・手数料。運営の決め（2026-09-08）:
  *   手数料 = (購入者の支払い − 印刷の実費 − 送料の実費) × 20%
  * 実費は発送後に確定する。それまでは請求した代行費・購入者負担の送料で見込みを出す。
- * 式そのものは DB の order_settlements ビューが持ち、ここは足して見せるだけ。
+ * 精算式と集計はDBで処理し、明細は50件ずつ表示する。
  */
 export default async function AdminSalesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; page?: string }>;
 }) {
   const sp = await searchParams;
-  const now = new Date();
-  const months = Array.from({ length: 12 }, (_, i) => monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1)));
-  const month = sp.month === "all" || (sp.month && /^\d{4}-\d{2}$/.test(sp.month)) ? sp.month : months[0];
+  const currentMonth = monthKey();
+  const months = Array.from({ length: 12 }, (_, i) => shiftMonth(currentMonth, -i));
+  const month = sp.month === "all" || isSalesMonth(sp.month) ? sp.month : months[0];
 
-  const sales = await getSales(month);
+  const sales = await getSales(month, Number(sp.page ?? 1));
   const t = sales.totals;
   const ratePct = Math.round(sales.feeRate * 100);
   const maxPool = Math.max(...sales.trend.map((m) => m.pool), 1);
@@ -141,6 +142,17 @@ export default async function AdminSalesPage({
                   </tbody>
                 </table>
               </div>
+            )}
+            {sales.pageCount > 1 && (
+              <nav aria-label="注文明細のページ" className="mt-4 flex items-center justify-between gap-3 text-[12px]">
+                {sales.page > 1 ? (
+                  <Link href={{ pathname: "/admin/sales", query: { month, page: sales.page - 1 } }} className="rounded px-2 py-1 text-brand underline focus-visible:outline-2">前へ</Link>
+                ) : <span />}
+                <span>{sales.page} / {sales.pageCount}ページ（全{t.orders}件）</span>
+                {sales.page < sales.pageCount ? (
+                  <Link href={{ pathname: "/admin/sales", query: { month, page: sales.page + 1 } }} className="rounded px-2 py-1 text-brand underline focus-visible:outline-2">次へ</Link>
+                ) : <span />}
+              </nav>
             )}
           </Card>
         </div>
