@@ -1,5 +1,6 @@
+import { sql } from "kysely";
 import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
+import { readPage } from "@/lib/db/result";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
 import type { ShippingCarrier } from "@/types/db";
@@ -8,7 +9,11 @@ import type { ShippingCarrier } from "@/types/db";
 // 出荷済み
 // =============================================================================
 
-export type ShipmentSearchParams = { carrier?: string; q?: string };
+export type ShipmentSearchParams = {
+  carrier?: string;
+  q?: string;
+  page?: string;
+};
 
 export async function listShipments(params: ShipmentSearchParams) {
   const { db } = await requireAdmin();
@@ -76,70 +81,66 @@ export async function listShipments(params: ShipmentSearchParams) {
       params.carrier as ShippingCarrier,
     );
 
-  const { data } = await queryResult(
-    query.orderBy("shipments.shipped_at", "desc").execute(),
-  );
-  const rows = data ?? [];
-  if (!params.q) return rows;
-
-  const q = params.q.toLowerCase();
-  return rows.filter(
-    (s) =>
-      (s.tracking_number ?? "").toLowerCase().includes(q) ||
-      (s.orders?.profiles?.display_name ?? "").toLowerCase().includes(q) ||
-      (s.orders?.order_items ?? []).some((i) =>
-        (i.works?.title ?? "").toLowerCase().includes(q),
-      ),
+  if (params.q?.trim()) {
+    const like = `%${params.q.trim().replace(/[\\%_]/g, "\\$&")}%`;
+    query = query.where((eb) =>
+      eb.or([
+        eb("shipments.tracking_number", "ilike", like),
+        eb.exists(
+          eb
+            .selectFrom("orders")
+            .innerJoin("profiles", "profiles.id", "orders.buyer_id")
+            .select("orders.id")
+            .whereRef("orders.id", "=", "shipments.order_id")
+            .where("profiles.display_name", "ilike", like),
+        ),
+        eb.exists(
+          eb
+            .selectFrom("order_items")
+            .innerJoin("works", "works.id", "order_items.work_id")
+            .select("order_items.id")
+            .whereRef("order_items.order_id", "=", "shipments.order_id")
+            .where("works.title", "ilike", like),
+        ),
+      ]),
+    );
+  }
+  return readPage(
+    query
+      .orderBy("shipments.shipped_at", "desc")
+      .orderBy("shipments.id", "desc"),
+    params.page,
+    50,
   );
 }
 
-export type ShipmentRow = Awaited<ReturnType<typeof listShipments>>[number];
+export type ShipmentRow = Awaited<
+  ReturnType<typeof listShipments>
+>["items"][number];
 
 /** 出荷済みの上の4枚。リードタイムは受注から発送までの日数。 */
 export async function getShipmentSummary() {
   const { db } = await requireAdmin();
-  const { data } = await queryResult(
-    db
-      .selectFrom("shipments")
-      .select((eb) => [
-        "shipments.shipped_at",
-        "shipments.shipping_fee_jpy",
-        jsonObjectFrom(
-          eb
-            .selectFrom("orders as r24")
-            .select(["r24.created_at", "r24.shipping_fee_amount"])
-            .whereRef("r24.id", "=", "shipments.order_id"),
-        ).as("orders"),
-      ])
-      .execute(),
-  );
-  const rows = data ?? [];
-
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-  const weekStart = new Date(dayStart);
-  weekStart.setDate(weekStart.getDate() - 6);
-
-  const leadDays = rows
-    .filter((s) => s.orders?.created_at)
-    .map(
-      (s) =>
-        (new Date(s.shipped_at).getTime() -
-          new Date(s.orders!.created_at).getTime()) /
-        86_400_000,
-    );
-  return {
-    today: rows.filter((s) => new Date(s.shipped_at) >= dayStart).length,
-    week: rows.filter((s) => new Date(s.shipped_at) >= weekStart).length,
-    total: rows.length,
-    avgLeadDays: leadDays.length
-      ? leadDays.reduce((a, b) => a + b, 0) / leadDays.length
-      : null,
-    // 購入者からもらった送料と、運営が払った実費の差
-    shippingBalance: rows.reduce(
-      (n, s) =>
-        n + (s.orders?.shipping_fee_amount ?? 0) - (s.shipping_fee_jpy ?? 0),
-      0,
-    ),
-  };
+  const dayStart = sql`(date_trunc('day', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo')`;
+  return db
+    .selectFrom("shipments")
+    .innerJoin("orders", "orders.id", "shipments.order_id")
+    .select([
+      sql<number>`count(*) filter (where shipments.shipped_at >= ${dayStart})::integer`.as(
+        "today",
+      ),
+      sql<number>`count(*) filter (where shipments.shipped_at >= ${dayStart} - interval '6 days')::integer`.as(
+        "week",
+      ),
+      sql<number>`count(*)::integer`.as("total"),
+      sql<
+        number | null
+      >`avg(extract(epoch from shipments.shipped_at - orders.created_at) / 86400)::float8`.as(
+        "avgLeadDays",
+      ),
+      sql<number>`coalesce(sum(orders.shipping_fee_amount - coalesce(shipments.shipping_fee_jpy, 0)), 0)::float8`.as(
+        "shippingBalance",
+      ),
+    ])
+    .executeTakeFirstOrThrow();
 }

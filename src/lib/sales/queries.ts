@@ -1,3 +1,4 @@
+import { readPage } from "@/lib/db/result";
 import { jsonObjectFrom } from "kysely/helpers/postgres";
 import { sql } from "kysely";
 import "server-only";
@@ -77,7 +78,10 @@ export async function getCreatorDashboard(month: string) {
 }
 
 /** 払込ページ: 残高・口座・申請履歴。 */
-export async function getPayoutContext() {
+export async function getPayoutContext(
+  requestedPage?: unknown,
+  chargesPage?: unknown,
+) {
   const { db, user } = await requireCreator();
   const [balance, account, requests, charges] = await Promise.all([
     db
@@ -90,36 +94,44 @@ export async function getPayoutContext() {
       .selectAll("payout_accounts")
       .where("payout_accounts.creator_id", "=", user.id)
       .executeTakeFirst(),
-    db
-      .selectFrom("payout_requests")
-      .selectAll("payout_requests")
-      .where("payout_requests.creator_id", "=", user.id)
-      .orderBy("payout_requests.requested_at", "desc")
-      .execute(),
-    db
-      .selectFrom("revision_requests")
-      .select((eb) => [
-        "revision_requests.id",
-        "revision_requests.revision_no",
-        "revision_requests.reprint_fee_jpy",
-        "revision_requests.created_at",
-        jsonObjectFrom(
-          eb
-            .selectFrom("works as r0")
-            .select(["r0.title"])
-            .whereRef("r0.id", "=", "revision_requests.work_id"),
-        ).as("works"),
-      ])
-      .where("revision_requests.creator_id", "=", user.id)
-      .where("revision_requests.charged_to_creator", "=", true)
-      .where("revision_requests.status", "!=", "cancelled")
-      .orderBy("revision_requests.created_at", "desc")
-      .execute(),
+    readPage(
+      db
+        .selectFrom("payout_requests")
+        .selectAll("payout_requests")
+        .where("payout_requests.creator_id", "=", user.id)
+        .orderBy("payout_requests.requested_at", "desc")
+        .orderBy("payout_requests.id", "desc"),
+      requestedPage,
+    ),
+    readPage(
+      db
+        .selectFrom("revision_requests")
+        .select((eb) => [
+          "revision_requests.id",
+          "revision_requests.revision_no",
+          "revision_requests.reprint_fee_jpy",
+          "revision_requests.created_at",
+          jsonObjectFrom(
+            eb
+              .selectFrom("works as r0")
+              .select(["r0.title"])
+              .whereRef("r0.id", "=", "revision_requests.work_id"),
+          ).as("works"),
+        ])
+        .where("revision_requests.creator_id", "=", user.id)
+        .where("revision_requests.charged_to_creator", "=", true)
+        .where("revision_requests.status", "!=", "cancelled")
+        .orderBy("revision_requests.created_at", "desc")
+        .orderBy("revision_requests.id", "desc"),
+      chargesPage,
+    ),
   ]);
   return {
     balance: balance ?? null,
     account: account ?? null,
-    requests,
-    charges,
+    requests: requests.items,
+    charges: charges.items,
+    requestPaging: { page: requests.page, hasNext: requests.hasNext },
+    chargePaging: { page: charges.page, hasNext: charges.hasNext },
   };
 }

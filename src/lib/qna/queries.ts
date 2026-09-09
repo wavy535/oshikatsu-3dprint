@@ -1,14 +1,14 @@
 import { jsonObjectFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
+import { queryResult, readPage } from "@/lib/db/result";
 import "server-only";
 
 import { getDatabase } from "@/lib/auth/guards";
 
-/** 作品の Q&A（公開）。回答済みを先に、新しい順。 */
-export async function listWorkQna(workId: string) {
+/** 作品の Q&A（公開）。新しい順。 */
+export async function listWorkQna(workId: string, requestedPage?: unknown) {
   const db = await getDatabase();
-  const [{ data: threads }, { data: rule }] = await Promise.all([
-    queryResult(
+  const [page, { data: rule }] = await Promise.all([
+    readPage(
       db
         .selectFrom("qna_threads")
         .select((eb) => [
@@ -27,7 +27,8 @@ export async function listWorkQna(workId: string) {
         ])
         .where("qna_threads.work_id", "=", workId)
         .orderBy("qna_threads.created_at", "desc")
-        .execute(),
+        .orderBy("qna_threads.id", "desc"),
+      requestedPage,
     ),
     queryResult(
       db
@@ -38,7 +39,8 @@ export async function listWorkQna(workId: string) {
     ),
   ]);
   return {
-    threads: threads ?? [],
+    ...page,
+    threads: page.items,
     shippingFee: rule?.shipping_fee_jpy ?? null,
   };
 }

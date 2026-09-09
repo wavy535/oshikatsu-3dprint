@@ -31,6 +31,7 @@ export function ListFilters({
 
   const push = (key: string, value: string) => {
     const next = new URLSearchParams(params.toString());
+    next.delete("page");
     if (value) next.set(key, value);
     else next.delete(key);
     router.push(`${basePath}${next.size ? `?${next}` : ""}`);

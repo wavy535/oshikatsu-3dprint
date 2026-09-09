@@ -1,5 +1,5 @@
 import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
+import { queryResult, readPage } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -10,13 +10,9 @@ import type { OrderStatus } from "@/types/db";
 // 注文一覧・注文詳細
 // =============================================================================
 
-export type OrderSearchParams = { status?: string; q?: string };
+export type OrderSearchParams = { status?: string; q?: string; page?: string };
 
-/**
- * 注文一覧。ステータスの束ね方は ORDER_STATUS_FILTERS。
- * 検索（購入者名・作品名）は取得した一覧に対して、
- * 取ってから絞る（運営の件数規模なら問題にならない）。
- */
+/** Search in PostgreSQL before limiting the displayed orders. */
 export async function listOrders(params: OrderSearchParams) {
   const { db } = await requireAdmin();
 
@@ -74,51 +70,66 @@ export async function listOrders(params: OrderSearchParams) {
     );
   }
 
-  const { data } = await queryResult(
-    query.orderBy("orders.created_at", "desc").execute(),
-  );
-  const rows = data ?? [];
-  if (!params.q) return rows;
-
-  const q = params.q.toLowerCase();
-  return rows.filter(
-    (o) =>
-      o.id.startsWith(q) ||
-      (o.profiles?.display_name ?? "").toLowerCase().includes(q) ||
-      o.order_items.some((i) =>
-        (i.works?.title ?? "").toLowerCase().includes(q),
-      ) ||
-      o.print_jobs.some((j) => (j.job_no ?? "").toLowerCase().includes(q)),
+  if (params.q?.trim()) {
+    const term = params.q.trim().replace(/[\\%_]/g, "\\$&");
+    const like = `%${term}%`;
+    query = query.where((eb) =>
+      eb.or([
+        sql<boolean>`orders.id::text ilike ${term + "%"}`,
+        eb.exists(
+          eb
+            .selectFrom("profiles")
+            .select("id")
+            .whereRef("profiles.id", "=", "orders.buyer_id")
+            .where("display_name", "ilike", like),
+        ),
+        eb.exists(
+          eb
+            .selectFrom("order_items")
+            .innerJoin("works", "works.id", "order_items.work_id")
+            .select("order_items.id")
+            .whereRef("order_items.order_id", "=", "orders.id")
+            .where("works.title", "ilike", like),
+        ),
+        eb.exists(
+          eb
+            .selectFrom("print_jobs")
+            .select("id")
+            .whereRef("print_jobs.order_id", "=", "orders.id")
+            .where("job_no", "ilike", like),
+        ),
+      ]),
+    );
+  }
+  return readPage(
+    query.orderBy("orders.created_at", "desc").orderBy("orders.id", "desc"),
+    params.page,
+    50,
   );
 }
 
-export type OrderRow = Awaited<ReturnType<typeof listOrders>>[number];
+export type OrderRow = Awaited<ReturnType<typeof listOrders>>["items"][number];
 
 /** 注文一覧の上の4枚。絞り込みに関係なく全体を出す。 */
 export async function getOrderSummary() {
   const { db } = await requireAdmin();
-  const { data } = await queryResult(
-    db
-      .selectFrom("orders")
-      .select(["orders.status", "orders.ship_due_at", "orders.created_at"])
-      .execute(),
-  );
-  const rows = data ?? [];
-  const now = Date.now();
-  const dayStart = new Date();
-  dayStart.setHours(0, 0, 0, 0);
-
-  const open = rows.filter((o) =>
-    ["paid", "printing_queued", "printing", "packaging"].includes(o.status),
-  );
-  return {
-    open: open.length,
-    packaging: rows.filter((o) => o.status === "packaging").length,
-    overdue: open.filter(
-      (o) => o.ship_due_at && new Date(o.ship_due_at).getTime() < now,
-    ).length,
-    today: rows.filter((o) => new Date(o.created_at) >= dayStart).length,
-  };
+  return db
+    .selectFrom("orders")
+    .select([
+      sql<number>`count(*) filter (where status in ('paid','printing_queued','printing','packaging'))::integer`.as(
+        "open",
+      ),
+      sql<number>`count(*) filter (where status = 'packaging')::integer`.as(
+        "packaging",
+      ),
+      sql<number>`count(*) filter (where status in ('paid','printing_queued','printing','packaging') and ship_due_at < now())::integer`.as(
+        "overdue",
+      ),
+      sql<number>`count(*) filter (where created_at >= (date_trunc('day', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo'))::integer`.as(
+        "today",
+      ),
+    ])
+    .executeTakeFirstOrThrow();
 }
 
 /**

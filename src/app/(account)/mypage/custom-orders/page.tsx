@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
@@ -18,8 +19,9 @@ const TONE: Record<string, string> = {
 };
 
 /** 買う人の相談一覧。見積りが来ているものは合計金額を出す。 */
-export default async function MyCustomOrdersPage() {
-  const requests = await listMyCustomRequests();
+export default async function MyCustomOrdersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const sp = await searchParams;
+  const { items: requests, page, hasNext } = await listMyCustomRequests(sp.page);
 
   return (
     <>
@@ -28,7 +30,7 @@ export default async function MyCustomOrdersPage() {
       {requests.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Sparkles className="size-6 text-line" aria-hidden />
-          <p className="text-sm font-semibold text-ink">相談はまだありません</p>
+          <p className="text-sm font-semibold text-ink">このページに表示する相談はありません</p>
           <p className="text-[12px] text-muted-foreground">
             作品ページの「オーダーメイド相談」から、サイズ・カラー・刻印などをクリエイターに相談できます。
           </p>
@@ -40,6 +42,7 @@ export default async function MyCustomOrdersPage() {
             const latest = [...r.custom_order_quotes].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
             return (
               <Link
+                prefetch={false}
                 key={r.id}
                 href={`/mypage/custom-orders/${r.id}`}
                 className="flex items-center gap-3 rounded-xl border border-line bg-white p-4 transition-shadow hover:shadow-md"
@@ -69,6 +72,7 @@ export default async function MyCustomOrdersPage() {
           })}
         </div>
       )}
+      <Pagination path="/mypage/custom-orders" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 
@@ -18,8 +19,9 @@ const TONE: Record<string, string> = {
 };
 
 /** クリエイターに届いた相談。回答待ちを先に。 */
-export default async function StudioCustomOrdersPage() {
-  const requests = await listCreatorCustomRequests();
+export default async function StudioCustomOrdersPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const sp = await searchParams;
+  const { items: requests, page, hasNext } = await listCreatorCustomRequests(sp.page);
   const pending = requests.filter((r) => r.status === "pending").length;
 
   return (
@@ -27,14 +29,14 @@ export default async function StudioCustomOrdersPage() {
       <div className="flex items-center gap-3">
         <h1 className="text-base font-bold text-ink">オーダーメイド相談</h1>
         <span className="num text-[12px] text-muted-foreground">
-          {requests.length}件{pending > 0 ? `（回答待ち ${pending}）` : ""}
+          このページ {requests.length}件{pending > 0 ? `（回答待ち ${pending}）` : ""}
         </span>
       </div>
 
       {requests.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Sparkles className="size-6 text-line" aria-hidden />
-          <p className="text-sm font-semibold text-ink">相談はまだありません</p>
+          <p className="text-sm font-semibold text-ink">このページに表示する相談はありません</p>
           <p className="text-[12px] text-muted-foreground">
             作品の STEP3 で「対応できるカスタマイズ」を増やすと、相談が届きやすくなります。
           </p>
@@ -45,6 +47,7 @@ export default async function StudioCustomOrdersPage() {
             const latest = r.custom_order_quotes[0];
             return (
               <Link
+                prefetch={false}
                 key={r.id}
                 href={`/studio/custom-orders/${r.id}`}
                 className="flex items-center gap-3 rounded-xl border border-line bg-white p-4 transition-shadow hover:shadow-md"
@@ -72,6 +75,7 @@ export default async function StudioCustomOrdersPage() {
           })}
         </div>
       )}
+      <Pagination path="/studio/custom-orders" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

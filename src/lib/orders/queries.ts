@@ -1,5 +1,5 @@
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
+import { readPage, queryResult } from "@/lib/db/result";
 import "server-only";
 import { requireUser } from "@/lib/auth/guards";
 import type { OrderStatus } from "@/types/db";
@@ -16,9 +16,9 @@ export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   refunded: "返金済み",
 };
 
-export async function listMyOrders() {
+export async function listMyOrders(requestedPage?: unknown) {
   const { db, user } = await requireUser("/mypage/orders");
-  const { data } = await queryResult(
+  return readPage(
     db
       .selectFrom("orders")
       .select((eb) => [
@@ -47,7 +47,10 @@ export async function listMyOrders() {
                       eb
                         .selectFrom("work_images as r2")
                         .select(["r2.storage_path", "r2.sort_order"])
-                        .whereRef("r2.work_id", "=", "r1.id"),
+                        .whereRef("r2.work_id", "=", "r1.id")
+                        .orderBy("r2.sort_order", "asc")
+                        .orderBy("r2.id", "asc")
+                        .limit(1),
                     ).as("work_images"),
                   ])
                   .whereRef("r1.id", "=", "r0.work_id"),
@@ -70,9 +73,9 @@ export async function listMyOrders() {
       ])
       .where("orders.buyer_id", "=", user.id)
       .orderBy("orders.created_at", "desc")
-      .execute(),
+      .orderBy("orders.id", "desc"),
+    requestedPage,
   );
-  return data ?? [];
 }
 
 export async function getMyOrder(id: string) {

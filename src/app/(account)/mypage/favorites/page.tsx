@@ -1,5 +1,5 @@
-import { queryResult } from "@/lib/db/result";
-import { sql } from "kysely";
+import { Pagination } from "@/components/ui/pagination";
+import { readPage } from "@/lib/db/result";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 
@@ -24,15 +24,19 @@ type FavSort = keyof typeof SORTS;
 export default async function FavoritesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sort?: string }>;
+  searchParams: Promise<{ sort?: string; page?: string }>;
 }) {
-  const { sort } = await searchParams;
+  const sp = await searchParams;
+  const { sort } = sp;
   const active = (sort && sort in SORTS ? sort : "favorited") as FavSort;
   const { db, user } = await requireUser("/mypage/favorites");
 
   let query = db
     .selectFrom("my_favorites")
     .selectAll("my_favorites")
+    .select((eb) => eb.selectFrom("work_images").select("storage_path")
+      .whereRef("work_images.work_id", "=", "my_favorites.id")
+      .orderBy("sort_order", "asc").orderBy("id", "asc").limit(1).as("image_path"))
     .where("my_favorites.user_id", "=", user.id);
   if (active === "popular")
     query = query.orderBy("my_favorites.favorite_count", "desc");
@@ -42,37 +46,14 @@ export default async function FavoritesPage({
     );
   else query = query.orderBy("my_favorites.favorited_at", "desc");
 
-  const { data } = await queryResult(query.execute());
-  const rows = data ?? [];
-
-  // サムネイルは別引き（ビューには画像が入っていない）
-  const ids = rows.map((r) => r.id!).filter(Boolean) as string[];
-  const { data: images } = ids.length
-    ? await queryResult(
-        db
-          .selectFrom("work_images")
-          .select([
-            "work_images.work_id",
-            "work_images.storage_path",
-            "work_images.sort_order",
-          ])
-          .where(sql<boolean>`${sql.ref("work_images.work_id")} = any(${ids})`)
-          .orderBy("work_images.sort_order", "asc")
-          .execute(),
-      )
-    : { data: [] };
-  const firstImage = new Map<string, string>();
-  for (const img of images ?? []) {
-    if (!firstImage.has(img.work_id))
-      firstImage.set(img.work_id, img.storage_path);
-  }
+  const { items: rows, page, hasNext } = await readPage(query.orderBy("my_favorites.id", "asc"), sp.page);
 
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="text-base font-bold text-ink">お気に入り</h1>
         <span className="num text-[12px] text-muted-foreground">
-          {rows.length}件
+          このページ {rows.length}件
         </span>
         <nav className="ml-auto flex gap-1">
           {Object.entries(SORTS).map(([k, label]) => (
@@ -95,7 +76,7 @@ export default async function FavoritesPage({
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Heart className="size-6 text-line" aria-hidden />
           <p className="text-sm font-semibold text-ink">
-            お気に入りはまだありません
+            このページに表示するお気に入りはありません
           </p>
           <Button asChild size="sm" className="mt-2">
             <Link href="/works">作品をさがす</Link>
@@ -104,7 +85,7 @@ export default async function FavoritesPage({
       ) : (
         <div className="flex flex-col gap-3">
           {rows.map((r) => {
-            const image = workImageUrl(firstImage.get(r.id!));
+            const image = workImageUrl(r.image_path);
             return (
               <Link
                 key={r.id}
@@ -115,6 +96,7 @@ export default async function FavoritesPage({
                   {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
+                      loading="lazy"
                       src={image}
                       alt=""
                       className="size-full object-cover"
@@ -149,6 +131,7 @@ export default async function FavoritesPage({
           })}
         </div>
       )}
+      <Pagination path="/mypage/favorites" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

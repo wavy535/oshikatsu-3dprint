@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { AlertTriangle, ImageIcon, Wrench } from "lucide-react";
 
@@ -21,8 +22,9 @@ const STATUS_TONE: Record<string, string> = {
  * Figma ②出品フロー「作品の修正依頼」の一覧。
  * 検品NG（原因＝モデル側）で運営が起こした依頼が並ぶ。未対応・対応中を先に出す。
  */
-export default async function StudioRevisionsPage() {
-  const revisions = await listMyRevisions();
+export default async function StudioRevisionsPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const sp = await searchParams;
+  const { items: revisions, page, hasNext } = await listMyRevisions(sp.page);
   const open = revisions.filter((r) => r.status === "open" || r.status === "in_progress");
 
   return (
@@ -30,7 +32,7 @@ export default async function StudioRevisionsPage() {
       <div className="flex items-center gap-3">
         <h1 className="text-base font-bold text-ink">修正依頼</h1>
         <span className="num text-[12px] text-muted-foreground">
-          {revisions.length}件{open.length > 0 ? `（要対応 ${open.length}）` : ""}
+          このページ {revisions.length}件{open.length > 0 ? `（要対応 ${open.length}）` : ""}
         </span>
       </div>
 
@@ -46,7 +48,7 @@ export default async function StudioRevisionsPage() {
       {revisions.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Wrench className="size-6 text-line" aria-hidden />
-          <p className="text-sm font-semibold text-ink">修正依頼はありません</p>
+          <p className="text-sm font-semibold text-ink">このページに表示する修正依頼はありません</p>
           <p className="text-[12px] text-muted-foreground">
             検品でデータ側の問題が見つかったときに、ここへ運営からの依頼が届きます。
           </p>
@@ -61,6 +63,7 @@ export default async function StudioRevisionsPage() {
             const overdue = (r.status === "open" || r.status === "in_progress") && new Date(r.due_at) < new Date();
             return (
               <Link
+                prefetch={false}
                 key={r.id}
                 href={`/studio/revisions/${r.id}`}
                 className="flex items-center gap-4 rounded-xl border border-line bg-white p-4 transition-shadow hover:shadow-md"
@@ -68,7 +71,7 @@ export default async function StudioRevisionsPage() {
                 <span className="flex size-14 flex-none items-center justify-center overflow-hidden rounded-lg bg-ground">
                   {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={image} alt="" className="size-full object-cover" />
+                    <img loading="lazy" src={image} alt="" className="size-full object-cover" />
                   ) : (
                     <ImageIcon className="size-5 text-line" aria-hidden />
                   )}
@@ -103,6 +106,7 @@ export default async function StudioRevisionsPage() {
           })}
         </div>
       )}
+      <Pagination path="/studio/revisions" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

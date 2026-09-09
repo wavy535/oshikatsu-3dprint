@@ -1,5 +1,7 @@
+import { cache } from "react";
+import { pageNumber } from "@/lib/pagination";
 import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
-import { queryResult, pageResult } from "@/lib/db/result";
+import { queryResult, pageResult, readPage } from "@/lib/db/result";
 import { call } from "@/lib/db/functions";
 import "server-only";
 import { getDatabase } from "@/lib/auth/guards";
@@ -116,7 +118,7 @@ export async function listWorks(filters: WorkFilters) {
   }
   query = query.orderBy("work_list_items.id", "asc"); // 同値のときの並びを固定する
 
-  const from = (filters.page - 1) * PAGE_SIZE;
+  const from = (pageNumber(filters.page) - 1) * PAGE_SIZE;
   const {
     data: rows,
     count,
@@ -166,7 +168,7 @@ export async function listFilterTags() {
 }
 
 /** 作品詳細。サイズ展開・画像・タグ・クリエイターまで1回で引く。 */
-export async function getWork(id: string) {
+export const getWork = cache(async (id: string) => {
   const db = await getDatabase();
   const { data, error } = await queryResult(
     db
@@ -212,8 +214,10 @@ export async function getWork(id: string) {
         jsonArrayFrom(
           eb
             .selectFrom("work_variants as r5")
+            .leftJoin("work_variant_pricing as pricing", "pricing.id", "r5.id")
             .select([
               "r5.id",
+              "pricing.buyer_total_jpy",
               "r5.size_label",
               "r5.nui_size_cm",
               "r5.scale_ratio",
@@ -240,26 +244,11 @@ export async function getWork(id: string) {
       .executeTakeFirst(),
   );
 
-  if (error || !data) return null;
-
-  // 支払額（作品価格＋印刷代行費）はビューが計算している
-  const { data: pricing } = await queryResult(
-    db
-      .selectFrom("work_variant_pricing")
-      .select([
-        "work_variant_pricing.id",
-        "work_variant_pricing.buyer_total_jpy",
-      ])
-      .where("work_variant_pricing.work_id", "=", id)
-      .execute(),
-  );
-  const buyerTotalById = new Map(
-    (pricing ?? []).map((p) => [p.id, p.buyer_total_jpy] as const),
-  );
+  if (error) throw error;
+  if (!data) return null;
 
   const variants = [...(data.work_variants ?? [])]
     .filter((v) => v.is_listed)
-    .map((v) => ({ ...v, buyer_total_jpy: buyerTotalById.get(v.id) ?? null }))
     .sort((a, b) => (a.nui_size_cm ?? 0) - (b.nui_size_cm ?? 0));
 
   const images = [...(data.work_images ?? [])].sort(
@@ -267,37 +256,46 @@ export async function getWork(id: string) {
   );
 
   return { ...data, work_variants: variants, work_images: images };
-}
+});
 
 /**
  * レビューの件数・平均と、直近3件。作品詳細の1行サマリに使う。
  * 件数と平均は全件から出すので、直近3件とは別に集計を引く。
  */
+const getWorkReviewStats = cache(async (workId: string) => {
+  const db = await getDatabase();
+  return db
+    .selectFrom("reviews")
+    .where("work_id", "=", workId)
+    .select((eb) => [
+      eb.fn.countAll<number>().as("count"),
+      eb.fn.avg<number | null>("rating").as("avg"),
+      eb.fn.avg<number | null>("design_rating").as("avgDesign"),
+      eb.fn.avg<number | null>("accuracy_rating").as("avgAccuracy"),
+      eb.fn.avg<number | null>("size_fit_rating").as("avgSizeFit"),
+      eb.fn.countAll<number>().filterWhere("rating", "=", 5).as("stars5"),
+      eb.fn.countAll<number>().filterWhere("rating", "=", 4).as("stars4"),
+      eb.fn.countAll<number>().filterWhere("rating", "=", 3).as("stars3"),
+      eb.fn.countAll<number>().filterWhere("rating", "=", 2).as("stars2"),
+      eb.fn.countAll<number>().filterWhere("rating", "=", 1).as("stars1"),
+    ])
+    .executeTakeFirstOrThrow();
+});
+
 export async function getWorkReviewSummary(workId: string) {
   const db = await getDatabase();
-  const [allRes, latestRes] = await Promise.all([
-    queryResult(
-      db
-        .selectFrom("reviews")
-        .select(["reviews.rating"])
-        .where("reviews.work_id", "=", workId)
-        .execute(),
-    ),
-    queryResult(
-      db
-        .selectFrom("reviews")
-        .select(["reviews.rating", "reviews.comment", "reviews.created_at"])
-        .where("reviews.work_id", "=", workId)
-        .orderBy("reviews.created_at", "desc")
-        .limit(3)
-        .execute(),
-    ),
+  const [stats, latest] = await Promise.all([
+    getWorkReviewStats(workId),
+    db
+      .selectFrom("reviews")
+      .select(["rating", "comment", "created_at"])
+      .where("work_id", "=", workId)
+      .orderBy("created_at", "desc")
+      .orderBy("id", "desc")
+      .limit(3)
+      .execute(),
   ]);
-
-  const all = allRes.data ?? [];
-  const count = all.length;
-  const avg = count ? all.reduce((n, r) => n + r.rating, 0) / count : null;
-  return { count, avg, latest: latestRes.data ?? [] };
+  return { count: stats.count, avg: stats.avg, latest };
 }
 
 /**
@@ -332,55 +330,53 @@ export async function isFavorited(workId: string, userId: string) {
  * 作品のレビュー一覧と集計（分布・クリエイター向け3軸）。
  * 印刷品質・梱包・配送は運営あての評価なので、ここでは出さない（設計判断8）。
  */
-export async function listWorkReviews(workId: string) {
+export async function listWorkReviews(workId: string, requestedPage?: unknown) {
   const db = await getDatabase();
-  const { data } = await queryResult(
-    db
-      .selectFrom("reviews")
-      .select((eb) => [
-        "reviews.id",
-        "reviews.rating",
-        "reviews.comment",
-        "reviews.created_at",
-        "reviews.is_anonymous",
-        "reviews.design_rating",
-        "reviews.accuracy_rating",
-        "reviews.size_fit_rating",
-        "reviews.photo_storage_path",
-        jsonObjectFrom(
-          eb
-            .selectFrom("profiles as r6")
-            .select(["r6.display_name", "r6.avatar_url"])
-            .whereRef("r6.id", "=", "reviews.reviewer_id"),
-        ).as("profiles"),
-        jsonObjectFrom(
-          eb
-            .selectFrom("order_items as r7")
-            .select(["r7.size_label_snapshot"])
-            .whereRef("r7.id", "=", "reviews.order_item_id"),
-        ).as("order_items"),
-      ])
-      .where("reviews.work_id", "=", workId)
-      .orderBy("reviews.created_at", "desc")
-      .execute(),
-  );
-  const rows = data ?? [];
-  const count = rows.length;
-  const avgOf = (pick: (r: (typeof rows)[number]) => number | null) => {
-    const vals = rows.map(pick).filter((v): v is number => v !== null);
-    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
-  };
-  const distribution = [5, 4, 3, 2, 1].map((star) => ({
-    star,
-    count: rows.filter((r) => r.rating === star).length,
-  }));
+  const [page, stats] = await Promise.all([
+    readPage(
+      db
+        .selectFrom("reviews")
+        .select((eb) => [
+          "reviews.id",
+          "reviews.rating",
+          "reviews.comment",
+          "reviews.created_at",
+          "reviews.is_anonymous",
+          "reviews.design_rating",
+          "reviews.accuracy_rating",
+          "reviews.size_fit_rating",
+          "reviews.photo_storage_path",
+          jsonObjectFrom(
+            eb
+              .selectFrom("profiles as r6")
+              .select(["r6.display_name", "r6.avatar_url"])
+              .whereRef("r6.id", "=", "reviews.reviewer_id"),
+          ).as("profiles"),
+          jsonObjectFrom(
+            eb
+              .selectFrom("order_items as r7")
+              .select(["r7.size_label_snapshot"])
+              .whereRef("r7.id", "=", "reviews.order_item_id"),
+          ).as("order_items"),
+        ])
+        .where("reviews.work_id", "=", workId)
+        .orderBy("reviews.created_at", "desc")
+        .orderBy("reviews.id", "desc"),
+      requestedPage,
+    ),
+    getWorkReviewStats(workId),
+  ]);
+  const counts = [
+    stats.stars5,
+    stats.stars4,
+    stats.stars3,
+    stats.stars2,
+    stats.stars1,
+  ];
   return {
-    rows,
-    count,
-    avg: avgOf((r) => r.rating),
-    avgDesign: avgOf((r) => r.design_rating),
-    avgAccuracy: avgOf((r) => r.accuracy_rating),
-    avgSizeFit: avgOf((r) => r.size_fit_rating),
-    distribution,
+    ...page,
+    rows: page.items,
+    ...stats,
+    distribution: counts.map((count, index) => ({ star: 5 - index, count })),
   };
 }

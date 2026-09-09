@@ -14,15 +14,29 @@ import { Kysely, PostgresDialect } from "kysely";
 import type { Database } from "@/types/database";
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({
   requireAdmin: vi.fn(),
   requireCreator: vi.fn(),
   getDatabase: vi.fn(),
+  requireUser: vi.fn(),
 }));
-import { requireAdmin, requireCreator, getDatabase } from "@/lib/auth/guards";
+import {
+  requireAdmin,
+  requireCreator,
+  getDatabase,
+  requireUser,
+} from "@/lib/auth/guards";
 import { scopedPool } from "@/lib/db/client";
 import { getPool } from "@/lib/db/pool";
 import { listWorks } from "@/lib/works/queries";
+import { getWork, getWorkReviewSummary } from "@/lib/works/queries";
+import { listOrders, getOrderSummary } from "@/lib/ops/orders-queries";
+import { listShipments, getShipmentSummary } from "@/lib/ops/shipping-queries";
+import { getQueueSummary, listPrintQueue } from "@/lib/ops/printing-queries";
+import { listMyOrders } from "@/lib/orders/queries";
+import { listThreads, getThread } from "@/lib/messages/queries";
+import { markMessagesReadAction } from "@/lib/messages/actions";
 import {
   getSales,
   getOrderSettlement,
@@ -187,6 +201,10 @@ describe.skipIf(!enabled)("bounded backend queries", () => {
       db: actor(creatorId),
       user: { id: creatorId },
     } as Awaited<ReturnType<typeof requireCreator>>);
+    vi.mocked(requireUser).mockResolvedValue({
+      db: actor(adminId),
+      user: { id: adminId },
+    } as Awaited<ReturnType<typeof requireUser>>);
   });
   afterAll(async () => {
     vi.useRealTimers();
@@ -317,5 +335,205 @@ describe.skipIf(!enabled)("bounded backend queries", () => {
     await expect(getOrderSettlement(orders[0])).rejects.toThrow(
       "injected read failure",
     );
+  });
+});
+
+describe.skipIf(!enabled)("paged lists and conversation history", () => {
+  // This group has its own fixtures because the preceding group's hooks clean up.
+  const [viewer, sender, oldSender] = [
+    randomUUID(),
+    randomUUID(),
+    randomUUID(),
+  ];
+  const work = randomUUID();
+  const orderIds: string[] = [];
+  const messageIds: string[] = [];
+  const pool = new pg.Pool({
+    connectionString: process.env.DATABASE_URL,
+    types: enabled ? getPool("data").options.types : undefined,
+  });
+  const setup = new pg.Pool({
+    connectionString: process.env.MIGRATION_DATABASE_URL,
+  });
+  const db = new Kysely<Database>({
+    dialect: new PostgresDialect({
+      pool: scopedPool(pool, { role: "app_user", userId: viewer }),
+    }),
+  });
+  beforeAll(async () => {
+    const target = new URL(process.env.MIGRATION_DATABASE_URL!);
+    if (
+      !["localhost", "127.0.0.1"].includes(target.hostname) ||
+      target.port !== "55432"
+    )
+      throw new Error("Local database required");
+    for (const id of [viewer, sender, oldSender])
+      await setup.query("insert into app_users (id,email) values ($1,$2)", [
+        id,
+        `${id}@example.invalid`,
+      ]);
+    await setup.query(
+      "update profiles set role='admin', display_name=$1::text where id=$1::uuid",
+      [viewer],
+    );
+    await setup.query(
+      "insert into works (id,creator_id,title,status) values ($1::uuid,$2,$1::text,'published')",
+      [work, sender],
+    );
+    await setup.query(
+      "insert into work_variants (work_id,size_label,price_jpy,stock,is_listed,bbox_x_mm,bbox_y_mm,bbox_z_mm) values ($1,'base',1000,100,true,10,10,10)",
+      [work],
+    );
+    const result = await setup.query(
+      "insert into orders (buyer_id,status,subtotal_amount,total_amount,is_demo,created_at) select $1,'printing',1000,1000,true,'2035-01-01'::timestamptz from generate_series(1,51) returning id",
+      [viewer],
+    );
+    orderIds.push(...result.rows.map((r) => r.id));
+    for (const id of orderIds) {
+      await setup.query(
+        "insert into order_items (order_id,work_id,creator_id,unit_price,quantity,creator_payout_amount,platform_fee_amount,print_cost_amount,stl_storage_path_snapshot,filament_material_snapshot,filament_color_snapshot) values ($1,$2,$3,1000,1,800,200,0,'test.stl','PLA','white')",
+        [id, work, sender],
+      );
+      await setup.query(
+        "insert into print_jobs (order_id,order_item_id,status,job_no) select $1,id,'queued',$3 from order_items where order_id=$1 and work_id=$2",
+        [id, work, `${work}-${id}`],
+      );
+      await setup.query(
+        "insert into shipments (order_id,carrier,tracking_number,shipped_at,shipping_fee_jpy) values ($1,'yamato',$2,'2035-01-02',100)",
+        [id, work],
+      );
+    }
+    const messages = await setup.query(
+      "insert into messages (sender_id,recipient_id,body,created_at) select $1,$2,'message '||g,'2035-01-01'::timestamptz + (g || ' microseconds')::interval from generate_series(1,501) g returning id",
+      [sender, viewer],
+    );
+    messageIds.push(...messages.rows.map((r) => r.id));
+    await setup.query(
+      "insert into messages (sender_id,recipient_id,body,created_at) values ($1,$2,'old conversation','2030-01-01'),($2,$1,'sent message','2029-01-01')",
+      [oldSender, viewer],
+    );
+  });
+  beforeEach(() => {
+    vi.mocked(requireUser).mockResolvedValue({
+      db,
+      user: { id: viewer },
+    } as Awaited<ReturnType<typeof requireUser>>);
+    vi.mocked(requireAdmin).mockResolvedValue({
+      db,
+      user: { id: viewer },
+    } as Awaited<ReturnType<typeof requireAdmin>>);
+    vi.mocked(getDatabase).mockResolvedValue(db);
+  });
+  afterAll(async () => {
+    await setup.query("delete from orders where buyer_id=$1", [viewer]);
+    await setup.query("delete from works where id=$1", [work]);
+    await setup.query("delete from app_users where id=any($1::uuid[])", [
+      [viewer, sender, oldSender],
+    ]);
+    await Promise.all([pool.end(), setup.end()]);
+  });
+
+  test("order, job and shipment search happens before paging, with stable ties", async () => {
+    for (const list of [
+      (page: string) => listOrders({ q: work, status: "all", page }),
+      (page: string) => listPrintQueue({ q: work, status: "all", page }),
+      (page: string) => listShipments({ q: work, page }),
+    ]) {
+      const first = await list("1");
+      const second = await list("2");
+      expect(first.items).toHaveLength(50);
+      expect(first.hasNext).toBe(true);
+      expect(second.items).toHaveLength(1);
+      expect(second.hasNext).toBe(false);
+      expect(
+        new Set([...first.items, ...second.items].map((r) => r.id)).size,
+      ).toBe(51);
+    }
+    const first = await listMyOrders(1);
+    const second = await listMyOrders(2);
+    expect(first.items).toHaveLength(30);
+    expect(second.items).toHaveLength(21);
+    expect(
+      new Set([...first.items, ...second.items].map((r) => r.id)).size,
+    ).toBe(51);
+    expect(
+      (await listOrders({ status: "all", q: orderIds[0] })).items,
+    ).toHaveLength(1);
+  });
+
+  test("summaries execute as aggregates and details retain computed prices", async () => {
+    const [orders, shipments, queue, detail, reviews, payouts] =
+      await Promise.all([
+        getOrderSummary(),
+        getShipmentSummary(),
+        getQueueSummary(),
+        getWork(work),
+        getWorkReviewSummary(work),
+        listPayoutRequests(),
+      ]);
+    expect(orders.open).toBeGreaterThanOrEqual(0);
+    expect(shipments.total).toBeGreaterThanOrEqual(51);
+    expect(shipments.avgLeadDays).toEqual(expect.any(Number));
+    expect(queue.queued).toBeGreaterThanOrEqual(51);
+    expect(detail?.work_variants[0].buyer_total_jpy).toBeGreaterThan(0);
+    expect(reviews).toEqual({ count: 0, avg: null, latest: [] });
+    expect(payouts.summary.total).toBeGreaterThanOrEqual(
+      payouts.requests.length,
+    );
+  });
+
+  test("all conversations and unread counts survive more than 500 recent messages", async () => {
+    const threads = await listThreads();
+    expect(threads.items).toHaveLength(2);
+    expect(threads.items[0]).toMatchObject({
+      counterpartId: sender,
+      lastBody: "message 501",
+      unread: 501,
+    });
+    expect(threads.items[1]).toMatchObject({
+      counterpartId: oldSender,
+      unread: 1,
+    });
+    expect(threads.totalUnread).toBe(502);
+  });
+
+  test("message cursors preserve microsecond ties and new arrivals; reading is side-effect free", async () => {
+    const first = await getThread(sender);
+    expect(first?.messages).toHaveLength(50);
+    expect(first?.messages.at(-1)?.body).toBe("message 501");
+    expect(first?.messages[0].body).toBe("message 452");
+    expect(first?.olderCursor).toBeTruthy();
+    await setup.query(
+      "insert into messages (sender_id,recipient_id,body,created_at) values ($1,$2,'new arrival','2036-01-01')",
+      [sender, viewer],
+    );
+    const second = await getThread(sender, first!.olderCursor!);
+    expect(second?.messages.at(-1)?.body).toBe("message 451");
+    expect(
+      new Set([...first!.messages, ...second!.messages].map((m) => m.id)).size,
+    ).toBe(100);
+    const unread = await setup.query(
+      "select count(*)::int as count from messages where recipient_id=$1 and read_at is null",
+      [viewer],
+    );
+    expect(unread.rows[0].count).toBe(503);
+    const wrong = await setup.query(
+      "select id from messages where sender_id=$1 and recipient_id=$2",
+      [viewer, oldSender],
+    );
+    await markMessagesReadAction([
+      ...first!.messages.slice(0, 49).map((m) => m.id),
+      wrong.rows[0].id,
+    ]);
+    const read = await setup.query(
+      "select count(*)::int as count from messages where recipient_id=$1 and read_at is not null",
+      [viewer],
+    );
+    expect(read.rows[0].count).toBe(49);
+    const denied = await setup.query(
+      "select read_at from messages where id=$1",
+      [wrong.rows[0].id],
+    );
+    expect(denied.rows[0].read_at).toBeNull();
   });
 });

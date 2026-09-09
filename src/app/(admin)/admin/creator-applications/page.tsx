@@ -1,4 +1,5 @@
-import { queryResult } from "@/lib/db/result";
+import { Pagination } from "@/components/ui/pagination";
+import { queryResult, readPage } from "@/lib/db/result";
 import { sql } from "kysely";
 import { requireAdmin } from "@/lib/auth/guards";
 import { serviceDatabase } from "@/lib/db/client";
@@ -15,13 +16,14 @@ const STATUS_LABEL: Record<string, string> = {
 // このページ自体はDBで検証したセッションでアクセス制御（admin roleチェック）を行い、
 // 表示用のデータ取得は運営専用の app_service ポリシーで行う。
 // 承認/却下の書き込みは src/lib/creator/actions.ts が同様に admin チェック後に実行する。
-export default async function CreatorApplicationsAdminPage() {
+export default async function CreatorApplicationsAdminPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const sp = await searchParams;
   // 権限は (admin)/layout.tsx の requireAdmin でも見ているが、
   // ページ単体でも成り立つようにここでも確認する
   await requireAdmin();
 
   const serviceDb = serviceDatabase();
-  const { data: applications } = await queryResult(
+  const { items: applications, page, hasNext } = await readPage(
     serviceDb
       .selectFrom("creator_applications")
       .select([
@@ -37,8 +39,7 @@ export default async function CreatorApplicationsAdminPage() {
         "creator_applications.terms_version",
         "creator_applications.terms_agreed_at",
       ])
-      .orderBy("creator_applications.created_at", "desc")
-      .execute(),
+      .orderBy("creator_applications.created_at", "desc").orderBy("creator_applications.id", "desc"), sp.page,
   );
 
   const userIds = [...new Set((applications ?? []).map((a) => a.user_id))];
@@ -114,6 +115,7 @@ export default async function CreatorApplicationsAdminPage() {
           )}
         </CardContent>
       </Card>
+      <Pagination path="/admin/creator-applications" params={sp} page={page} hasNext={hasNext} />
     </div>
   );
 }

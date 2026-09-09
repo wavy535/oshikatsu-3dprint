@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import { Suspense } from "react";
 import Link from "next/link";
 import { Gift } from "lucide-react";
@@ -35,7 +36,7 @@ export default async function AdminOrdersPage({
   searchParams: Promise<OrderSearchParams>;
 }) {
   const sp = await searchParams;
-  const [orders, summary] = await Promise.all([listOrders(sp), getOrderSummary()]);
+  const [{ items: orders, page, hasNext }, summary] = await Promise.all([listOrders(sp), getOrderSummary()]);
   const now = new Date().getTime();
 
   return (
@@ -103,7 +104,7 @@ export default async function AdminOrdersPage({
               return (
                 <tr key={o.id} className={`border-t border-line ${overdue ? "bg-danger-bg/50" : ""}`}>
                   <td className={`${TD} num font-semibold text-brand`}>
-                    <Link href={`/admin/orders/${o.id}`} className="hover:underline">
+                    <Link prefetch={false} href={`/admin/orders/${o.id}`} className="hover:underline">
                       #{o.id.slice(0, 8)}
                     </Link>
                   </td>
@@ -150,6 +151,7 @@ export default async function AdminOrdersPage({
                   <td className={TD}>
                     {o.status === "packaging" && jobs[0] ? (
                       <Link
+                        prefetch={false}
                         href={`/admin/print-queue/${jobs[0].id}/qc`}
                         className="inline-flex items-center rounded-md bg-brand px-2.5 py-1.5 text-[11px] font-semibold text-white hover:opacity-90"
                       >
@@ -157,6 +159,7 @@ export default async function AdminOrdersPage({
                       </Link>
                     ) : (
                       <Link
+                        prefetch={false}
                         href={`/admin/orders/${o.id}`}
                         className="inline-flex items-center rounded-md border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-ink hover:bg-ground"
                       >
@@ -170,6 +173,7 @@ export default async function AdminOrdersPage({
           </tbody>
         </table>
       </div>
+      <Pagination path="/admin/orders" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import { getPayoutContext } from "@/lib/sales/queries";
 import { PAYOUT_STATUS_LABEL, shortDateTime } from "@/lib/ops/labels";
 import { yen } from "@/components/work/work-card";
@@ -13,8 +14,9 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 /** 受取残高・振込先口座・申請の履歴・再印刷の負担。 */
-export default async function StudioPayoutsPage() {
-  const { balance: b, account, requests, charges } = await getPayoutContext();
+export default async function StudioPayoutsPage({ searchParams }: { searchParams: Promise<{ page?: string; chargesPage?: string }> }) {
+  const sp = await searchParams;
+  const { balance: b, account, requests, charges, requestPaging, chargePaging } = await getPayoutContext(sp.page, sp.chargesPage);
 
   return (
     <>
@@ -46,6 +48,7 @@ export default async function StudioPayoutsPage() {
                 </tbody>
               </table>
             )}
+            <Pagination path="/studio/payouts" params={sp} {...requestPaging} label="払込申請のページ切り替え" />
           </section>
 
           <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
@@ -69,6 +72,7 @@ export default async function StudioPayoutsPage() {
             <p className="text-[10px] text-muted-foreground">
               検品で「モデル側」と判定された再印刷の代行費です。判定に納得できないときは修正依頼の画面から運営に相談できます。
             </p>
+            <Pagination path="/studio/payouts" params={sp} {...chargePaging} pageKey="chargesPage" label="再印刷費用のページ切り替え" />
           </section>
         </div>
 

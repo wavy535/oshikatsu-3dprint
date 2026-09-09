@@ -1,5 +1,5 @@
 import { jsonObjectFrom } from "kysely/helpers/postgres";
-import { queryResult, firstResult } from "@/lib/db/result";
+import { readPage, queryResult, firstResult } from "@/lib/db/result";
 import { call } from "@/lib/db/functions";
 import { sql } from "kysely";
 import "server-only";
@@ -66,9 +66,12 @@ export async function getCreatorProfile(creatorId: string) {
 }
 
 /** クリエイターへのレビュー（全作品）。公開プロフィールの「レビュー」タブ。 */
-export async function listCreatorReviews(creatorId: string, limit = 30) {
+export async function listCreatorReviews(
+  creatorId: string,
+  requestedPage?: unknown,
+) {
   const db = await getDatabase();
-  const { data } = await queryResult(
+  return readPage(
     db
       .selectFrom("reviews")
       .select((eb) => [
@@ -98,10 +101,9 @@ export async function listCreatorReviews(creatorId: string, limit = 30) {
       ])
       .where("reviews.creator_id", "=", creatorId)
       .orderBy("reviews.created_at", "desc")
-      .limit(limit)
-      .execute(),
+      .orderBy("reviews.id", "desc"),
+    requestedPage,
   );
-  return data ?? [];
 }
 
 /** SNS リンク（profiles.sns_links）。{ x: url, instagram: url, ... } を並べる。 */

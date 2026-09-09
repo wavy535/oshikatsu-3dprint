@@ -1,4 +1,4 @@
-import { queryResult } from "@/lib/db/result";
+import { queryResult, readPage } from "@/lib/db/result";
 import "server-only";
 import { requireUser } from "@/lib/auth/guards";
 import type { NotificationKind } from "@/types/db";
@@ -6,7 +6,10 @@ import type { NotificationKind } from "@/types/db";
 import { KIND_LABEL, MANDATORY_KINDS } from "./labels";
 export { KIND_LABEL, MANDATORY_KINDS } from "./labels";
 
-export async function listNotifications(kind?: NotificationKind) {
+export async function listNotifications(
+  kind?: NotificationKind,
+  requestedPage?: unknown,
+) {
   const { db, user } = await requireUser("/mypage/notifications");
   let query = db
     .selectFrom("notifications")
@@ -21,10 +24,9 @@ export async function listNotifications(kind?: NotificationKind) {
     ])
     .where("notifications.user_id", "=", user.id)
     .orderBy("notifications.created_at", "desc")
-    .limit(100);
+    .orderBy("notifications.id", "desc");
   if (kind) query = query.where("notifications.kind", "=", kind);
-  const { data } = await queryResult(query.execute());
-  return data ?? [];
+  return readPage(query, requestedPage);
 }
 
 /** 通知設定。行が無い種類は「アプリ内・メールON／プッシュOFF」が既定。 */

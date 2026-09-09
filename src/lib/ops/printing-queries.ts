@@ -1,5 +1,5 @@
 import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
+import { queryResult, readPage } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -7,6 +7,7 @@ import { QUEUE_STATUS_FILTERS } from "@/lib/ops/labels";
 import type { FilamentMaterial, PrintJobStatus } from "@/types/db";
 
 export type QueueSearchParams = {
+  page?: string;
   status?: string;
   material?: string;
   printer?: string;
@@ -48,84 +49,68 @@ export async function listPrintQueue(params: QueueSearchParams) {
     );
   }
 
-  // 期限の近いものから。期限なし（想定外）は最後に回す
-  const { data } = await queryResult(
+  return readPage(
     query
       .orderBy("print_queue.due_at", (order) => order.asc().nullsLast())
       .orderBy("print_queue.job_no", "asc")
-      .execute(),
+      .orderBy("print_queue.id", "asc"),
+    params.page,
+    50,
   );
-
-  return data ?? [];
 }
 
-export type QueueRow = Awaited<ReturnType<typeof listPrintQueue>>[number];
+export type QueueRow = Awaited<
+  ReturnType<typeof listPrintQueue>
+>["items"][number];
 
-/**
- * キュー上部の4枚（未着手・印刷中・検品待ち・期限超過）。
- * 絞り込みに関係なく全体の状況を出したいので、一覧とは別に取る。
- */
+/** Aggregate the job table without loading the joined queue or its images. */
 export async function getQueueSummary() {
   const { db } = await requireAdmin();
-  const { data } = await queryResult(
-    db
-      .selectFrom("print_queue")
-      .select([
-        "print_queue.status",
-        "print_queue.due_at",
-        "print_queue.is_overdue",
-        "print_queue.est_print_hours",
-      ])
-      .execute(),
-  );
-
-  const rows = data ?? [];
-  const within24h = (v: string | null) =>
-    v !== null && new Date(v).getTime() - Date.now() < 24 * 60 * 60 * 1000;
-
-  const queued = rows.filter((r) => r.status === "queued");
-  const printing = rows.filter(
-    (r) => r.status === "printing" || r.status === "reprinting",
-  );
-  const waitingQc = rows.filter((r) => r.status === "printed");
-  const overdue = rows.filter((r) => r.is_overdue);
-
-  return {
-    queued: queued.length,
-    queuedDueSoon: queued.filter((r) => within24h(r.due_at)).length,
-    printing: printing.length,
-    printingHours: printing.reduce(
-      (sum, r) => sum + Number(r.est_print_hours ?? 0),
-      0,
-    ),
-    waitingQc: waitingQc.length,
-    waitingQcDueSoon: waitingQc.filter((r) => within24h(r.due_at)).length,
-    overdue: overdue.length,
-  };
+  return db
+    .selectFrom("print_jobs")
+    .select([
+      sql<number>`count(*) filter (where status = 'queued')::integer`.as(
+        "queued",
+      ),
+      sql<number>`count(*) filter (where status = 'queued' and due_at < now() + interval '24 hours')::integer`.as(
+        "queuedDueSoon",
+      ),
+      sql<number>`count(*) filter (where status in ('printing','reprinting'))::integer`.as(
+        "printing",
+      ),
+      sql<number>`coalesce(sum(est_print_hours) filter (where status in ('printing','reprinting')), 0)::float8`.as(
+        "printingHours",
+      ),
+      sql<number>`count(*) filter (where status = 'printed')::integer`.as(
+        "waitingQc",
+      ),
+      sql<number>`count(*) filter (where status = 'printed' and due_at < now() + interval '24 hours')::integer`.as(
+        "waitingQcDueSoon",
+      ),
+      sql<number>`count(*) filter (where status in ('queued','printing','reprinting') and due_at < now())::integer`.as(
+        "overdue",
+      ),
+    ])
+    .executeTakeFirstOrThrow();
 }
 
-/** 絞り込みのプルダウンに出す選択肢（実データにあるものだけ出す）。 */
+/** Only distinct materials cross the DB boundary, not every job's material. */
 export async function getQueueFilterOptions() {
   const { db } = await requireAdmin();
-  const [{ data: materials }, { data: printers }] = await Promise.all([
-    queryResult(
-      db.selectFrom("print_queue").select(["print_queue.material"]).execute(),
-    ),
-    queryResult(
-      db
-        .selectFrom("printers")
-        .select(["printers.code", "printers.model_name", "printers.is_active"])
-        .orderBy("printers.code", "asc")
-        .execute(),
-    ),
+  const [materials, printers] = await Promise.all([
+    db
+      .selectFrom("print_queue")
+      .select("material")
+      .where("material", "is not", null)
+      .distinct()
+      .execute(),
+    db
+      .selectFrom("printers")
+      .select(["code", "model_name", "is_active"])
+      .orderBy("code", "asc")
+      .execute(),
   ]);
-
-  return {
-    materials: [
-      ...new Set((materials ?? []).map((m) => m.material).filter(Boolean)),
-    ] as string[],
-    printers: printers ?? [],
-  };
+  return { materials: materials.map((m) => m.material!), printers };
 }
 
 /**

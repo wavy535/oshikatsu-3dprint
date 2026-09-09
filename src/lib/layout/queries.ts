@@ -1,6 +1,6 @@
+import { cache } from "react";
+import { sql } from "kysely";
 import { jsonObjectFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
-import { call } from "@/lib/db/functions";
 import "server-only";
 import { getUserProfile } from "@/lib/auth/guards";
 import type { UserRole } from "@/types/db";
@@ -30,60 +30,32 @@ const GUEST: ShellContext = {
   mainNui: null,
 };
 
-/**
- * ヘッダーとサイドナビが必要とする情報を1回で集める。
- * 未ログインならクエリを投げずにゲスト既定値を返す。
- *
- * 未読数は notifications を数えず `unread_notification_count()` を呼ぶ。
- * 通知は DB トリガーだけが作る設計なので、数えるのも DB 側に寄せておく。
- */
-export async function getShellContext(): Promise<ShellContext> {
+/** Header and sidebar share this result within one render, never across users. */
+export const getShellContext = cache(async (): Promise<ShellContext> => {
   const { db, user, profile } = await getUserProfile();
   if (!user) return GUEST;
-
-  const [cartRes, unreadRes, nuiRes] = await Promise.all([
-    queryResult(
-      db
+  const counts = await db
+    .selectNoFrom((eb) => [
+      eb
         .selectFrom("cart_items")
-        .select((eb) => [
-          "cart_items.quantity",
-          jsonObjectFrom(
-            eb
-              .selectFrom("carts as r0")
-              .select(["r0.user_id"])
-              .where("r0.user_id", "=", user.id)
-              .whereRef("r0.id", "=", "cart_items.cart_id"),
-          )
-            .$notNull()
-            .as("carts"),
-        ])
-        .where((eb) =>
-          eb.exists(
-            eb
-              .selectFrom("carts as r0")
-              .select(["r0.user_id"])
-              .where("r0.user_id", "=", user.id)
-              .whereRef("r0.id", "=", "cart_items.cart_id")
-              .clearSelect()
-              .select("r0.id"),
+        .innerJoin("carts", "carts.id", "cart_items.cart_id")
+        .select(
+          sql<number>`coalesce(sum(cart_items.quantity), 0)::integer`.as(
+            "count",
           ),
         )
-        .execute(),
-    ),
-    call(db, "unread_notification_count", {}),
-    queryResult(
-      db
-        .selectFrom("nui_profiles")
-        .select([
-          "nui_profiles.id",
-          "nui_profiles.name",
-          "nui_profiles.nui_size_cm",
-        ])
-        .where("nui_profiles.user_id", "=", user.id)
-        .where("nui_profiles.is_main", "=", true)
-        .executeTakeFirst(),
-    ),
-  ]);
+        .where("carts.user_id", "=", user.id)
+        .as("cartCount"),
+      sql<number>`public.unread_notification_count()`.as("unreadCount"),
+      jsonObjectFrom(
+        eb
+          .selectFrom("nui_profiles")
+          .select(["id", "name", "nui_size_cm"])
+          .where("user_id", "=", user.id)
+          .where("is_main", "=", true),
+      ).as("mainNui"),
+    ])
+    .executeTakeFirstOrThrow();
 
   const role = profile?.role ?? "buyer";
 
@@ -92,8 +64,8 @@ export async function getShellContext(): Promise<ShellContext> {
     profile,
     isCreator: role === "creator" || role === "admin",
     isAdmin: role === "admin",
-    cartCount: (cartRes.data ?? []).reduce((n, i) => n + (i.quantity ?? 0), 0),
-    unreadCount: unreadRes.data ?? 0,
-    mainNui: nuiRes.data ?? null,
+    cartCount: counts.cartCount ?? 0,
+    unreadCount: counts.unreadCount,
+    mainNui: counts.mainNui,
   };
-}
+});

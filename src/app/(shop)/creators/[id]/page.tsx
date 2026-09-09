@@ -1,3 +1,6 @@
+import { Pagination } from "@/components/ui/pagination";
+import { pageNumber } from "@/lib/pagination";
+import { PAGE_SIZE } from "@/lib/works/list-options";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ExternalLink, MessageCircle, Sparkles, Star } from "lucide-react";
@@ -32,7 +35,7 @@ export default async function CreatorPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; page?: string }>;
 }) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const data = await getCreatorProfile(id);
@@ -40,10 +43,13 @@ export default async function CreatorPage({
   const { profile, stats, rating, isFollowing, viewerId } = data;
   const tab = sp.tab === "reviews" ? "reviews" : "works";
 
-  const [{ items: works, total }, reviews] = await Promise.all([
-    listWorks({ creatorId: id, sort: "popular", page: 1 }),
-    tab === "reviews" ? listCreatorReviews(id) : Promise.resolve([]),
-  ]);
+  const page = pageNumber(sp.page);
+  const workPage = tab === "works" ? await listWorks({ creatorId: id, sort: "popular", page }) : null;
+  const reviewPage = tab === "reviews" ? await listCreatorReviews(id, page) : null;
+  const works = workPage?.items ?? [];
+  const total = workPage?.total ?? stats?.works_count ?? 0;
+  const reviews = reviewPage?.items ?? [];
+  const hasNext = workPage ? page * PAGE_SIZE < workPage.total : reviewPage?.hasNext ?? false;
   const sns = snsEntries(profile.sns_links);
   const isSelf = viewerId === id;
 
@@ -119,7 +125,7 @@ export default async function CreatorPage({
           <p className="rounded-xl border border-line bg-white px-6 py-12 text-center text-[12px] text-muted-foreground">公開中の作品はまだありません。</p>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {works.map((w) => <WorkCard key={w.id} item={w} />)}
+            {works.map((w, index) => <WorkCard key={w.id} item={w} eager={index < 4} />)}
           </div>
         )
       ) : reviews.length === 0 ? (
@@ -143,6 +149,7 @@ export default async function CreatorPage({
           ))}
         </div>
       )}
+      <Pagination path={`/creators/${id}`} params={sp} page={page} hasNext={hasNext} />
     </div>
   );
 }

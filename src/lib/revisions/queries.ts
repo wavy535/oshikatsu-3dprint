@@ -1,15 +1,15 @@
 import { signedDownload } from "@/lib/files/s3";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
-import { queryResult, countResult } from "@/lib/db/result";
+import { readPage, queryResult, countResult } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
 
 import { requireCreator } from "@/lib/auth/guards";
 
 /** 自分の修正依頼。未対応・対応中を先に、期限の近い順。 */
-export async function listMyRevisions() {
+export async function listMyRevisions(requestedPage?: unknown) {
   const { db, user } = await requireCreator();
-  const { data } = await queryResult(
+  return readPage(
     db
       .selectFrom("revision_requests")
       .select((eb) => [
@@ -34,7 +34,10 @@ export async function listMyRevisions() {
                 eb
                   .selectFrom("work_images as r1")
                   .select(["r1.storage_path", "r1.sort_order"])
-                  .whereRef("r1.work_id", "=", "r0.id"),
+                  .whereRef("r1.work_id", "=", "r0.id")
+                  .orderBy("r1.sort_order", "asc")
+                  .orderBy("r1.id", "asc")
+                  .limit(1),
               ).as("work_images"),
             ])
             .whereRef("r0.id", "=", "revision_requests.work_id"),
@@ -47,20 +50,27 @@ export async function listMyRevisions() {
         ).as("work_variants"),
       ])
       .where("revision_requests.creator_id", "=", user.id)
-      .orderBy("revision_requests.created_at", "desc")
-      .execute(),
-  );
-
-  const rows = data ?? [];
-  const rank = (s: string) =>
-    s === "open" ? 0 : s === "in_progress" ? 1 : s === "disputed" ? 2 : 3;
-  return rows.sort(
-    (a, b) =>
-      rank(a.status) - rank(b.status) || a.due_at.localeCompare(b.due_at),
+      .orderBy((eb) =>
+        eb
+          .case()
+          .when("revision_requests.status", "=", "open")
+          .then(0)
+          .when("revision_requests.status", "=", "in_progress")
+          .then(1)
+          .when("revision_requests.status", "=", "disputed")
+          .then(2)
+          .else(3)
+          .end(),
+      )
+      .orderBy("revision_requests.due_at", "asc")
+      .orderBy("revision_requests.id", "desc"),
+    requestedPage,
   );
 }
 
-export type RevisionRow = Awaited<ReturnType<typeof listMyRevisions>>[number];
+export type RevisionRow = Awaited<
+  ReturnType<typeof listMyRevisions>
+>["items"][number];
 
 /**
  * 修正依頼の詳細。検品の記録（検品担当・メモ・写真）、STEP1 の検証値（パーツごと）、

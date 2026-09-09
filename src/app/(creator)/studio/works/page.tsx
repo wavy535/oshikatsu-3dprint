@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { ImageIcon, Package, Plus } from "lucide-react";
 
@@ -23,14 +24,15 @@ const STATUS_TONE: Record<string, string> = {
 };
 
 /** Figma ②出品フロー「作品管理」。下書きは続きのSTEPへ戻れる。 */
-export default async function StudioWorksPage() {
-  const works = await listMyWorks();
+export default async function StudioWorksPage({ searchParams }: { searchParams: Promise<{ page?: string }> }) {
+  const sp = await searchParams;
+  const { items: works, page, hasNext } = await listMyWorks(sp.page);
 
   return (
     <>
       <div className="flex items-center gap-3">
         <h1 className="text-base font-bold text-ink">作品管理</h1>
-        <span className="num text-[12px] text-muted-foreground">{works.length}件</span>
+        <span className="num text-[12px] text-muted-foreground">このページ {works.length}件</span>
         <form action={createDraftWorkAction} className="ml-auto">
           <Button type="submit" size="sm">
             <Plus className="size-4" aria-hidden />
@@ -42,7 +44,7 @@ export default async function StudioWorksPage() {
       {works.length === 0 ? (
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Package className="size-6 text-line" aria-hidden />
-          <p className="text-sm font-semibold text-ink">作品がまだありません</p>
+          <p className="text-sm font-semibold text-ink">このページに表示する作品はありません</p>
           <p className="text-[12px] text-muted-foreground">
             3Dデータをアップロードすると、印刷代行費と造形時間の見積りが自動で出ます。
           </p>
@@ -64,7 +66,7 @@ export default async function StudioWorksPage() {
                 <span className="size-20 shrink-0 overflow-hidden rounded-lg bg-ground">
                   {image ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={image} alt="" className="size-full object-cover" />
+                    <img loading="lazy" src={image} alt="" className="size-full object-cover" />
                   ) : (
                     <span className="flex size-full items-center justify-center">
                       <ImageIcon className="size-5 text-line" aria-hidden />
@@ -103,6 +105,7 @@ export default async function StudioWorksPage() {
 
                   <div className="mt-auto flex items-center gap-3">
                     <Link
+                      prefetch={false}
                       href={`/studio/works/${w.id}/steps/${w.status === "draft" ? step : 3}`}
                       className="text-[11.5px] text-brand hover:underline"
                     >
@@ -110,6 +113,7 @@ export default async function StudioWorksPage() {
                     </Link>
                     {w.status === "published" && (
                       <Link
+                        prefetch={false}
                         href={`/works/${w.id}`}
                         className="text-[11.5px] text-muted-foreground hover:text-ink"
                       >
@@ -123,6 +127,7 @@ export default async function StudioWorksPage() {
           })}
         </div>
       )}
+      <Pagination path="/studio/works" params={sp} page={page} hasNext={hasNext} />
     </>
   );
 }

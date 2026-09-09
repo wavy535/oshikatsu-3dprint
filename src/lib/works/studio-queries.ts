@@ -1,12 +1,12 @@
 import { jsonArrayFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
+import { readPage, queryResult } from "@/lib/db/result";
 import "server-only";
 import { requireCreator } from "@/lib/auth/guards";
 
 /** 作品管理の一覧。下書きも含む。 */
-export async function listMyWorks() {
+export async function listMyWorks(requestedPage?: unknown) {
   const { db, user } = await requireCreator();
-  const { data } = await queryResult(
+  return readPage(
     db
       .selectFrom("works")
       .select((eb) => [
@@ -20,7 +20,10 @@ export async function listMyWorks() {
           eb
             .selectFrom("work_images as r0")
             .select(["r0.storage_path", "r0.sort_order"])
-            .whereRef("r0.work_id", "=", "works.id"),
+            .whereRef("r0.work_id", "=", "works.id")
+            .orderBy("r0.sort_order", "asc")
+            .orderBy("r0.id", "asc")
+            .limit(1),
         ).as("work_images"),
         jsonArrayFrom(
           eb
@@ -43,9 +46,9 @@ export async function listMyWorks() {
       ])
       .where("works.creator_id", "=", user.id)
       .orderBy("works.created_at", "desc")
-      .execute(),
+      .orderBy("works.id", "desc"),
+    requestedPage,
   );
-  return data ?? [];
 }
 
 /**

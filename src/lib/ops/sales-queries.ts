@@ -1,3 +1,4 @@
+import { readPage } from "@/lib/db/result";
 import { jsonObjectFrom } from "kysely/helpers/postgres";
 import { sql } from "kysely";
 import "server-only";
@@ -202,53 +203,71 @@ export async function getSales(month: string, requestedPage = 1) {
 // 払込管理
 // =============================================================================
 
-/** 振込申請の一覧（口座つき）と、クリエイターごとの残高。 */
-export async function listPayoutRequests() {
+/** Load accounts only for the displayed requests; aggregate totals across every page. */
+export async function listPayoutRequests(requestedPage?: unknown) {
   const { db } = await requireAdmin();
-  const [requests, accounts, balances] = await Promise.all([
+  const [page, summary] = await Promise.all([
+    readPage(
+      db
+        .selectFrom("payout_requests")
+        .select((eb) => [
+          "payout_requests.id",
+          "payout_requests.creator_id",
+          "payout_requests.amount",
+          "payout_requests.status",
+          "payout_requests.requested_at",
+          "payout_requests.processed_at",
+          jsonObjectFrom(
+            eb
+              .selectFrom("profiles")
+              .select("display_name")
+              .whereRef("profiles.id", "=", "payout_requests.creator_id"),
+          ).as("profiles"),
+          jsonObjectFrom(
+            eb
+              .selectFrom("payout_accounts")
+              .select([
+                "bank_name",
+                "branch_name",
+                "account_type",
+                "account_number",
+                "account_holder_name",
+              ])
+              .whereRef(
+                "payout_accounts.creator_id",
+                "=",
+                "payout_requests.creator_id",
+              ),
+          ).as("account"),
+        ])
+        .orderBy("requested_at", "desc")
+        .orderBy("id", "desc"),
+      requestedPage,
+      50,
+    ),
     db
       .selectFrom("payout_requests")
-      .select((eb) => [
-        "payout_requests.id",
-        "payout_requests.creator_id",
-        "payout_requests.amount",
-        "payout_requests.status",
-        "payout_requests.requested_at",
-        "payout_requests.processed_at",
-        jsonObjectFrom(
-          eb
-            .selectFrom("profiles as r28")
-            .select(["r28.display_name"])
-            .whereRef("r28.id", "=", "payout_requests.creator_id"),
-        ).as("profiles"),
-      ])
-      .orderBy("payout_requests.requested_at", "desc")
-      .execute(),
-    db
-      .selectFrom("payout_accounts")
       .select([
-        "payout_accounts.creator_id",
-        "payout_accounts.bank_name",
-        "payout_accounts.branch_name",
-        "payout_accounts.account_type",
-        "payout_accounts.account_number",
-        "payout_accounts.account_holder_name",
+        sql<number>`count(*)::integer`.as("total"),
+        sql<number>`count(*) filter (where status in ('requested','processing'))::integer`.as(
+          "open",
+        ),
+        sql<number>`coalesce(sum(amount) filter (where status in ('requested','processing')), 0)::float8`.as(
+          "openTotal",
+        ),
+        sql<number>`coalesce(sum(amount) filter (where status = 'paid'), 0)::float8`.as(
+          "paidTotal",
+        ),
+        sql<number>`(select coalesce(sum(greatest(available_amount, 0)), 0)::float8 from creator_payout_balances)`.as(
+          "owed",
+        ),
       ])
-      .execute(),
-    db
-      .selectFrom("creator_payout_balances")
-      .select([
-        "creator_payout_balances.creator_id",
-        "creator_payout_balances.available_amount",
-      ])
-      .execute(),
+      .executeTakeFirstOrThrow(),
   ]);
-  const accountById = new Map(accounts.map((a) => [a.creator_id, a]));
   return {
-    requests: requests.map((r) => ({
-      ...r,
-      account: accountById.get(r.creator_id) ?? null,
-    })),
-    balances,
+    requests: page.items,
+    page: page.page,
+    hasNext: page.hasNext,
+    summary,
   };
 }

@@ -1,14 +1,14 @@
 import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
-import { queryResult } from "@/lib/db/result";
+import { readPage, queryResult } from "@/lib/db/result";
 
 import "server-only";
 
 import { requireCreator, requireUser } from "@/lib/auth/guards";
 
 /** 買う人：自分の相談一覧。 */
-export async function listMyCustomRequests() {
+export async function listMyCustomRequests(requestedPage?: unknown) {
   const { db, user } = await requireUser("/mypage/custom-orders");
-  const { data } = await queryResult(
+  return readPage(
     db
       .selectFrom("custom_order_requests")
       .select((eb) => [
@@ -41,14 +41,17 @@ export async function listMyCustomRequests() {
               "r2.expires_at",
               "r2.created_at",
             ])
-            .whereRef("r2.request_id", "=", "custom_order_requests.id"),
+            .whereRef("r2.request_id", "=", "custom_order_requests.id")
+            .orderBy("r2.created_at", "desc")
+            .orderBy("r2.id", "desc")
+            .limit(1),
         ).as("custom_order_quotes"),
       ])
       .where("custom_order_requests.requester_id", "=", user.id)
       .orderBy("custom_order_requests.created_at", "desc")
-      .execute(),
+      .orderBy("custom_order_requests.id", "desc"),
+    requestedPage,
   );
-  return data ?? [];
 }
 
 /** 買う人：相談の詳細（見積りつき）。 */
@@ -97,7 +100,9 @@ export async function getMyCustomRequest(id: string) {
               "r2.ordered_at",
               "r2.created_at",
             ])
-            .whereRef("r2.request_id", "=", "custom_order_requests.id"),
+            .whereRef("r2.request_id", "=", "custom_order_requests.id")
+            .orderBy("r2.created_at", "desc")
+            .orderBy("r2.id", "desc"),
         ).as("custom_order_quotes"),
       ])
       .where("custom_order_requests.id", "=", id)
@@ -153,9 +158,9 @@ export async function getCustomRequestTarget(
 }
 
 /** クリエイター：届いた相談。 */
-export async function listCreatorCustomRequests() {
+export async function listCreatorCustomRequests(requestedPage?: unknown) {
   const { db, user } = await requireCreator();
-  const { data } = await queryResult(
+  return readPage(
     db
       .selectFrom("custom_order_requests")
       .select((eb) => [
@@ -185,19 +190,26 @@ export async function listCreatorCustomRequests() {
               "r5.price_jpy",
               "r5.expires_at",
             ])
-            .whereRef("r5.request_id", "=", "custom_order_requests.id"),
+            .whereRef("r5.request_id", "=", "custom_order_requests.id")
+            .orderBy("r5.created_at", "desc")
+            .orderBy("r5.id", "desc")
+            .limit(1),
         ).as("custom_order_quotes"),
       ])
       .where("custom_order_requests.creator_id", "=", user.id)
+      .orderBy((eb) =>
+        eb
+          .case()
+          .when("custom_order_requests.status", "=", "pending")
+          .then(0)
+          .when("custom_order_requests.status", "=", "responded")
+          .then(1)
+          .else(2)
+          .end(),
+      )
       .orderBy("custom_order_requests.created_at", "desc")
-      .execute(),
-  );
-  const rows = data ?? [];
-  const rank = (s: string) => (s === "pending" ? 0 : s === "responded" ? 1 : 2);
-  return rows.sort(
-    (a, b) =>
-      rank(a.status) - rank(b.status) ||
-      b.created_at.localeCompare(a.created_at),
+      .orderBy("custom_order_requests.id", "desc"),
+    requestedPage,
   );
 }
 
@@ -252,7 +264,9 @@ export async function getCreatorCustomRequest(id: string) {
                 "r5.ordered_at",
                 "r5.created_at",
               ])
-              .whereRef("r5.request_id", "=", "custom_order_requests.id"),
+              .whereRef("r5.request_id", "=", "custom_order_requests.id")
+              .orderBy("r5.created_at", "desc")
+              .orderBy("r5.id", "desc"),
           ).as("custom_order_quotes"),
         ])
         .where("custom_order_requests.id", "=", id)

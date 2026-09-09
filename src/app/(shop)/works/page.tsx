@@ -1,3 +1,4 @@
+import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
 import { SearchX } from "lucide-react";
 
@@ -73,37 +74,13 @@ export default async function WorksPage({
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {items.map((item) => (
-              <WorkCard key={item.id} item={item} />
+            {items.map((item, index) => (
+              <WorkCard key={item.id} item={item} eager={index < 4} />
             ))}
           </div>
         )}
 
-        {lastPage > 1 && (
-          <nav className="flex items-center justify-center gap-2 pt-2">
-            {Array.from({ length: lastPage }, (_, i) => i + 1).map((p) => {
-              const params = new URLSearchParams(
-                Object.entries(sp).flatMap(([k, v]) =>
-                  typeof v === "string" && v ? [[k, v] as [string, string]] : []
-                )
-              );
-              params.set("page", String(p));
-              return (
-                <Link
-                  key={p}
-                  href={`/works?${params.toString()}`}
-                  className={
-                    p === filters.page
-                      ? "num rounded-lg bg-brand px-3 py-1.5 text-[12.5px] font-semibold text-white"
-                      : "num rounded-lg border border-line bg-white px-3 py-1.5 text-[12.5px] text-ink hover:bg-ground"
-                  }
-                >
-                  {p}
-                </Link>
-              );
-            })}
-          </nav>
-        )}
+        <Pagination path="/works" params={sp} page={filters.page} hasNext={filters.page < lastPage} />
       </div>
     </div>
   );
