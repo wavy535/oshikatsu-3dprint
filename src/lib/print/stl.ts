@@ -1,4 +1,5 @@
-import type { Mesh, NamedMesh } from "./mesh.ts";
+import { validateMesh, type Mesh, type NamedMesh } from "./mesh.ts";
+import { checkModelFileSize, checkMeshSize } from "./limits.ts";
 
 // STL は単位も色も持たない。1オブジェクト・単色として読み込み、
 // 「mm と解釈した」ことは検証の警告として別途出す。
@@ -13,6 +14,7 @@ function isBinaryStl(buf: Buffer): boolean {
 
 function parseBinaryStl(buf: Buffer): Mesh {
   const count = buf.readUInt32LE(80);
+  checkMeshSize(count * 3, count);
   const positions = new Float64Array(count * 9);
   const indices = new Uint32Array(count * 3);
 
@@ -40,9 +42,12 @@ function parseAsciiStl(text: string): Mesh {
   let m: RegExpExecArray | null;
   while ((m = re.exec(text)) !== null) {
     verts.push(Number(m[1]), Number(m[2]), Number(m[3]));
+    checkMeshSize(verts.length / 3, verts.length / 9);
   }
   if (verts.length === 0 || verts.length % 9 !== 0) {
-    throw new StlParseError("ASCII STL の頂点が読み取れません（三角形の数が合いません）");
+    throw new StlParseError(
+      "ASCII STL の頂点が読み取れません（三角形の数が合いません）",
+    );
   }
   const positions = Float64Array.from(verts);
   const indices = new Uint32Array(verts.length / 3);
@@ -59,6 +64,7 @@ export type StlDocument = {
 };
 
 export function parseStl(buf: Buffer, fallbackName = "object"): StlDocument {
+  checkModelFileSize(buf.length);
   if (buf.length < 15) throw new StlParseError("STL ファイルが小さすぎます");
 
   let mesh: Mesh;
@@ -68,12 +74,13 @@ export function parseStl(buf: Buffer, fallbackName = "object"): StlDocument {
     const head = buf.subarray(0, 512).toString("latin1").trimStart();
     if (!head.toLowerCase().startsWith("solid")) {
       throw new StlParseError(
-        "STL として解釈できません（バイナリの三角形数とファイルサイズが一致せず、ASCII でもありません）"
+        "STL として解釈できません（バイナリの三角形数とファイルサイズが一致せず、ASCII でもありません）",
       );
     }
     mesh = parseAsciiStl(buf.toString("latin1"));
   }
 
+  validateMesh(mesh);
   return {
     format: "stl",
     unit: "mm",

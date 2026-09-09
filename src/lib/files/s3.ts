@@ -6,6 +6,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { checkModelFileSize } from "@/lib/print/limits";
 
 export type FileGroup = "work-stl" | "work-images" | "qc-photos" | "avatars";
 let client: S3Client | undefined;
@@ -60,15 +61,29 @@ export async function readModel(path: string) {
     new GetObjectCommand(object("work-stl", path)),
     { abortSignal: AbortSignal.timeout(30_000) },
   );
-  if (
-    !response.Body ||
-    !response.ContentLength ||
-    response.ContentLength > 80 * 1024 * 1024
-  ) {
-    await response.Body?.transformToWebStream().cancel();
-    throw new Error("3Dデータのサイズが不正です");
+  if (!response.Body) throw new Error("3Dデータを読み込めませんでした");
+  const reader = response.Body.transformToWebStream().getReader();
+  try {
+    const bytes = response.ContentLength ?? 0;
+    checkModelFileSize(bytes);
+    // Allocate once and enforce the actual stream length, without joining all
+    // chunks and then copying the complete file a second time.
+    const buffer = Buffer.allocUnsafe(bytes);
+    let offset = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (offset + value.byteLength > bytes)
+        throw new Error("3Dデータのサイズが申告値を超えています");
+      buffer.set(value, offset);
+      offset += value.byteLength;
+    }
+    if (offset !== bytes) throw new Error("3Dデータが途中で途切れています");
+    return buffer;
+  } finally {
+    await reader.cancel().catch(() => {});
+    reader.releaseLock();
   }
-  return Buffer.from(await response.Body.transformToByteArray());
 }
 
 export async function checkStoredFile(

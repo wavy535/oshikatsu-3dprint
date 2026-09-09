@@ -10,6 +10,7 @@ import {
   type StepActionState,
 } from "@/lib/works/step-actions";
 import { Button } from "@/components/ui/button";
+import { checkModelFileSize } from "@/lib/print/limits";
 
 const initialState: StepActionState = { error: null };
 
@@ -40,14 +41,17 @@ export function AssetUploader({
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function onPick(file: File) {
+    if (uploading || registering) return;
     setUploadError(null);
     const ext = file.name.split(".").pop()?.toLowerCase();
     if (ext !== "stl" && ext !== "3mf") {
       setUploadError("STL または 3MF のファイルを選んでください");
       return;
     }
-    if (file.size > 80 * 1024 * 1024) {
-      setUploadError("ファイルが大きすぎます（80MBまで）");
+    try {
+      checkModelFileSize(file.size);
+    } catch (error) {
+      setUploadError((error as Error).message);
       return;
     }
 
@@ -97,7 +101,7 @@ export function AssetUploader({
         </p>
         <p className="text-[11.5px] leading-4 text-muted-foreground">
           STL または
-          3MF（80MBまで）。アップロードすると、閉じたメッシュ・肉厚・造形サイズなどを
+          3MF（80MiB・50万面・128パーツまで）。アップロードすると、閉じたメッシュ・肉厚・造形サイズなどを
           自動で検証します。
         </p>
         <input

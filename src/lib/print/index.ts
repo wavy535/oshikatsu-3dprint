@@ -1,3 +1,4 @@
+import { AnalysisBudget } from "./limits.ts";
 import { analyzeMesh, type MeshAnalysis } from "./analyze.ts";
 import {
   DEFAULT_PRICING,
@@ -103,6 +104,7 @@ function extensionOf(fileName: string): string {
 }
 
 export function analyzeModelFile(buf: Buffer, opts: AnalyzeOptions): AssetAnalysis {
+  const budget = new AnalysisBudget();
   const rule = opts.rule ?? DEFAULT_PRICING;
   const sizes = opts.sizes ?? DEFAULT_SIZES;
   const minWall = opts.minWallThicknessMm ?? 0.8;
@@ -113,7 +115,7 @@ export function analyzeModelFile(buf: Buffer, opts: AnalyzeOptions): AssetAnalys
     | { format: "stl"; unitDeclared: boolean; declaredUnit: null; objects: { name: string; mesh: Mesh }[]; materials: [] };
 
   if (ext === "3mf") {
-    const parsed = parseThreeMf(buf);
+    const parsed = parseThreeMf(buf, budget);
     doc = {
       format: "3mf",
       unitDeclared: parsed.unitDeclared,
@@ -148,7 +150,7 @@ export function analyzeModelFile(buf: Buffer, opts: AnalyzeOptions): AssetAnalys
     const a = analyzeMesh(o.mesh, {
       thicknessSamples: opts.thicknessSamples,
       selfIntersectionSamples: opts.selfIntersectionSamples,
-    });
+    }, budget);
     const size = boundsSize(a.geometry.bounds);
 
     objects.push({

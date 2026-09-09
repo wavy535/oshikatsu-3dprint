@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getOptionalUser, getUserProfile } from "@/lib/auth/guards";
 import { uploadPolicy } from "./s3";
+import { MODEL_LIMITS } from "@/lib/print/limits";
 
 const uploadSchema = z.object({
   group: z.enum(["work-stl", "work-images", "qc-photos"]),
@@ -46,7 +47,9 @@ export async function prepareUpload(input: z.input<typeof uploadSchema>) {
   }
   const extension = fileName.split(".").pop()?.toLowerCase();
   const maxBytes =
-    (group === "work-stl" ? 80 : group === "qc-photos" ? 8 : 10) * 1024 * 1024;
+    group === "work-stl"
+      ? MODEL_LIMITS.fileBytes
+      : (group === "qc-photos" ? 8 : 10) * 1024 * 1024;
   if (bytes > maxBytes) return { error: "ファイルが大きすぎます" };
   if (
     group === "work-stl"
