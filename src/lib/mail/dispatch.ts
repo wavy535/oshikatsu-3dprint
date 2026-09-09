@@ -1,9 +1,12 @@
+import { queryResult } from "@/lib/db/result";
+import { call } from "@/lib/db/functions";
+import { sql } from "kysely";
 import "server-only";
 import { randomUUID } from "node:crypto";
 
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { serviceDatabase } from "@/lib/db/client";
 import { siteUrl } from "@/lib/site";
-import { KIND_LABEL } from "@/lib/notifications/queries";
+import { KIND_LABEL } from "@/lib/notifications/labels";
 import { mailProvider, sendMail } from "@/lib/mail/send";
 import type { FunctionReturns } from "@/types/db";
 
@@ -31,7 +34,10 @@ function fmtDate(iso: string) {
 }
 
 function escapeHtml(s: string) {
-  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+  return s.replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c,
+  );
 }
 
 /** 1通のメール本文。1件でも複数件でも同じ形（件名だけ変える）。 */
@@ -64,7 +70,7 @@ function buildMail(items: Target[]) {
         <div style="font-size:15px;font-weight:600;margin:4px 0">${escapeHtml(n.title)}</div>
         ${n.body ? `<div style="font-size:13px;color:#444">${escapeHtml(n.body)}</div>` : ""}
         <div style="margin-top:8px"><a href="${base}${escapeHtml(n.link_path)}" style="font-size:13px;color:#e0567a">OshiNest で開く →</a></div>
-      </div>`
+      </div>`,
     )
     .join("");
   const html = `
@@ -85,17 +91,28 @@ function buildMail(items: Target[]) {
  * 通常の同時実行は重複を避ける。送信成功後のDB書き込み失敗時は再送され得る。
  */
 export async function dispatchNotificationEmails(): Promise<DispatchSummary> {
-  const summary: DispatchSummary = { provider: mailProvider(), sent: 0, notified: 0, failed: 0, errors: [] };
+  const summary: DispatchSummary = {
+    provider: mailProvider(),
+    sent: 0,
+    notified: 0,
+    failed: 0,
+    errors: [],
+  };
   if (summary.provider === "none") {
     summary.errors.push("MAIL_PROVIDER is not configured");
     return summary;
   }
-  const service = createServiceRoleClient();
+  const service = serviceDatabase();
   const token = randomUUID();
   const deadline = Date.now() + 45_000;
-  const { data: targets, error } = await service.rpc("claim_notification_emails", {
-    p_claim_token: token, p_limit: 20,
-  });
+  const { data: targets, error } = await call(
+    service,
+    "claim_notification_emails",
+    {
+      p_claim_token: token,
+      p_limit: 20,
+    },
+  );
   if (error) {
     summary.errors.push(`claim: ${error.message}`);
     return summary;
@@ -118,26 +135,48 @@ export async function dispatchNotificationEmails(): Promise<DispatchSummary> {
   try {
     for (const items of batches) {
       if (Date.now() >= deadline) break;
-      const result = await sendMail({ to: items[0].email, ...buildMail(items) });
+      const result = await sendMail({
+        to: items[0].email,
+        ...buildMail(items),
+      });
       if (!result.ok) {
         summary.failed += items.length;
         summary.errors.push(`${items[0].id}: ${result.error}`);
         continue;
       }
       summary.sent += 1;
-      const { data: saved, error: saveError } = await service.from("notifications")
-        .update({ emailed_at: new Date().toISOString(), email_claim_token: null, email_claimed_until: null })
-        .in("id", items.map((item) => item.id)).eq("email_claim_token", token).select("id");
+      const { data: saved, error: saveError } = await queryResult(
+        service
+          .updateTable("notifications")
+          .set({
+            emailed_at: new Date().toISOString(),
+            email_claim_token: null,
+            email_claimed_until: null,
+          })
+          .where(
+            sql<boolean>`${sql.ref("notifications.id")} = any(${items.map((item) => item.id)})`,
+          )
+          .where("notifications.email_claim_token", "=", token)
+          .returning(["id"])
+          .execute(),
+      );
       if (saveError || saved?.length !== items.length) {
-        summary.errors.push(`acknowledge: ${saveError?.message ?? "claim no longer belongs to this worker"}`);
+        summary.errors.push(
+          `acknowledge: ${saveError?.message ?? "claim no longer belongs to this worker"}`,
+        );
       } else {
         summary.notified += items.length;
       }
     }
   } finally {
     // 未送信・失敗分を次の実行へ返す。ここで落ちてもDBの確保期限が切れれば回復する。
-    const { error: releaseError } = await service.from("notifications")
-      .update({ email_claim_token: null, email_claimed_until: null }).eq("email_claim_token", token);
+    const { error: releaseError } = await queryResult(
+      service
+        .updateTable("notifications")
+        .set({ email_claim_token: null, email_claimed_until: null })
+        .where("notifications.email_claim_token", "=", token)
+        .execute(),
+    );
     if (releaseError) summary.errors.push(`release: ${releaseError.message}`);
   }
   return summary;

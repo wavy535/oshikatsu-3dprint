@@ -1,5 +1,7 @@
+import { queryResult } from "@/lib/db/result";
+import { sql } from "kysely";
 import { requireAdmin } from "@/lib/auth/guards";
-import { createServiceRoleClient } from "@/lib/supabase/server";
+import { serviceDatabase } from "@/lib/db/client";
 import { ReviewButtons } from "@/components/creator/review-buttons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,28 +12,49 @@ const STATUS_LABEL: Record<string, string> = {
   rejected: "却下",
 };
 
-// このページ自体はSupabase Authのセッションでアクセス制御（admin roleチェック）を行い、
-// 表示用のデータ取得は運営専用の Service Role Client（RLSバイパス）で行う。
+// このページ自体はDBで検証したセッションでアクセス制御（admin roleチェック）を行い、
+// 表示用のデータ取得は運営専用の app_service ポリシーで行う。
 // 承認/却下の書き込みは src/lib/creator/actions.ts が同様に admin チェック後に実行する。
 export default async function CreatorApplicationsAdminPage() {
   // 権限は (admin)/layout.tsx の requireAdmin でも見ているが、
   // ページ単体でも成り立つようにここでも確認する
   await requireAdmin();
 
-  const serviceClient = createServiceRoleClient();
-  const { data: applications } = await serviceClient
-    .from("creator_applications")
-    .select(
-      "id, user_id, status, message, admin_note, created_at, reviewed_at, phone, phone_verified_at, terms_version, terms_agreed_at"
-    )
-    .order("created_at", { ascending: false });
+  const serviceDb = serviceDatabase();
+  const { data: applications } = await queryResult(
+    serviceDb
+      .selectFrom("creator_applications")
+      .select([
+        "creator_applications.id",
+        "creator_applications.user_id",
+        "creator_applications.status",
+        "creator_applications.message",
+        "creator_applications.admin_note",
+        "creator_applications.created_at",
+        "creator_applications.reviewed_at",
+        "creator_applications.phone",
+        "creator_applications.phone_verified_at",
+        "creator_applications.terms_version",
+        "creator_applications.terms_agreed_at",
+      ])
+      .orderBy("creator_applications.created_at", "desc")
+      .execute(),
+  );
 
   const userIds = [...new Set((applications ?? []).map((a) => a.user_id))];
   const { data: applicantProfiles } = userIds.length
-    ? await serviceClient.from("profiles").select("id, display_name").in("id", userIds)
+    ? await queryResult(
+        serviceDb
+          .selectFrom("profiles")
+          .select(["profiles.id", "profiles.display_name"])
+          .where(sql<boolean>`${sql.ref("profiles.id")} = any(${userIds})`)
+          .execute(),
+      )
     : { data: [] as { id: string; display_name: string }[] };
 
-  const nameById = new Map((applicantProfiles ?? []).map((p) => [p.id, p.display_name]));
+  const nameById = new Map(
+    (applicantProfiles ?? []).map((p) => [p.id, p.display_name]),
+  );
 
   return (
     <div className="max-w-3xl">
@@ -41,14 +64,23 @@ export default async function CreatorApplicationsAdminPage() {
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           {!applications || applications.length === 0 ? (
-            <p className="text-sm text-muted-foreground">申請はまだありません。</p>
+            <p className="text-sm text-muted-foreground">
+              申請はまだありません。
+            </p>
           ) : (
             applications.map((a) => (
-              <div key={a.id} className="flex flex-col gap-3 rounded-md border border-border p-4">
+              <div
+                key={a.id}
+                className="flex flex-col gap-3 rounded-md border border-border p-4"
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">{nameById.get(a.user_id) ?? "不明なユーザー"}</span>
-                    <Badge variant={a.status === "pending" ? "brand" : "default"}>
+                    <span className="font-semibold">
+                      {nameById.get(a.user_id) ?? "不明なユーザー"}
+                    </span>
+                    <Badge
+                      variant={a.status === "pending" ? "brand" : "default"}
+                    >
                       {STATUS_LABEL[a.status]}
                     </Badge>
                   </div>
@@ -56,7 +88,9 @@ export default async function CreatorApplicationsAdminPage() {
                     {new Date(a.created_at).toLocaleString("ja-JP")}
                   </span>
                 </div>
-                {a.message && <p className="text-sm whitespace-pre-wrap">{a.message}</p>}
+                {a.message && (
+                  <p className="text-sm whitespace-pre-wrap">{a.message}</p>
+                )}
                 {/* 審査に要る本人確認の情報。番号は運営だけが見る（伏せない） */}
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-ground px-3 py-2 text-[12px]">
                   <dt className="text-muted-foreground">SMS 認証</dt>
@@ -72,7 +106,9 @@ export default async function CreatorApplicationsAdminPage() {
                       : "未同意（旧形式の申請）"}
                   </dd>
                 </dl>
-                {a.status === "pending" && <ReviewButtons applicationId={a.id} />}
+                {a.status === "pending" && (
+                  <ReviewButtons applicationId={a.id} />
+                )}
               </div>
             ))
           )}

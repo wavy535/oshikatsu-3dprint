@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { AlertTriangle, CheckCircle2, CircleDashed, XCircle } from "lucide-react";
 
-import { requireCreator } from "@/lib/auth/guards";
 import { getWorkDraft } from "@/lib/works/studio-queries";
 import { StepNav } from "@/components/studio/step-nav";
 import { AssetUploader } from "@/components/studio/asset-uploader";
@@ -42,7 +41,6 @@ const SEVERITY_STYLE = {
  */
 export default async function Step1Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user } = await requireCreator();
   const work = await getWorkDraft(id);
   if (!work) notFound();
 
@@ -65,7 +63,7 @@ export default async function Step1Page({ params }: { params: Promise<{ id: stri
 
       <StepNav workId={work.id} current={1} />
 
-      <AssetUploader workId={work.id} userId={user.id} hasAsset={Boolean(asset)} />
+      <AssetUploader workId={work.id} hasAsset={Boolean(asset)} />
 
       {asset && (
         <>

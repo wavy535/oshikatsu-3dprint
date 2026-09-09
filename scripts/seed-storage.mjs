@@ -1,32 +1,27 @@
-/**
- * 開発用のダミー画像を storage の work-images バケットへ置く。
- *
- *   node scripts/seed-storage.mjs
- *
- * `supabase db reset` はDBだけを作り直し、storage の中身は消えない。
- * 逆に work_images の行だけがあって実体が無いと、一覧も詳細も画像が404になって
- * レイアウトの確認ができないので、行に対応するPNGをここで作って上げる。
- *
- * 画像は work_id から決まる色の単色＋斜めの帯だけ。外部依存を足したくないので
- * PNGは自前で組み立てている（zlib は node 標準）。
- */
+import { connectionOptions } from "../src/lib/db/connection.mjs";
+/** Create sample images in the local S3 emulator. No AWS resources are modified. */
 import { deflateSync } from "node:zlib";
-import { readFileSync } from "node:fs";
-
-const env = Object.fromEntries(
-  readFileSync(new URL("../.env.local", import.meta.url), "utf8")
-    .split("\n")
-    .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
-    .map((l) => {
-      const i = l.indexOf("=");
-      return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
-    })
-);
-
-const URL_BASE = env.NEXT_PUBLIC_SUPABASE_URL;
-const KEY = env.SUPABASE_SERVICE_ROLE_KEY;
-const BUCKET = "work-images";
-
+import pg from "pg";
+import {
+  S3Client,
+  CreateBucketCommand,
+  PutObjectCommand,
+} from "@aws-sdk/client-s3";
+import { requiredEnv } from "./env.mjs";
+const endpoint = requiredEnv("S3_ENDPOINT");
+if (endpoint !== "http://127.0.0.1:59000")
+  throw new Error("Storage fixtures require the local compose S3 endpoint");
+const s3 = new S3Client({
+  endpoint,
+  forcePathStyle: true,
+  region: requiredEnv("AWS_REGION"),
+  credentials: {
+    accessKeyId: requiredEnv("S3_ACCESS_KEY_ID"),
+    secretAccessKey: requiredEnv("S3_SECRET_ACCESS_KEY"),
+  },
+});
+const Bucket = requiredEnv("S3_BUCKET");
+const db = new pg.Client(connectionOptions(requiredEnv("MIGRATION_DATABASE_URL")));
 // ───────── PNG を組み立てる ─────────
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
   let c = n;
@@ -86,8 +81,17 @@ function hslToRgb(h, s, l) {
   const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
   const m = l - c / 2;
   const [r, g, b] =
-    h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x]
-    : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x];
+    h < 60
+      ? [c, x, 0]
+      : h < 120
+        ? [x, c, 0]
+        : h < 180
+          ? [0, c, x]
+          : h < 240
+            ? [0, x, c]
+            : h < 300
+              ? [x, 0, c]
+              : [c, 0, x];
   return [r, g, b].map((v) => Math.round((v + m) * 255));
 }
 
@@ -95,49 +99,36 @@ function placeholder(seed, variant) {
   const hue = (hueOf(seed) + variant * 25) % 360;
   const base = hslToRgb(hue, 0.32, 0.86);
   const band = hslToRgb(hue, 0.42, 0.72);
-  return png(640, 640, (x, y) => (((x + y) / 64) | 0) % 2 === 0 ? base : band);
+  return png(640, 640, (x, y) =>
+    (((x + y) / 64) | 0) % 2 === 0 ? base : band,
+  );
 }
 
-// ───────── 対象の行を引いて上げる ─────────
-async function main() {
-  if (!URL_BASE || !KEY) {
-    console.error(".env.local に NEXT_PUBLIC_SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY がありません");
-    process.exit(1);
+await db.connect();
+try {
+  try {
+    await s3.send(new CreateBucketCommand({ Bucket }));
+  } catch (error) {
+    if (
+      !["BucketAlreadyOwnedByYou", "BucketAlreadyExists"].includes(error.name)
+    )
+      throw error;
   }
-
-  const res = await fetch(`${URL_BASE}/rest/v1/work_images?select=work_id,storage_path,sort_order`, {
-    headers: { apikey: KEY, authorization: `Bearer ${KEY}` },
-  });
-  if (!res.ok) {
-    console.error("work_images の取得に失敗:", res.status, await res.text());
-    process.exit(1);
-  }
-  const rows = await res.json();
-  if (rows.length === 0) {
-    console.log("work_images に行がありません。先に supabase db reset を実行してください。");
-    return;
-  }
-
-  let ok = 0;
-  for (const row of rows) {
-    const body = placeholder(row.work_id, row.sort_order ?? 0);
-    const up = await fetch(
-      `${URL_BASE}/storage/v1/object/${BUCKET}/${row.storage_path}`,
-      {
-        method: "POST",
-        headers: {
-          apikey: KEY,
-          authorization: `Bearer ${KEY}`,
-          "content-type": "image/png",
-          "x-upsert": "true",
-        },
-        body,
-      }
+  // MinIO supplies CORS itself; AWS CORS is configured by the bucket owner.
+  const { rows } = await db.query(
+    "select work_id, storage_path, sort_order from work_images",
+  );
+  for (const row of rows)
+    await s3.send(
+      new PutObjectCommand({
+        Bucket,
+        Key: `work-images/${row.storage_path}`,
+        Body: placeholder(row.work_id, row.sort_order ?? 0),
+        ContentType: "image/png",
+      }),
     );
-    if (up.ok) ok++;
-    else console.error(`× ${row.storage_path}: ${up.status} ${await up.text()}`);
-  }
-  console.log(`${ok}/${rows.length} 件を ${BUCKET} へ置きました`);
+  console.log(`Created ${rows.length} local sample images`);
+} finally {
+  await db.end();
+  s3.destroy();
 }
-
-await main();

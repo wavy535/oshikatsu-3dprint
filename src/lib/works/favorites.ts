@@ -1,8 +1,9 @@
 "use server";
+import { queryResult } from "@/lib/db/result";
 
 import { revalidatePath } from "next/cache";
 
-import { createClient } from "@/lib/supabase/server";
+import { getOptionalUser } from "@/lib/auth/guards";
 
 export type FavoriteState = { error: string | null; favorited: boolean };
 
@@ -13,34 +14,39 @@ export type FavoriteState = { error: string | null; favorited: boolean };
  */
 export async function toggleFavoriteAction(
   prev: FavoriteState,
-  formData: FormData
+  formData: FormData,
 ): Promise<FavoriteState> {
   const workId = formData.get("workId");
-  if (typeof workId !== "string") return { ...prev, error: "作品が特定できません" };
+  if (typeof workId !== "string")
+    return { ...prev, error: "作品が特定できません" };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
   if (!user) return { ...prev, error: "ログインが必要です" };
 
   if (prev.favorited) {
-    const { data, error } = await supabase
-      .from("work_favorites")
-      .delete()
-      .eq("work_id", workId)
-      .eq("user_id", user.id)
-      .select("work_id");
-    if (error || !data || data.length === 0) return { ...prev, error: "解除できませんでした" };
+    const { data, error } = await queryResult(
+      db
+        .deleteFrom("work_favorites")
+        .where("work_favorites.work_id", "=", workId)
+        .where("work_favorites.user_id", "=", user.id)
+        .returning(["work_id"])
+        .execute(),
+    );
+    if (error || !data || data.length === 0)
+      return { ...prev, error: "解除できませんでした" };
     revalidatePath(`/works/${workId}`);
     return { error: null, favorited: false };
   }
 
-  const { data, error } = await supabase
-    .from("work_favorites")
-    .insert({ work_id: workId, user_id: user.id })
-    .select("work_id");
-  if (error || !data || data.length === 0) return { ...prev, error: "追加できませんでした" };
+  const { data, error } = await queryResult(
+    db
+      .insertInto("work_favorites")
+      .values({ work_id: workId, user_id: user.id })
+      .returning(["work_id"])
+      .execute(),
+  );
+  if (error || !data || data.length === 0)
+    return { ...prev, error: "追加できませんでした" };
   revalidatePath(`/works/${workId}`);
   return { error: null, favorited: true };
 }

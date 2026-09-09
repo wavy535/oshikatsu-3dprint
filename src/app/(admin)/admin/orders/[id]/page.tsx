@@ -15,7 +15,7 @@ export const metadata = { title: "注文詳細（運営）" };
  *   支払い = 作品代金 + 印刷代行費 + 送料
  *   手数料 = (支払い − 印刷の実費 − 送料の実費) × 料率（注文時のスナップショット）
  *   受取   = 残り
- * 実費は発送後に確定する（order_settlements ビュー・0016）。明細の手数料・受取は注文時の見込み。
+ * 実費は発送後に確定する（order_settlements ビュー）。明細の手数料・受取は注文時の見込み。
  */
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

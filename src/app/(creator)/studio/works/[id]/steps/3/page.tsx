@@ -1,3 +1,4 @@
+import { queryResult } from "@/lib/db/result";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
@@ -9,24 +10,41 @@ import { WorkInfoForm } from "@/components/studio/work-info-form";
 export const metadata = { title: "STEP3 作品情報" };
 
 /** Figma ②出品フロー「STEP3 作品情報」。 */
-export default async function Step3Page({ params }: { params: Promise<{ id: string }> }) {
+export default async function Step3Page({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
-  const { supabase } = await requireCreator();
+  const { db } = await requireCreator();
   const [work, tags] = await Promise.all([getWorkDraft(id), listTags()]);
   if (!work) notFound();
   if (!work.work_assets?.length) redirect(`/studio/works/${id}/steps/1`);
 
   const [{ data: rule }, { data: pricing }] = await Promise.all([
-    supabase
-      .from("print_pricing_rules")
-      .select("platform_fee_rate, fee_billing")
-      .eq("is_active", true)
-      .maybeSingle(),
+    queryResult(
+      db
+        .selectFrom("print_pricing_rules")
+        .select([
+          "print_pricing_rules.platform_fee_rate",
+          "print_pricing_rules.fee_billing",
+        ])
+        .where("print_pricing_rules.is_active", "=", true)
+        .executeTakeFirst(),
+    ),
     // 下限・支払額・受取額はビューが課金モデルに合わせて計算している
-    supabase
-      .from("work_variant_pricing")
-      .select("id, min_price_jpy, buyer_total_jpy, creator_payout_jpy")
-      .eq("work_id", id),
+    queryResult(
+      db
+        .selectFrom("work_variant_pricing")
+        .select([
+          "work_variant_pricing.id",
+          "work_variant_pricing.min_price_jpy",
+          "work_variant_pricing.buyer_total_jpy",
+          "work_variant_pricing.creator_payout_jpy",
+        ])
+        .where("work_variant_pricing.work_id", "=", id)
+        .execute(),
+    ),
   ]);
   const pricingById = new Map((pricing ?? []).map((p) => [p.id, p] as const));
 
@@ -53,7 +71,10 @@ export default async function Step3Page({ params }: { params: Promise<{ id: stri
     <>
       <div className="flex items-center gap-3">
         <h1 className="text-base font-bold text-ink">作品を投稿する</h1>
-        <Link href="/studio/works" className="ml-auto text-[11.5px] text-brand hover:underline">
+        <Link
+          href="/studio/works"
+          className="ml-auto text-[11.5px] text-brand hover:underline"
+        >
           作品管理へ戻る
         </Link>
       </div>

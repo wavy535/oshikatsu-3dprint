@@ -1,24 +1,12 @@
-/**
- * `database.ts` から引くための別名。
- *
- * `database.ts` は `npx supabase gen types typescript --local` が丸ごと
- * 上書きするので、手で足した別名はそちらに置かない。参照はすべてここを通す。
- */
-import type { Database, Json } from "./database";
-
+/** Shared business DTOs, derived from the PostgreSQL schema. */
+import type { Insertable, Selectable, Updateable } from "kysely";
+import type { Database, DbEnums, DbFunctions, Json } from "./database";
 export type { Database, Json };
-
-type PublicSchema = Database["public"];
-
-export type Tables<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Row"];
-export type TablesInsert<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Insert"];
-export type TablesUpdate<T extends keyof PublicSchema["Tables"]> =
-  PublicSchema["Tables"][T]["Update"];
-export type Enums<T extends keyof PublicSchema["Enums"]> = PublicSchema["Enums"][T];
-export type FunctionReturns<T extends keyof PublicSchema["Functions"]> =
-  PublicSchema["Functions"][T]["Returns"];
+export type Tables<T extends keyof Database> = Selectable<Database[T]>;
+export type TablesInsert<T extends keyof Database> = Insertable<Database[T]>;
+export type TablesUpdate<T extends keyof Database> = Updateable<Database[T]>;
+export type Enums<T extends keyof DbEnums> = DbEnums[T];
+export type FunctionReturns<T extends keyof DbFunctions> = DbFunctions[T]["Returns"];
 
 // ───────── ENUM の別名（画面側はこちらを使う）─────────
 export type UserRole = Enums<"user_role">;

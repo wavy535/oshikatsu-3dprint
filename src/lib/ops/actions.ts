@@ -1,4 +1,8 @@
 "use server";
+import { checkStoredFile } from "@/lib/files/s3";
+import { queryResult } from "@/lib/db/result";
+import { call } from "@/lib/db/functions";
+import { sql } from "kysely";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -33,30 +37,39 @@ function revalidateJob(jobId: string) {
 async function updateJob(
   jobId: string,
   patch: TablesUpdate<"print_jobs">,
-  allowedFrom?: PrintJobStatus[]
+  allowedFrom?: PrintJobStatus[],
 ): Promise<OpsActionState> {
-  const { supabase } = await requireAdmin();
+  const { db } = await requireAdmin();
 
   if (allowedFrom) {
-    const { data: current } = await supabase
-      .from("print_jobs")
-      .select("status")
-      .eq("id", jobId)
-      .maybeSingle();
+    const { data: current } = await queryResult(
+      db
+        .selectFrom("print_jobs")
+        .select(["print_jobs.status"])
+        .where("print_jobs.id", "=", jobId)
+        .executeTakeFirst(),
+    );
     if (!current) return { error: "ジョブが見つかりません" };
     if (!allowedFrom.includes(current.status)) {
-      return { error: "このジョブの状態では実行できません（画面を読み込み直してください）" };
+      return {
+        error:
+          "このジョブの状態では実行できません（画面を読み込み直してください）",
+      };
     }
   }
 
-  const { data, error } = await supabase
-    .from("print_jobs")
-    .update(patch)
-    .eq("id", jobId)
-    .select("id");
+  const { data, error } = await queryResult(
+    db
+      .updateTable("print_jobs")
+      .set(patch)
+      .where("print_jobs.id", "=", jobId)
+      .returning(["id"])
+      .execute(),
+  );
 
   if (error) return { error: `更新に失敗しました（${error.message}）` };
-  if (!data || data.length === 0) return { error: "更新できませんでした（権限を確認してください）" };
+  if (!data || data.length === 0)
+    return { error: "更新できませんでした（権限を確認してください）" };
 
   revalidateJob(jobId);
   return OK;
@@ -65,7 +78,7 @@ async function updateJob(
 /** 印刷開始。プリンタを割り当て、担当を自分にする。購入者への通知はDBトリガーが出す。 */
 export async function startPrintJobAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const jobId = String(formData.get("jobId") ?? "");
   const printerId = String(formData.get("printerId") ?? "");
@@ -76,14 +89,14 @@ export async function startPrintJobAction(
   return updateJob(
     jobId,
     { status: "printing", printer_id: printerId, assignee_id: user.id },
-    ["queued", "qc_failed", "reprinting"]
+    ["queued", "qc_failed", "reprinting"],
   );
 }
 
 /** 印刷を中断してキューへ戻す。 */
 export async function pausePrintJobAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const jobId = String(formData.get("jobId") ?? "");
   if (!jobId) return { error: "ジョブが指定されていません" };
@@ -93,19 +106,22 @@ export async function pausePrintJobAction(
 /** バッチを1回ぶん消化する（ベッドに載りきらない作品は何回かに分けて刷る）。 */
 export async function advanceBatchAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const jobId = String(formData.get("jobId") ?? "");
   if (!jobId) return { error: "ジョブが指定されていません" };
 
-  const { supabase } = await requireAdmin();
-  const { data: job } = await supabase
-    .from("print_jobs")
-    .select("batch_done, batch_count")
-    .eq("id", jobId)
-    .maybeSingle();
+  const { db } = await requireAdmin();
+  const { data: job } = await queryResult(
+    db
+      .selectFrom("print_jobs")
+      .select(["print_jobs.batch_done", "print_jobs.batch_count"])
+      .where("print_jobs.id", "=", jobId)
+      .executeTakeFirst(),
+  );
   if (!job) return { error: "ジョブが見つかりません" };
-  if (job.batch_done >= job.batch_count) return { error: "すべてのバッチが終わっています" };
+  if (job.batch_done >= job.batch_count)
+    return { error: "すべてのバッチが終わっています" };
 
   return updateJob(jobId, { batch_done: job.batch_done + 1 });
 }
@@ -125,7 +141,7 @@ const finishSchema = z.object({
  */
 export async function finishPrintJobAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const jobId = String(formData.get("jobId") ?? "");
   if (!jobId) return { error: "ジョブが指定されていません" };
@@ -137,17 +153,21 @@ export async function finishPrintJobAction(
     filamentId: formData.get("filamentId") ?? "",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
   const { actualGrams, actualHours, failureCount, filamentId } = parsed.data;
 
-  const { supabase, user } = await requireAdmin();
+  const { db, user } = await requireAdmin();
 
-  const { data: current } = await supabase
-    .from("print_jobs")
-    .select("status")
-    .eq("id", jobId)
-    .maybeSingle();
+  const { data: current } = await queryResult(
+    db
+      .selectFrom("print_jobs")
+      .select(["print_jobs.status"])
+      .where("print_jobs.id", "=", jobId)
+      .executeTakeFirst(),
+  );
   if (!current) return { error: "ジョブが見つかりません" };
   if (current.status !== "printing" && current.status !== "reprinting") {
     return { error: "印刷中のジョブだけ完了にできます" };
@@ -162,19 +182,25 @@ export async function finishPrintJobAction(
   if (result.error) return result;
 
   if (filamentId && actualGrams > 0) {
-    const { data, error } = await supabase
-      .from("filament_ledger")
-      .insert({
-        filament_id: filamentId,
-        delta_grams: -actualGrams,
-        reason: "print",
-        print_job_id: jobId,
-        actor_id: user.id,
-      })
-      .select("id");
+    const { data, error } = await queryResult(
+      db
+        .insertInto("filament_ledger")
+        .values({
+          filament_id: filamentId,
+          delta_grams: -actualGrams,
+          reason: "print",
+          print_job_id: jobId,
+          actor_id: user.id,
+        })
+        .returning(["id"])
+        .execute(),
+    );
     if (error || !data || data.length === 0) {
       // ジョブ自体は完了済みなので、ここは戻さず画面に伝えるだけにする
-      return { error: null, message: "完了にしましたが、フィラメント台帳への記録に失敗しました" };
+      return {
+        error: null,
+        message: "完了にしましたが、フィラメント台帳への記録に失敗しました",
+      };
     }
   }
 
@@ -184,7 +210,7 @@ export async function finishPrintJobAction(
 /** 検品NGのあと、刷り直しを始める。 */
 export async function startReprintAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const jobId = String(formData.get("jobId") ?? "");
   const printerId = String(formData.get("printerId") ?? "");
@@ -199,7 +225,7 @@ export async function startReprintAction(
       assignee_id: user.id,
       batch_done: 0,
     },
-    ["qc_failed"]
+    ["qc_failed"],
   );
 }
 
@@ -218,34 +244,38 @@ const qcSchema = z.object({
  */
 export async function submitQcAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const parsed = qcSchema.safeParse({
     jobId: formData.get("jobId"),
     memo: String(formData.get("memo") ?? "") || undefined,
     reprintCause: (String(formData.get("reprintCause") ?? "") || undefined) as
-      | ReprintCause
-      | undefined,
+      ReprintCause | undefined,
   });
   if (!parsed.success) return { error: "入力内容を確認してください" };
   const { jobId, memo, reprintCause } = parsed.data;
 
-  const { supabase, user } = await requireAdmin();
+  const { db, user } = await requireAdmin();
 
-  const { data: job } = await supabase
-    .from("print_jobs")
-    .select("status")
-    .eq("id", jobId)
-    .maybeSingle();
+  const { data: job } = await queryResult(
+    db
+      .selectFrom("print_queue")
+      .select(["print_queue.status", "print_queue.work_id"])
+      .where("print_queue.id", "=", jobId)
+      .executeTakeFirst(),
+  );
   if (!job) return { error: "ジョブが見つかりません" };
   if (job.status !== "printed" && job.status !== "qc_failed") {
     return { error: "印刷が終わったジョブだけ検品できます" };
   }
 
-  const { data: definitions } = await supabase
-    .from("qc_check_definitions")
-    .select("code")
-    .eq("is_active", true);
+  const { data: definitions } = await queryResult(
+    db
+      .selectFrom("qc_check_definitions")
+      .select(["qc_check_definitions.code"])
+      .where("qc_check_definitions.is_active", "=", true)
+      .execute(),
+  );
 
   const results = (definitions ?? []).map((d) => ({
     code: d.code,
@@ -254,7 +284,7 @@ export async function submitQcAction(
   }));
 
   const unanswered = (definitions ?? []).filter(
-    (d) => formData.get(`check_${d.code}`) === null
+    (d) => formData.get(`check_${d.code}`) === null,
   );
   if (unanswered.length > 0) {
     return { error: "すべての項目に OK / NG を付けてください" };
@@ -271,27 +301,40 @@ export async function submitQcAction(
     .map((v) => String(v))
     .filter(Boolean);
 
-  const { data: inspection, error } = await supabase
-    .from("qc_inspections")
-    .insert({
-      print_job_id: jobId,
-      inspector_id: user.id,
-      result,
-      memo: memo ?? null,
-      photo_paths: photoPaths,
-      reprint_cause: result === "failed" ? reprintCause! : null,
-    })
-    .select("id")
-    .maybeSingle();
-
-  if (error || !inspection) {
-    return { error: `検品結果の登録に失敗しました（${error?.message ?? "0件"}）` };
+  if (photoPaths.length > 6 || photoPaths.some(path => !path.startsWith(`${job.work_id}/${jobId}/`))) return { error: "検品写真の指定が不正です" };
+  for (const path of photoPaths) {
+    const stored = await queryResult(checkStoredFile("qc-photos", path, 8 * 1024 * 1024));
+    if (stored.error) return { error: "検品写真を確認できませんでした" };
   }
 
-  const { data: written, error: resultError } = await supabase
-    .from("qc_check_results")
-    .insert(results.map((r) => ({ inspection_id: inspection.id, ...r })))
-    .select("id");
+  const { data: inspection, error } = await queryResult(
+    db
+      .insertInto("qc_inspections")
+      .values({
+        print_job_id: jobId,
+        inspector_id: user.id,
+        result,
+        memo: memo ?? null,
+        photo_paths: photoPaths,
+        reprint_cause: result === "failed" ? reprintCause! : null,
+      })
+      .returning(["id"])
+      .executeTakeFirst(),
+  );
+
+  if (error || !inspection) {
+    return {
+      error: `検品結果の登録に失敗しました（${error?.message ?? "0件"}）`,
+    };
+  }
+
+  const { data: written, error: resultError } = await queryResult(
+    db
+      .insertInto("qc_check_results")
+      .values(results.map((r) => ({ inspection_id: inspection.id, ...r })))
+      .returning(["id"])
+      .execute(),
+  );
 
   if (resultError || (written ?? []).length !== results.length) {
     return { error: "チェック項目の記録に失敗しました" };
@@ -326,7 +369,7 @@ const shipmentSchema = z.object({
  */
 export async function createShipmentAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const parsed = shipmentSchema.safeParse({
     orderId: formData.get("orderId"),
@@ -339,48 +382,60 @@ export async function createShipmentAction(
     shippingFeeJpy: formData.get("shippingFeeJpy") || 0,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
   const v = parsed.data;
 
-  const { supabase, user } = await requireAdmin();
+  const { db, user } = await requireAdmin();
 
   // 全ジョブが検品を通っていないうちは発送させない
-  const { data: jobs } = await supabase
-    .from("print_jobs")
-    .select("status")
-    .eq("order_id", v.orderId);
+  const { data: jobs } = await queryResult(
+    db
+      .selectFrom("print_jobs")
+      .select(["print_jobs.status"])
+      .where("print_jobs.order_id", "=", v.orderId)
+      .execute(),
+  );
   const pending = (jobs ?? []).filter(
-    (j) => j.status !== "qc_passed" && j.status !== "cancelled"
+    (j) => j.status !== "qc_passed" && j.status !== "cancelled",
   );
   if ((jobs ?? []).length === 0 || pending.length > 0) {
     return { error: "検品が終わっていないジョブがあります" };
   }
 
-  const { data, error } = await supabase
-    .from("shipments")
-    .insert({
-      order_id: v.orderId,
-      carrier: v.carrier as ShippingCarrier,
-      service_name: v.serviceName ?? null,
-      tracking_number: v.trackingNumber,
-      box_type: v.boxType ?? null,
-      weight_grams: v.weightGrams,
-      size_sum_cm: v.sizeSumCm,
-      shipping_fee_jpy: v.shippingFeeJpy,
-      packer_id: user.id,
-    })
-    .select("id");
+  const { data, error } = await queryResult(
+    db
+      .insertInto("shipments")
+      .values({
+        order_id: v.orderId,
+        carrier: v.carrier as ShippingCarrier,
+        service_name: v.serviceName ?? null,
+        tracking_number: v.trackingNumber,
+        box_type: v.boxType ?? null,
+        weight_grams: v.weightGrams,
+        size_sum_cm: v.sizeSumCm,
+        shipping_fee_jpy: v.shippingFeeJpy,
+        packer_id: user.id,
+      })
+      .returning(["id"])
+      .execute(),
+  );
 
   if (error) {
-    if (error.code === "23505") return { error: "この注文はすでに発送登録されています" };
+    if (error.code === "23505")
+      return { error: "この注文はすでに発送登録されています" };
     return { error: `発送登録に失敗しました（${error.message}）` };
   }
   if (!data || data.length === 0) return { error: "発送登録に失敗しました" };
 
   revalidatePath("/admin/print-queue");
   revalidatePath("/mypage/orders");
-  return { error: null, message: "発送を登録しました。購入者の注文は「発送済み」になります" };
+  return {
+    error: null,
+    message: "発送を登録しました。購入者の注文は「発送済み」になります",
+  };
 }
 
 // =============================================================================
@@ -398,7 +453,7 @@ const restockSchema = z.object({
 /** 補充・廃棄・棚卸し調整。廃棄は負の増減として積む。 */
 export async function adjustFilamentStockAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const parsed = restockSchema.safeParse({
     filamentId: formData.get("filamentId"),
@@ -406,48 +461,62 @@ export async function adjustFilamentStockAction(
     reason: formData.get("reason") ?? "restock",
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
   const { filamentId, grams, reason } = parsed.data;
 
-  const { supabase, user } = await requireAdmin();
-  const { data, error } = await supabase
-    .from("filament_ledger")
-    .insert({
-      filament_id: filamentId,
-      delta_grams: reason === "waste" ? -grams : grams,
-      reason,
-      actor_id: user.id,
-    })
-    .select("id");
+  const { db, user } = await requireAdmin();
+  const { data, error } = await queryResult(
+    db
+      .insertInto("filament_ledger")
+      .values({
+        filament_id: filamentId,
+        delta_grams: reason === "waste" ? -grams : grams,
+        reason,
+        actor_id: user.id,
+      })
+      .returning(["id"])
+      .execute(),
+  );
 
   if (error || !data || data.length === 0) {
-    return { error: `台帳への記録に失敗しました（${error?.message ?? "0件"}）` };
+    return {
+      error: `台帳への記録に失敗しました（${error?.message ?? "0件"}）`,
+    };
   }
 
   revalidatePath("/admin/filaments");
   return {
     error: null,
-    message: reason === "waste" ? `${grams}g を廃棄として記録しました` : `${grams}g を記録しました`,
+    message:
+      reason === "waste"
+        ? `${grams}g を廃棄として記録しました`
+        : `${grams}g を記録しました`,
   };
 }
 
 /** 使う／使わないの切り替え。無効にしても作品の色スロットは残る（restrict）。 */
 export async function toggleFilamentActiveAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const filamentId = String(formData.get("filamentId") ?? "");
   const next = formData.get("isActive") === "true";
   if (!filamentId) return { error: "フィラメントが指定されていません" };
 
-  const { supabase } = await requireAdmin();
-  const { data, error } = await supabase
-    .from("filaments")
-    .update({ is_active: next })
-    .eq("id", filamentId)
-    .select("id");
-  if (error || !data || data.length === 0) return { error: "更新できませんでした" };
+  const { db } = await requireAdmin();
+  const { data, error } = await queryResult(
+    db
+      .updateTable("filaments")
+      .set({ is_active: next })
+      .where("filaments.id", "=", filamentId)
+      .returning(["id"])
+      .execute(),
+  );
+  if (error || !data || data.length === 0)
+    return { error: "更新できませんでした" };
 
   revalidatePath("/admin/filaments");
   return OK;
@@ -456,7 +525,9 @@ export async function toggleFilamentActiveAction(
 const newFilamentSchema = z.object({
   material: z.enum(["PLA", "PETG", "ABS", "TPU"]),
   colorName: z.string().min(1, "色の名前を入れてください").max(30),
-  colorHex: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "色コードは #RRGGBB で入力してください"),
+  colorHex: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, "色コードは #RRGGBB で入力してください"),
   pricePerGram: z.coerce.number().min(0).max(999),
   stockGrams: z.coerce.number().int().min(0).max(100000),
 });
@@ -464,7 +535,7 @@ const newFilamentSchema = z.object({
 /** 新しいフィラメントの登録。初期在庫があれば台帳に「補充」として積む。 */
 export async function createFilamentAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const parsed = newFilamentSchema.safeParse({
     material: formData.get("material"),
@@ -474,37 +545,53 @@ export async function createFilamentAction(
     stockGrams: formData.get("stockGrams") || 0,
   });
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
   const v = parsed.data;
 
-  const { supabase, user } = await requireAdmin();
-  const { data, error } = await supabase
-    .from("filaments")
-    .insert({
-      material: v.material,
-      color_name: v.colorName,
-      color_hex: v.colorHex.toUpperCase(),
-      price_per_gram: v.pricePerGram,
-      stock_grams: 0,
-    })
-    .select("id")
-    .maybeSingle();
+  const { db, user } = await requireAdmin();
+  const { data, error } = await queryResult(
+    db
+      .insertInto("filaments")
+      .values({
+        material: v.material,
+        color_name: v.colorName,
+        color_hex: v.colorHex.toUpperCase(),
+        price_per_gram: v.pricePerGram,
+        stock_grams: 0,
+      })
+      .returning(["id"])
+      .executeTakeFirst(),
+  );
 
   if (error || !data) {
-    if (error?.code === "23505") return { error: "同じ素材・色のフィラメントがすでにあります" };
+    if (error?.code === "23505")
+      return { error: "同じ素材・色のフィラメントがすでにあります" };
     return { error: `登録に失敗しました（${error?.message ?? "0件"}）` };
   }
 
   if (v.stockGrams > 0) {
-    await supabase
-      .from("filament_ledger")
-      .insert({ filament_id: data.id, delta_grams: v.stockGrams, reason: "restock", actor_id: user.id })
-      .select("id");
+    await queryResult(
+      db
+        .insertInto("filament_ledger")
+        .values({
+          filament_id: data.id,
+          delta_grams: v.stockGrams,
+          reason: "restock",
+          actor_id: user.id,
+        })
+        .returning(["id"])
+        .execute(),
+    );
   }
 
   revalidatePath("/admin/filaments");
-  return { error: null, message: `${v.material}・${v.colorName} を登録しました` };
+  return {
+    error: null,
+    message: `${v.material}・${v.colorName} を登録しました`,
+  };
 }
 
 // =============================================================================
@@ -516,23 +603,28 @@ const payoutNextSchema = z.enum(["processing", "paid", "rejected"]);
 /** 振込申請を進める。振込済み・却下のときは処理日時を入れる。通知はトリガーが出す。 */
 export async function processPayoutAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const id = String(formData.get("id") ?? "");
   const parsed = payoutNextSchema.safeParse(formData.get("next"));
   if (!id || !parsed.success) return { error: "操作が不正です" };
   const next = parsed.data;
 
-  const { supabase } = await requireAdmin();
-  const { data, error } = await supabase
-    .from("payout_requests")
-    .update({
-      status: next,
-      processed_at: next === "processing" ? null : new Date().toISOString(),
-    })
-    .eq("id", id)
-    .in("status", ["requested", "processing"])
-    .select("id");
+  const { db } = await requireAdmin();
+  const { data, error } = await queryResult(
+    db
+      .updateTable("payout_requests")
+      .set({
+        status: next,
+        processed_at: next === "processing" ? null : new Date().toISOString(),
+      })
+      .where("payout_requests.id", "=", id)
+      .where(
+        sql<boolean>`${sql.ref("payout_requests.status")} = any(${["requested", "processing"]})`,
+      )
+      .returning(["id"])
+      .execute(),
+  );
   if (error) return { error: `更新に失敗しました（${error.message}）` };
   if (!data || data.length === 0) return { error: "この申請は更新できません" };
 
@@ -558,7 +650,7 @@ const editActualsSchema = z.object({
 
 export async function editActualsAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const parsed = editActualsSchema.safeParse({
     jobId: formData.get("jobId"),
@@ -567,15 +659,25 @@ export async function editActualsAction(
     failureCount: formData.get("failureCount") ?? 0,
     reason: formData.get("reason"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+  if (!parsed.success)
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   const v = parsed.data;
 
-  const { supabase, user } = await requireAdmin();
-  const { data: before } = await supabase
-    .from("print_jobs")
-    .select("status, actual_filament_grams, actual_print_hours, failure_count")
-    .eq("id", v.jobId)
-    .maybeSingle();
+  const { db, user } = await requireAdmin();
+  const { data: before } = await queryResult(
+    db
+      .selectFrom("print_jobs")
+      .select([
+        "print_jobs.status",
+        "print_jobs.actual_filament_grams",
+        "print_jobs.actual_print_hours",
+        "print_jobs.failure_count",
+      ])
+      .where("print_jobs.id", "=", v.jobId)
+      .executeTakeFirst(),
+  );
   if (!before) return { error: "ジョブが見つかりません" };
   if (!["printed", "qc_passed", "qc_failed"].includes(before.status)) {
     return { error: "実績を直せるのは印刷が終わったジョブだけです" };
@@ -593,46 +695,64 @@ export async function editActualsAction(
     `${before.actual_filament_grams ?? "—"}g→${v.actualGrams}g, ` +
     `${before.actual_print_hours ?? "—"}h→${v.actualHours}h, ` +
     `失敗 ${before.failure_count}→${v.failureCount}`;
-  await supabase
-    .from("print_job_events")
-    .insert({ print_job_id: v.jobId, status: before.status, actor_id: user.id, note })
-    .select("id");
+  await queryResult(
+    db
+      .insertInto("print_job_events")
+      .values({
+        print_job_id: v.jobId,
+        status: before.status,
+        actor_id: user.id,
+        note,
+      })
+      .returning(["id"])
+      .execute(),
+  );
 
   return { error: null, message: "実績を直しました。履歴に残ります" };
 }
 
 // =============================================================================
 // 運営メンバー
-//   role の書き換えは DB の関数（grant_admin / revoke_admin, 0022）だけが行う。
+//   role の書き換えは DB の関数（grant_admin / revoke_admin）だけが行う。
 //   「自分は解除できない」「最後の1人は解除できない」の判断も関数側にある。
 // =============================================================================
 
-const emailSchema = z.string().trim().email("メールアドレスの形式が正しくありません").max(254);
+const emailSchema = z
+  .string()
+  .trim()
+  .email("メールアドレスの形式が正しくありません")
+  .max(254);
 
 export async function grantAdminAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const parsed = emailSchema.safeParse(formData.get("email"));
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "入力を確認してください" };
+  if (!parsed.success)
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力を確認してください",
+    };
 
-  const { supabase } = await requireAdmin();
-  const { error } = await supabase.rpc("grant_admin", { p_email: parsed.data });
+  const { db } = await requireAdmin();
+  const { error } = await call(db, "grant_admin", { p_email: parsed.data });
   if (error) return { error: error.message };
 
   revalidatePath("/admin/members");
-  return { error: null, message: `${parsed.data} を運営メンバーに追加しました` };
+  return {
+    error: null,
+    message: `${parsed.data} を運営メンバーに追加しました`,
+  };
 }
 
 export async function revokeAdminAction(
   _prev: OpsActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<OpsActionState> {
   const parsed = idSchema.safeParse(formData.get("userId"));
   if (!parsed.success) return { error: "操作が不正です" };
 
-  const { supabase } = await requireAdmin();
-  const { error } = await supabase.rpc("revoke_admin", { p_user_id: parsed.data });
+  const { db } = await requireAdmin();
+  const { error } = await call(db, "revoke_admin", { p_user_id: parsed.data });
   if (error) return { error: error.message };
 
   revalidatePath("/admin/members");

@@ -1,9 +1,12 @@
 "use server";
+import { authMutation } from "@/lib/auth/mutation";
+import { queryResult } from "@/lib/db/result";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 
-import { createClient, createServiceRoleClient } from "@/lib/supabase/server";
+import { getOptionalUser } from "@/lib/auth/guards";
+import { serviceDatabase } from "@/lib/db/client";
 import { CREATOR_TERMS_VERSION } from "@/lib/creator/terms";
 import { maskPhone, toE164 } from "@/lib/creator/phone";
 
@@ -21,43 +24,52 @@ const phoneSchema = z.object({
   phone: z.string().min(1, "電話番号を入力してください"),
 });
 
-/**
- * SMS で認証コードを送る。
- * Supabase Auth の「電話番号の変更」を使う: updateUser({ phone }) がコードを送り、
- * verifyOtp(type='phone_change') で確認が取れると auth.users.phone_confirmed_at が入る。
- * 送るのは本人のセッションからだけ（Service Role は使わない）。
- */
+/** SMSで本人確認コードを送る。開発環境ではMailpitで確認する。 */
 export async function sendPhoneCodeAction(
-  _prev: PhoneActionState,
-  formData: FormData
+  prev: PhoneActionState,
+  formData: FormData,
 ): Promise<PhoneActionState> {
   const parsed = phoneSchema.safeParse({ phone: formData.get("phone") });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "電話番号を入力してください" };
+  if (!parsed.success)
+    return {
+      error: parsed.error.issues[0]?.message ?? "電話番号を入力してください",
+    };
 
   const e164 = toE164(parsed.data.phone);
-  if (!e164) return { error: "携帯電話の番号（070/080/090 から始まる11桁）を入力してください" };
+  if (!e164)
+    return {
+      error: "携帯電話の番号（070/080/090 から始まる11桁）を入力してください",
+    };
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { user } = await getOptionalUser();
   if (!user) return { error: "ログインが必要です" };
 
   // すでに同じ番号で認証済みなら送らない
-  if (user.phone && `+${user.phone}` === e164 && user.phone_confirmed_at) {
+  if (user.phoneNumber === e164 && user.phoneNumberVerified) {
     return { error: null, verifiedMasked: maskPhone(e164) ?? undefined };
   }
 
-  const { error } = await supabase.auth.updateUser({ phone: e164 });
+  const { error } = await authMutation("/phone-number/send-otp", {
+    phoneNumber: e164,
+  });
   if (error) {
-    if (/rate|frequency|seconds/i.test(error.message)) {
-      return { error: "送信の間隔が短すぎます。1分ほど待ってからもう一度お試しください" };
+    const sentTo = prev.sentTo === e164 ? e164 : undefined;
+    if (error.status === 429) {
+      return {
+        sentTo,
+        error:
+          "送信の間隔が短すぎます。1分ほど待ってからもう一度お試しください",
+      };
     }
     if (/already|registered|exists/i.test(error.message)) {
-      return { error: "この電話番号は別のアカウントで使われています" };
+      return { sentTo, error: "この電話番号は別のアカウントで使われています" };
     }
     console.error("[sendPhoneCode]", error.message);
-    return { error: "認証コードを送れませんでした。番号を確認して、しばらくしてからお試しください" };
+    return {
+      sentTo,
+      error:
+        "認証コードを送れませんでした。番号を確認して、しばらくしてからお試しください",
+    };
   }
 
   return { error: null, sentTo: e164 };
@@ -71,7 +83,7 @@ const verifyPhoneSchema = z.object({
 /** 届いた6桁のコードで番号を確定する */
 export async function verifyPhoneCodeAction(
   _prev: PhoneActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<PhoneActionState> {
   const parsed = verifyPhoneSchema.safeParse({
     phone: formData.get("phone"),
@@ -84,11 +96,10 @@ export async function verifyPhoneCodeAction(
     };
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.verifyOtp({
-    phone: parsed.data.phone,
-    token: parsed.data.token,
-    type: "phone_change",
+  const { error } = await authMutation("/phone-number/verify", {
+    phoneNumber: parsed.data.phone,
+    code: parsed.data.token,
+    updatePhoneNumber: true,
   });
 
   if (error) {
@@ -99,15 +110,21 @@ export async function verifyPhoneCodeAction(
   }
 
   revalidatePath("/creator/apply");
-  return { error: null, verifiedMasked: maskPhone(parsed.data.phone) ?? undefined };
+  return {
+    error: null,
+    verifiedMasked: maskPhone(parsed.data.phone) ?? undefined,
+  };
 }
 
 // ───────── 申請 ─────────
 
 const applySchema = z.object({
-  agreeTerms: z.literal("on", { message: "クリエイター利用規約への同意が必要です" }),
+  agreeTerms: z.literal("on", {
+    message: "クリエイター利用規約への同意が必要です",
+  }),
   termsVersion: z.literal(CREATOR_TERMS_VERSION, {
-    message: "利用規約が更新されました。画面を再読み込みして、最新の規約を確認してください",
+    message:
+      "利用規約が更新されました。画面を再読み込みして、最新の規約を確認してください",
   }),
 });
 
@@ -119,12 +136,12 @@ export type CreatorApplyActionState = {
 /**
  * 購入者（buyer）がクリエイター申請を提出する。
  * RLS（buyers submit creator applications）が role='buyer' と pending 1件までを、
- * トリガー（0024）が「SMS 認証済み」と「規約に同意済み」を最終的に強制する。
- * 電話番号と同意時刻はトリガーが auth.users / now() から写すので、ここでは渡さない。
+ * トリガーが「SMS 認証済み」と「規約に同意済み」を最終的に強制する。
+ * 電話番号と同意時刻はトリガーが app_users / now() から写すので、ここでは渡さない。
  */
 export async function applyForCreatorAction(
   _prevState: CreatorApplyActionState,
-  formData: FormData
+  formData: FormData,
 ): Promise<CreatorApplyActionState> {
   const parsed = applySchema.safeParse({
     agreeTerms: formData.get("agreeTerms"),
@@ -132,25 +149,29 @@ export async function applyForCreatorAction(
   });
 
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "入力内容を確認してください" };
+    return {
+      error: parsed.error.issues[0]?.message ?? "入力内容を確認してください",
+    };
   }
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
 
   if (!user) {
     return { error: "ログインが必要です" };
   }
-  if (!user.phone_confirmed_at) {
+  if (!user.phoneNumberVerified) {
     return { error: "先に SMS で電話番号の認証を済ませてください" };
   }
 
-  const { error } = await supabase.from("creator_applications").insert({
-    user_id: user.id,
-    terms_version: parsed.data.termsVersion,
-  });
+  const { error } = await queryResult(
+    db
+      .insertInto("creator_applications")
+      .values({
+        user_id: user.id,
+        terms_version: parsed.data.termsVersion,
+      })
+      .execute(),
+  );
 
   if (error) {
     // 部分ユニークインデックス（同時に1件のpendingのみ）に抵触した場合など
@@ -164,7 +185,9 @@ export async function applyForCreatorAction(
       return { error: "クリエイター利用規約への同意が必要です" };
     }
     console.error("[applyForCreator]", error.message);
-    return { error: "申請の送信に失敗しました。時間をおいて再度お試しください" };
+    return {
+      error: "申請の送信に失敗しました。時間をおいて再度お試しください",
+    };
   }
 
   revalidatePath("/creator/apply");
@@ -175,23 +198,22 @@ export type ReviewActionState = {
   error: string | null;
 };
 
-// 運営（admin）による承認・却下。Service Role Keyを使いRLSをバイパスするため、
+// 運営（admin）による承認・却下。信頼されたサーバー用DBロールを使うため、
 // 呼び出し前に必ず「現在のユーザーがadminであること」をセッション付きクライアントで確認する。
 async function assertIsAdmin() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { db, user } = await getOptionalUser();
 
   if (!user) {
     throw new Error("ログインが必要です");
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  const { data: profile } = await queryResult(
+    db
+      .selectFrom("profiles")
+      .select(["profiles.role"])
+      .where("profiles.id", "=", user.id)
+      .executeTakeFirstOrThrow(),
+  );
 
   if (profile?.role !== "admin") {
     throw new Error("この操作を行う権限がありません");
@@ -201,16 +223,19 @@ async function assertIsAdmin() {
 }
 
 export async function approveCreatorApplicationAction(
-  applicationId: string
+  applicationId: string,
 ): Promise<ReviewActionState> {
   try {
     const admin = await assertIsAdmin();
-    const serviceClient = createServiceRoleClient();
+    const serviceDb = serviceDatabase();
 
-    const { error } = await serviceClient
-      .from("creator_applications")
-      .update({ status: "approved", reviewed_by: admin.id })
-      .eq("id", applicationId);
+    const { error } = await queryResult(
+      serviceDb
+        .updateTable("creator_applications")
+        .set({ status: "approved", reviewed_by: admin.id })
+        .where("creator_applications.id", "=", applicationId)
+        .execute(),
+    );
 
     if (error) {
       return { error: "承認処理に失敗しました" };
@@ -225,16 +250,23 @@ export async function approveCreatorApplicationAction(
 
 export async function rejectCreatorApplicationAction(
   applicationId: string,
-  adminNote?: string
+  adminNote?: string,
 ): Promise<ReviewActionState> {
   try {
     const admin = await assertIsAdmin();
-    const serviceClient = createServiceRoleClient();
+    const serviceDb = serviceDatabase();
 
-    const { error } = await serviceClient
-      .from("creator_applications")
-      .update({ status: "rejected", reviewed_by: admin.id, admin_note: adminNote ?? null })
-      .eq("id", applicationId);
+    const { error } = await queryResult(
+      serviceDb
+        .updateTable("creator_applications")
+        .set({
+          status: "rejected",
+          reviewed_by: admin.id,
+          admin_note: adminNote ?? null,
+        })
+        .where("creator_applications.id", "=", applicationId)
+        .execute(),
+    );
 
     if (error) {
       return { error: "却下処理に失敗しました" };

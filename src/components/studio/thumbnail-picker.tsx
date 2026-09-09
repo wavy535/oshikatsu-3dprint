@@ -4,7 +4,7 @@ import { startTransition, useActionState, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Star, Trash2 } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
+import { uploadFile } from "@/lib/files/upload";
 import {
   deleteImageAction,
   publishWorkAction,
@@ -22,29 +22,43 @@ type Image = { id: string; storagePath: string; sortOrder: number };
 
 /**
  * Figma ②出品フロー「STEP4 公開」。
- * 画像はブラウザから Storage へ直接上げてから、行の登録を Server Action に任せる。
+ * 画像は署名付きPOSTでS3へ送ってから、行の登録をServer Actionに任せる。
  * 先頭（sort_order = 0）の画像がサムネイルになる。
  */
 export function ThumbnailPicker({
   workId,
-  userId,
   images,
   isPublished,
 }: {
   workId: string;
-  userId: string;
   images: Image[];
   isPublished: boolean;
 }) {
-  const [registerState, registerImage] = useActionState(registerImageAction, initialState);
-  const [thumbState, setThumbnail, settingThumb] = useActionState(setThumbnailAction, initialState);
-  const [deleteState, removeImage] = useActionState(deleteImageAction, initialState);
-  const [publishState, publish, publishing] = useActionState(publishWorkAction, initialState);
+  const router = useRouter();
+  const [registerState, registerImage] = useActionState(
+    async (previous: StepActionState, data: FormData) => {
+      const next = await registerImageAction(previous, data);
+      router.refresh();
+      return next;
+    },
+    initialState,
+  );
+  const [thumbState, setThumbnail, settingThumb] = useActionState(
+    setThumbnailAction,
+    initialState,
+  );
+  const [deleteState, removeImage] = useActionState(
+    deleteImageAction,
+    initialState,
+  );
+  const [publishState, publish, publishing] = useActionState(
+    publishWorkAction,
+    initialState,
+  );
 
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   async function onPick(file: File) {
     setUploadError(null);
@@ -58,17 +72,16 @@ export function ThumbnailPicker({
     }
 
     setUploading(true);
-    const supabase = createClient();
-    const path = `${userId}/${workId}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("work-images").upload(path, file, {
-      upsert: true,
-      contentType: file.type,
-    });
-    setUploading(false);
-
-    if (error) {
-      setUploadError(`アップロードに失敗しました（${error.message}）`);
+    let path: string;
+    try {
+      path = await uploadFile("work-images", file, workId);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "アップロードに失敗しました",
+      );
       return;
+    } finally {
+      setUploading(false);
     }
 
     const fd = new FormData();
@@ -76,11 +89,11 @@ export function ThumbnailPicker({
     fd.set("storagePath", path);
     startTransition(() => {
       registerImage(fd);
-      setTimeout(() => router.refresh(), 600);
     });
   }
 
-  const error = uploadError ?? registerState.error ?? thumbState.error ?? deleteState.error;
+  const error =
+    uploadError ?? registerState.error ?? thumbState.error ?? deleteState.error;
 
   return (
     <div className="flex flex-col gap-4">
@@ -96,7 +109,9 @@ export function ThumbnailPicker({
               key={img.id}
               className={cn(
                 "flex w-32 flex-col gap-1 rounded-xl border p-2",
-                i === 0 ? "border-brand bg-brand-soft/40" : "border-line bg-white"
+                i === 0
+                  ? "border-brand bg-brand-soft/40"
+                  : "border-line bg-white",
               )}
             >
               <span className="aspect-square overflow-hidden rounded-lg bg-ground">
@@ -149,7 +164,9 @@ export function ThumbnailPicker({
             className="flex aspect-square w-32 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line bg-white text-muted-foreground hover:border-brand/40 hover:text-ink"
           >
             <ImagePlus className="size-5" aria-hidden />
-            <span className="text-[11px]">{uploading ? "アップロード中..." : "画像を追加"}</span>
+            <span className="text-[11px]">
+              {uploading ? "アップロード中..." : "画像を追加"}
+            </span>
           </button>
           <input
             ref={inputRef}
@@ -163,15 +180,20 @@ export function ThumbnailPicker({
           />
         </div>
 
-
         {error && <p className="text-[12px] text-danger">{error}</p>}
       </section>
 
       <form action={publish} className="flex flex-col gap-2">
         <input type="hidden" name="workId" value={workId} />
-        {publishState.error && <p className="text-[12px] text-danger">{publishState.error}</p>}
+        {publishState.error && (
+          <p className="text-[12px] text-danger">{publishState.error}</p>
+        )}
         <Button type="submit" disabled={publishing} className="self-end">
-          {publishing ? "公開しています..." : isPublished ? "内容を更新して公開" : "公開する"}
+          {publishing
+            ? "公開しています..."
+            : isPublished
+              ? "内容を更新して公開"
+              : "公開する"}
         </Button>
       </form>
     </div>

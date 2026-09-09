@@ -1,22 +1,25 @@
-import { type NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { getSessionCookie } from "better-auth/cookies";
 
-import { updateSession } from "@/lib/supabase/proxy";
-
-// Next.js 16: `middleware.ts` は非推奨となり `proxy.ts` に名称変更された。
-// 役割は同じ（Supabase Authセッションの更新と保護ルートのガード）。
-export async function proxy(request: NextRequest) {
-  return await updateSession(request);
+/** Optimistic redirect only. Pages and actions always verify the database session. */
+export function proxy(request: NextRequest) {
+  if (!getSessionCookie(request)) {
+    const url = new URL("/login", request.url);
+    url.searchParams.set(
+      "redirect",
+      request.nextUrl.pathname + request.nextUrl.search,
+    );
+    return NextResponse.redirect(url);
+  }
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
-    /*
-     * 以下を除く全リクエストパスにマッチ:
-     * - _next/static, _next/image（静的アセット）
-     * - favicon.ico
-     * - ヘルスチェックと独自認証を持つメールcron
-     * - 画像ファイル
-     */
-    "/((?!api/health$|api/cron/dispatch-emails$|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/mypage/:path*",
+    "/creator/:path*",
+    "/studio/:path*",
+    "/admin/:path*",
+    "/checkout/:path*",
   ],
 };

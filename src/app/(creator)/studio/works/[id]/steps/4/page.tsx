@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
 
-import { requireCreator } from "@/lib/auth/guards";
 import { getWorkDraft } from "@/lib/works/studio-queries";
 import { StepNav } from "@/components/studio/step-nav";
 import { ThumbnailPicker } from "@/components/studio/thumbnail-picker";
@@ -14,7 +13,6 @@ export const metadata = { title: "STEP4 公開" };
 /** Figma ②出品フロー「STEP4 公開」。公開の条件を満たしているかをここで見せる。 */
 export default async function Step4Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const { user } = await requireCreator();
   const work = await getWorkDraft(id);
   if (!work) notFound();
   if (!work.work_assets?.length) redirect(`/studio/works/${id}/steps/1`);
@@ -69,7 +67,6 @@ export default async function Step4Page({ params }: { params: Promise<{ id: stri
 
       <ThumbnailPicker
         workId={work.id}
-        userId={user.id}
         images={images}
         isPublished={work.status === "published"}
       />

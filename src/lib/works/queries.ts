@@ -1,5 +1,9 @@
+import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
+import { queryResult, pageResult } from "@/lib/db/result";
+import { call } from "@/lib/db/functions";
+import { sql } from "kysely";
 import "server-only";
-import { createClient } from "@/lib/supabase/server";
+import { getDatabase } from "@/lib/auth/guards";
 import {
   PAGE_SIZE,
   type Sort,
@@ -18,26 +22,53 @@ export { PAGE_SIZE };
  * 先に該当する作品IDを引いてから `in` で渡している。
  */
 export async function listWorks(filters: WorkFilters) {
-  const supabase = await createClient();
+  const db = await getDatabase();
 
   // ── タグ・サイズの絞り込み。条件ごとに該当IDを集めて積集合をとる ──
   const idSets: string[][] = [];
 
   for (const slug of [filters.category, filters.worldview]) {
     if (!slug) continue;
-    const { data } = await supabase
-      .from("work_tags")
-      .select("work_id, tags!inner(slug)")
-      .eq("tags.slug", slug);
+    const { data } = await queryResult(
+      db
+        .selectFrom("work_tags")
+        .select((eb) => [
+          "work_tags.work_id",
+          jsonObjectFrom(
+            eb
+              .selectFrom("tags as r0")
+              .select(["r0.slug"])
+              .where("r0.slug", "=", slug)
+              .whereRef("r0.id", "=", "work_tags.tag_id"),
+          )
+            .$notNull()
+            .as("tags"),
+        ])
+        .where((eb) =>
+          eb.exists(
+            eb
+              .selectFrom("tags as r0")
+              .select(["r0.slug"])
+              .where("r0.slug", "=", slug)
+              .whereRef("r0.id", "=", "work_tags.tag_id")
+              .clearSelect()
+              .select("r0.id"),
+          ),
+        )
+        .execute(),
+    );
     idSets.push((data ?? []).map((r) => r.work_id));
   }
 
   if (filters.nuiSizeCm) {
-    const { data } = await supabase
-      .from("work_variants")
-      .select("work_id")
-      .eq("is_listed", true)
-      .eq("nui_size_cm", filters.nuiSizeCm);
+    const { data } = await queryResult(
+      db
+        .selectFrom("work_variants")
+        .select(["work_variants.work_id"])
+        .where("work_variants.is_listed", "=", true)
+        .where("work_variants.nui_size_cm", "=", filters.nuiSizeCm)
+        .execute(),
+    );
     idSets.push((data ?? []).map((r) => r.work_id));
   }
 
@@ -50,70 +81,115 @@ export async function listWorks(filters: WorkFilters) {
   }
 
   // ── 一覧本体 ──
-  let query = supabase
-    .from("work_list_items")
-    .select("*", { count: "exact" })
-    .eq("status", "published")
-    .eq("is_available", true);
+  let query = db
+    .selectFrom("work_list_items")
+    .selectAll("work_list_items")
+    .where("work_list_items.status", "=", "published")
+    .where("work_list_items.is_available", "=", true);
 
-  if (idFilter !== null) query = query.in("id", idFilter);
-  if (filters.q) query = query.ilike("title", `%${filters.q}%`);
-  if (filters.creatorId) query = query.eq("creator_id", filters.creatorId);
+  if (idFilter !== null)
+    query = query.where(
+      sql<boolean>`${sql.ref("work_list_items.id")} = any(${idFilter})`,
+    );
+  if (filters.q)
+    query = query.where("work_list_items.title", "ilike", `%${filters.q}%`);
+  if (filters.creatorId)
+    query = query.where("work_list_items.creator_id", "=", filters.creatorId);
   // 価格帯の絞り込みも、画面に出している「支払額」で行う
-  if (filters.priceMin !== undefined) query = query.gte("min_buyer_total_jpy", filters.priceMin);
-  if (filters.priceMax !== undefined) query = query.lte("min_buyer_total_jpy", filters.priceMax);
+  if (filters.priceMin !== undefined)
+    query = query.where(
+      "work_list_items.min_buyer_total_jpy",
+      ">=",
+      filters.priceMin,
+    );
+  if (filters.priceMax !== undefined)
+    query = query.where(
+      "work_list_items.min_buyer_total_jpy",
+      "<=",
+      filters.priceMax,
+    );
 
   switch (filters.sort) {
     case "popular":
-      query = query.order("favorite_count", { ascending: false });
+      query = query.orderBy("work_list_items.favorite_count", "desc");
       break;
     case "price_asc":
-      query = query.order("min_buyer_total_jpy", { ascending: true, nullsFirst: false });
+      query = query.orderBy("work_list_items.min_buyer_total_jpy", (order) =>
+        order.asc().nullsLast(),
+      );
       break;
     case "price_desc":
-      query = query.order("min_buyer_total_jpy", { ascending: false, nullsFirst: false });
+      query = query.orderBy("work_list_items.min_buyer_total_jpy", (order) =>
+        order.desc().nullsLast(),
+      );
       break;
     case "rating":
-      query = query.order("avg_rating", { ascending: false, nullsFirst: false });
+      query = query.orderBy("work_list_items.avg_rating", (order) =>
+        order.desc().nullsLast(),
+      );
       break;
     default:
-      query = query.order("created_at", { ascending: false });
+      query = query.orderBy("work_list_items.created_at", "desc");
   }
-  query = query.order("id", { ascending: true }); // 同値のときの並びを固定する
+  query = query.orderBy("work_list_items.id", "asc"); // 同値のときの並びを固定する
 
   const from = (filters.page - 1) * PAGE_SIZE;
-  const { data: rows, count } = await query.range(from, from + PAGE_SIZE - 1);
+  const { data: rows, count } = await pageResult(
+    query,
+    from,
+    from + PAGE_SIZE - 1,
+  );
   const list = rows ?? [];
-  if (list.length === 0) return { items: [] as WorkCardItem[], total: count ?? 0 };
+  if (list.length === 0)
+    return { items: [] as WorkCardItem[], total: count ?? 0 };
 
   const ids = list.map((r) => r.id!).filter(Boolean) as string[];
 
   // ── カードに要る画像と価格帯をまとめて引く ──
   const [imagesRes, variantsRes] = await Promise.all([
-    supabase
-      .from("work_images")
-      .select("work_id, storage_path, sort_order")
-      .in("work_id", ids)
-      .order("sort_order", { ascending: true }),
+    queryResult(
+      db
+        .selectFrom("work_images")
+        .select([
+          "work_images.work_id",
+          "work_images.storage_path",
+          "work_images.sort_order",
+        ])
+        .where(sql<boolean>`${sql.ref("work_images.work_id")} = any(${ids})`)
+        .orderBy("work_images.sort_order", "asc")
+        .execute(),
+    ),
     // 価格は work_variant_pricing の buyer_total_jpy（作品価格＋印刷代行費）を使う。
     // 代行費は上乗せ請求（fee_billing = 'separate'）なので、price_jpy だけを出すと
     // 実際の支払額より安く見えてしまう
-    supabase
-      .from("work_variant_pricing")
-      .select("work_id, buyer_total_jpy")
-      .in("work_id", ids)
-      .eq("is_listed", true),
+    queryResult(
+      db
+        .selectFrom("work_variant_pricing")
+        .select([
+          "work_variant_pricing.work_id",
+          "work_variant_pricing.buyer_total_jpy",
+        ])
+        .where(
+          sql<boolean>`${sql.ref("work_variant_pricing.work_id")} = any(${ids})`,
+        )
+        .where("work_variant_pricing.is_listed", "=", true)
+        .execute(),
+    ),
   ]);
 
   const firstImage = new Map<string, string>();
   for (const img of imagesRes.data ?? []) {
-    if (!firstImage.has(img.work_id)) firstImage.set(img.work_id, img.storage_path);
+    if (!firstImage.has(img.work_id))
+      firstImage.set(img.work_id, img.storage_path);
   }
 
   const prices = new Map<string, number[]>();
   for (const v of variantsRes.data ?? []) {
     if (v.buyer_total_jpy === null || v.work_id === null) continue;
-    prices.set(v.work_id, [...(prices.get(v.work_id) ?? []), v.buyer_total_jpy]);
+    prices.set(v.work_id, [
+      ...(prices.get(v.work_id) ?? []),
+      v.buyer_total_jpy,
+    ]);
   }
 
   const items: WorkCardItem[] = list.map((r) => {
@@ -140,11 +216,20 @@ export async function listWorks(filters: WorkFilters) {
 
 /** 絞り込みサイドバーが出すタグの一覧 */
 export async function listFilterTags() {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("tags")
-    .select("id, type, name, slug, sort_order")
-    .order("sort_order", { ascending: true });
+  const db = await getDatabase();
+  const { data } = await queryResult(
+    db
+      .selectFrom("tags")
+      .select([
+        "tags.id",
+        "tags.type",
+        "tags.name",
+        "tags.slug",
+        "tags.sort_order",
+      ])
+      .orderBy("tags.sort_order", "asc")
+      .execute(),
+  );
 
   const all = data ?? [];
   return {
@@ -155,34 +240,94 @@ export async function listFilterTags() {
 
 /** 作品詳細。サイズ展開・画像・タグ・クリエイターまで1回で引く。 */
 export async function getWork(id: string) {
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("works")
-    .select(
-      `id, title, description, status, creator_id, favorite_count,
-       accepts_color_change, accepts_mirror, accepts_stand_hole,
-       accepts_custom_size, accepts_other_request, created_at,
-       profiles!works_creator_id_fkey(display_name, avatar_url, bio),
-       work_images(id, storage_path, sort_order),
-       work_tags(tags(id, name, slug, type)),
-       work_variants(id, size_label, nui_size_cm, scale_ratio, is_base, price_jpy, stock,
-                     is_listed, is_printable, unprintable_reason, print_fee_jpy,
-                     est_print_hours, part_count,
-                     fit_width_mm, fit_height_mm, fit_depth_mm,
-                     bbox_x_mm, bbox_y_mm, bbox_z_mm)`
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const db = await getDatabase();
+  const { data, error } = await queryResult(
+    db
+      .selectFrom("works")
+      .select((eb) => [
+        "works.id",
+        "works.title",
+        "works.description",
+        "works.status",
+        "works.creator_id",
+        "works.favorite_count",
+        "works.accepts_color_change",
+        "works.accepts_mirror",
+        "works.accepts_stand_hole",
+        "works.accepts_custom_size",
+        "works.accepts_other_request",
+        "works.created_at",
+        jsonObjectFrom(
+          eb
+            .selectFrom("profiles as r1")
+            .select(["r1.display_name", "r1.avatar_url", "r1.bio"])
+            .whereRef("r1.id", "=", "works.creator_id"),
+        ).as("profiles"),
+        jsonArrayFrom(
+          eb
+            .selectFrom("work_images as r2")
+            .select(["r2.id", "r2.storage_path", "r2.sort_order"])
+            .whereRef("r2.work_id", "=", "works.id"),
+        ).as("work_images"),
+        jsonArrayFrom(
+          eb
+            .selectFrom("work_tags as r3")
+            .select((eb) => [
+              jsonObjectFrom(
+                eb
+                  .selectFrom("tags as r4")
+                  .select(["r4.id", "r4.name", "r4.slug", "r4.type"])
+                  .whereRef("r4.id", "=", "r3.tag_id"),
+              ).as("tags"),
+            ])
+            .whereRef("r3.work_id", "=", "works.id"),
+        ).as("work_tags"),
+        jsonArrayFrom(
+          eb
+            .selectFrom("work_variants as r5")
+            .select([
+              "r5.id",
+              "r5.size_label",
+              "r5.nui_size_cm",
+              "r5.scale_ratio",
+              "r5.is_base",
+              "r5.price_jpy",
+              "r5.stock",
+              "r5.is_listed",
+              "r5.is_printable",
+              "r5.unprintable_reason",
+              "r5.print_fee_jpy",
+              "r5.est_print_hours",
+              "r5.part_count",
+              "r5.fit_width_mm",
+              "r5.fit_height_mm",
+              "r5.fit_depth_mm",
+              "r5.bbox_x_mm",
+              "r5.bbox_y_mm",
+              "r5.bbox_z_mm",
+            ])
+            .whereRef("r5.work_id", "=", "works.id"),
+        ).as("work_variants"),
+      ])
+      .where("works.id", "=", id)
+      .executeTakeFirst(),
+  );
 
   if (error || !data) return null;
 
   // 支払額（作品価格＋印刷代行費）はビューが計算している
-  const { data: pricing } = await supabase
-    .from("work_variant_pricing")
-    .select("id, buyer_total_jpy")
-    .eq("work_id", id);
+  const { data: pricing } = await queryResult(
+    db
+      .selectFrom("work_variant_pricing")
+      .select([
+        "work_variant_pricing.id",
+        "work_variant_pricing.buyer_total_jpy",
+      ])
+      .where("work_variant_pricing.work_id", "=", id)
+      .execute(),
+  );
   const buyerTotalById = new Map(
-    (pricing ?? []).map((p) => [p.id, p.buyer_total_jpy] as const)
+    (pricing ?? []).map((p) => [p.id, p.buyer_total_jpy] as const),
   );
 
   const variants = [...(data.work_variants ?? [])]
@@ -191,7 +336,7 @@ export async function getWork(id: string) {
     .sort((a, b) => (a.nui_size_cm ?? 0) - (b.nui_size_cm ?? 0));
 
   const images = [...(data.work_images ?? [])].sort(
-    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0),
   );
 
   return { ...data, work_variants: variants, work_images: images };
@@ -202,15 +347,24 @@ export async function getWork(id: string) {
  * 件数と平均は全件から出すので、直近3件とは別に集計を引く。
  */
 export async function getWorkReviewSummary(workId: string) {
-  const supabase = await createClient();
+  const db = await getDatabase();
   const [allRes, latestRes] = await Promise.all([
-    supabase.from("reviews").select("rating").eq("work_id", workId),
-    supabase
-      .from("reviews")
-      .select("rating, comment, created_at")
-      .eq("work_id", workId)
-      .order("created_at", { ascending: false })
-      .limit(3),
+    queryResult(
+      db
+        .selectFrom("reviews")
+        .select(["reviews.rating"])
+        .where("reviews.work_id", "=", workId)
+        .execute(),
+    ),
+    queryResult(
+      db
+        .selectFrom("reviews")
+        .select(["reviews.rating", "reviews.comment", "reviews.created_at"])
+        .where("reviews.work_id", "=", workId)
+        .orderBy("reviews.created_at", "desc")
+        .limit(3)
+        .execute(),
+    ),
   ]);
 
   const all = allRes.data ?? [];
@@ -224,10 +378,10 @@ export async function getWorkReviewSummary(workId: string) {
  * （見た目ではなく採寸値で判定する、という設計判断のため）。
  */
 export async function getNuiFit(variantId: string, nuiId: string) {
-  const supabase = await createClient();
+  const db = await getDatabase();
   const [axesRes, verdictRes] = await Promise.all([
-    supabase.rpc("nui_fit_axes", { p_variant_id: variantId, p_nui_id: nuiId }),
-    supabase.rpc("nui_fit_verdict", { p_variant_id: variantId, p_nui_id: nuiId }),
+    call(db, "nui_fit_axes", { p_variant_id: variantId, p_nui_id: nuiId }),
+    call(db, "nui_fit_verdict", { p_variant_id: variantId, p_nui_id: nuiId }),
   ]);
   if (!axesRes.data) return null;
   return { axes: axesRes.data, verdict: verdictRes.data };
@@ -235,13 +389,15 @@ export async function getNuiFit(variantId: string, nuiId: string) {
 
 /** ログイン中のユーザーがこの作品をお気に入りに入れているか */
 export async function isFavorited(workId: string, userId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("work_favorites")
-    .select("work_id")
-    .eq("work_id", workId)
-    .eq("user_id", userId)
-    .maybeSingle();
+  const db = await getDatabase();
+  const { data } = await queryResult(
+    db
+      .selectFrom("work_favorites")
+      .select(["work_favorites.work_id"])
+      .where("work_favorites.work_id", "=", workId)
+      .where("work_favorites.user_id", "=", userId)
+      .executeTakeFirst(),
+  );
   return Boolean(data);
 }
 
@@ -250,16 +406,37 @@ export async function isFavorited(workId: string, userId: string) {
  * 印刷品質・梱包・配送は運営あての評価なので、ここでは出さない（設計判断8）。
  */
 export async function listWorkReviews(workId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("reviews")
-    .select(
-      `id, rating, comment, created_at, is_anonymous, design_rating, accuracy_rating, size_fit_rating,
-       photo_storage_path, profiles!reviews_reviewer_id_fkey(display_name, avatar_url),
-       order_items(size_label_snapshot)`
-    )
-    .eq("work_id", workId)
-    .order("created_at", { ascending: false });
+  const db = await getDatabase();
+  const { data } = await queryResult(
+    db
+      .selectFrom("reviews")
+      .select((eb) => [
+        "reviews.id",
+        "reviews.rating",
+        "reviews.comment",
+        "reviews.created_at",
+        "reviews.is_anonymous",
+        "reviews.design_rating",
+        "reviews.accuracy_rating",
+        "reviews.size_fit_rating",
+        "reviews.photo_storage_path",
+        jsonObjectFrom(
+          eb
+            .selectFrom("profiles as r6")
+            .select(["r6.display_name", "r6.avatar_url"])
+            .whereRef("r6.id", "=", "reviews.reviewer_id"),
+        ).as("profiles"),
+        jsonObjectFrom(
+          eb
+            .selectFrom("order_items as r7")
+            .select(["r7.size_label_snapshot"])
+            .whereRef("r7.id", "=", "reviews.order_item_id"),
+        ).as("order_items"),
+      ])
+      .where("reviews.work_id", "=", workId)
+      .orderBy("reviews.created_at", "desc")
+      .execute(),
+  );
   const rows = data ?? [];
   const count = rows.length;
   const avgOf = (pick: (r: (typeof rows)[number]) => number | null) => {

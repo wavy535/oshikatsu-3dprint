@@ -1,7 +1,11 @@
+import { queryResult } from "@/lib/db/result";
 import { CreditCard } from "lucide-react";
 
 import { requireUser } from "@/lib/auth/guards";
-import { AddressManager, type Address } from "@/components/address/address-manager";
+import {
+  AddressManager,
+  type Address,
+} from "@/components/address/address-manager";
 
 export const metadata = { title: "配送先・お支払い" };
 
@@ -10,13 +14,25 @@ export const metadata = { title: "配送先・お支払い" };
  * 現在の注文は実課金なしのため、カード情報は保存しない。
  */
 export default async function AddressesPage() {
-  const { supabase, user } = await requireUser("/mypage/addresses");
-  const { data } = await supabase
-    .from("addresses")
-    .select("id, recipient_name, postal_code, prefecture, city, address_line, phone, is_default")
-    .eq("user_id", user.id)
-    .order("is_default", { ascending: false })
-    .order("created_at", { ascending: true });
+  const { db, user } = await requireUser("/mypage/addresses");
+  const { data } = await queryResult(
+    db
+      .selectFrom("addresses")
+      .select([
+        "addresses.id",
+        "addresses.recipient_name",
+        "addresses.postal_code",
+        "addresses.prefecture",
+        "addresses.city",
+        "addresses.address_line",
+        "addresses.phone",
+        "addresses.is_default",
+      ])
+      .where("addresses.user_id", "=", user.id)
+      .orderBy("addresses.is_default", "desc")
+      .orderBy("addresses.created_at", "asc")
+      .execute(),
+  );
 
   return (
     <>

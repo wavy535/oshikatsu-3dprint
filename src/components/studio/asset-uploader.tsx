@@ -4,8 +4,11 @@ import { startTransition, useActionState, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Upload } from "lucide-react";
 
-import { createClient } from "@/lib/supabase/client";
-import { registerAssetAction, type StepActionState } from "@/lib/works/step-actions";
+import { uploadFile } from "@/lib/files/upload";
+import {
+  registerAssetAction,
+  type StepActionState,
+} from "@/lib/works/step-actions";
 import { Button } from "@/components/ui/button";
 
 const initialState: StepActionState = { error: null };
@@ -13,25 +16,28 @@ const initialState: StepActionState = { error: null };
 /**
  * STEP1 のアップロード。
  *
- * ファイル本体はブラウザから Storage へ直接上げる（Server Action の本文サイズ制限に
- * 3Dデータが収まらないため）。パスは storage のポリシーに合わせて
- * `{ユーザーID}/{作品ID}/{ファイル名}`。アップロードが終わってから
- * Server Action に登録と検証を任せる。
+ * Server Action が所有者とサイズを確認して発行した署名付きPOSTで、
+ * ブラウザからS3へ直接送る。完了後にServer Actionで登録・解析する。
  */
 export function AssetUploader({
   workId,
-  userId,
   hasAsset,
 }: {
   workId: string;
-  userId: string;
   hasAsset: boolean;
 }) {
-  const [state, formAction, registering] = useActionState(registerAssetAction, initialState);
+  const router = useRouter();
+  const [state, formAction, registering] = useActionState(
+    async (previous: StepActionState, data: FormData) => {
+      const next = await registerAssetAction(previous, data);
+      router.refresh();
+      return next;
+    },
+    initialState,
+  );
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const router = useRouter();
 
   async function onPick(file: File) {
     setUploadError(null);
@@ -46,14 +52,16 @@ export function AssetUploader({
     }
 
     setUploading(true);
-    const supabase = createClient();
-    const path = `${userId}/${workId}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("work-stl").upload(path, file, { upsert: true });
-    setUploading(false);
-
-    if (error) {
-      setUploadError(`アップロードに失敗しました（${error.message}）`);
+    let path: string;
+    try {
+      path = await uploadFile("work-stl", file, workId);
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "アップロードに失敗しました",
+      );
       return;
+    } finally {
+      setUploading(false);
     }
 
     // 隠しフォームを submit する形だと、hidden の値が反映される前に
@@ -67,7 +75,6 @@ export function AssetUploader({
     startTransition(() => {
       formAction(fd);
       // 検証結果はサーバー側で書かれるので、完了後に読み直す
-      setTimeout(() => router.refresh(), 600);
     });
   }
 
@@ -89,7 +96,8 @@ export function AssetUploader({
           {hasAsset ? "3Dデータを差し替える" : "3Dデータをアップロード"}
         </p>
         <p className="text-[11.5px] leading-4 text-muted-foreground">
-          STL または 3MF（80MBまで）。アップロードすると、閉じたメッシュ・肉厚・造形サイズなどを
+          STL または
+          3MF（80MBまで）。アップロードすると、閉じたメッシュ・肉厚・造形サイズなどを
           自動で検証します。
         </p>
         <input
@@ -109,10 +117,13 @@ export function AssetUploader({
           disabled={busy}
           onClick={() => inputRef.current?.click()}
         >
-          {uploading ? "アップロード中..." : registering ? "検証しています..." : "ファイルを選ぶ"}
+          {uploading
+            ? "アップロード中..."
+            : registering
+              ? "検証しています..."
+              : "ファイルを選ぶ"}
         </Button>
       </div>
-
 
       {(uploadError || state.error) && (
         <p className="text-[12px] text-danger">{uploadError ?? state.error}</p>

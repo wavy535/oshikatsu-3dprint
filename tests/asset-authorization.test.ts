@@ -2,10 +2,11 @@ import { beforeEach, expect, test, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
-vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn() }));
+vi.mock("@/lib/auth/guards", () => ({ getOptionalUser: vi.fn() }));
 vi.mock("@/lib/works/asset-validation", () => ({ validateAndPersistAsset: vi.fn() }));
 
-import { createClient } from "@/lib/supabase/server";
+import { mockDatabase } from "./helpers/database";
+import { getOptionalUser } from "@/lib/auth/guards";
 import { validateAndPersistAsset } from "@/lib/works/asset-validation";
 import { revalidateAssetAction } from "@/lib/works/step-actions";
 
@@ -20,23 +21,15 @@ const filters: [string, unknown][] = [];
 beforeEach(() => {
   signedIn = ownsWork = assetBelongsToWork = true;
   filters.length = 0;
-  const client = {
-    auth: { getUser: async () => ({ data: { user: signedIn ? { id: userId } : null } }) },
-    from: (table: string) => {
-      const query = {
-        select: () => query,
-        eq: (key: string, value: unknown) => { filters.push([key, value]); return query; },
-        maybeSingle: async () => ({
-          error: null,
-          data: table === "works"
-            ? { id: workId, creator_id: ownsWork ? userId : "another-creator", status: "draft" }
-            : assetBelongsToWork ? { id: assetId, work_id: workId } : null,
-        }),
-      };
-      return query;
-    },
-  };
-  vi.mocked(createClient).mockResolvedValue(client as unknown as Awaited<ReturnType<typeof createClient>>);
+  const { db, query } = mockDatabase();
+  query.mockImplementation(async (sql, parameters) => {
+    if (sql.includes('from "work_assets"')) {
+      filters.push(["work_id", parameters[1]]);
+      return { rows: assetBelongsToWork ? [{ id: assetId, work_id: workId }] : [] };
+    }
+    return { rows: [{ id: workId, creator_id: ownsWork ? userId : "another-creator", status: "draft" }] };
+  });
+  vi.mocked(getOptionalUser).mockImplementation(async () => ({ db, user: signedIn ? { id: userId } : null }) as Awaited<ReturnType<typeof getOptionalUser>>);
   vi.mocked(validateAndPersistAsset).mockResolvedValue({ ok: false, error: "parser reached", stage: "analyze" });
 });
 
@@ -72,6 +65,6 @@ test("不正なIDはDBと解析へ渡さない", async () => {
   form.set("assetId", "not-an-id");
   const result = await revalidateAssetAction({ error: null }, form);
   expect(result.error).toBeTruthy();
-  expect(createClient).not.toHaveBeenCalled();
+  expect(getOptionalUser).not.toHaveBeenCalled();
   expect(validateAndPersistAsset).not.toHaveBeenCalled();
 });
