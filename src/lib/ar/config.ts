@@ -36,4 +36,14 @@ export const AR_LIMITS = {
   cacheSeconds: 3600,
   // URL に付ける元データの版（ハッシュの先頭の桁数）
   assetVersionLength: 16,
+  // USDA に書く座標・色の小数の桁数（メートル単位で µm まで）
+  usdaDecimals: 6,
+} as const;
+
+/** 開発用の実寸テストページ（/dev/ar） */
+export const AR_DEV_PAGE = {
+  // QR コードの画像の幅（px）
+  qrCodeWidthPx: 280,
+  // QR コードの周りの余白（モジュール数）
+  qrCodeMargin: 2,
 } as const;

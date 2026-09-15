@@ -2,7 +2,7 @@ import { ArInputError } from "@/lib/ar/errors";
 import { encodeGlb } from "@/lib/ar/glb";
 import { isId, parseWorkFile } from "@/lib/ar/params";
 import { getArWorkSource } from "@/lib/ar/queries";
-import { glbResponse } from "@/lib/ar/response";
+import { modelResponse } from "@/lib/ar/response";
 import { assetVersion } from "@/lib/ar/version";
 import { buildWorkMeshes, readModelObjects } from "@/lib/ar/work-model";
 import { readModel } from "@/lib/files/s3";
@@ -37,7 +37,7 @@ export async function GET(
   try {
     const objects = readModelObjects(buffer, source.fileName, budget);
     const { meshes } = buildWorkMeshes(objects, source.scaleRatio, budget);
-    return glbResponse(encodeGlb(meshes));
+    return modelResponse(encodeGlb(meshes), "glb");
   } catch (error) {
     if (MODEL_ERRORS.some((ErrorType) => error instanceof ErrorType))
       return new Response(null, { status: 422 });

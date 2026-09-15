@@ -1,12 +1,19 @@
 import { AR_LIMITS } from "./config.ts";
+import type { ModelFormat } from "./params.ts";
 
-/** GLB を返す。Scene Viewer などが未ログインで取りに来るので、公開キャッシュを許す */
-export function glbResponse(glb: Uint8Array<ArrayBuffer>) {
-  return new Response(glb, {
+// Quick Look は model/vnd.usdz+zip でないと AR として開かない
+const CONTENT_TYPES: Record<ModelFormat, string> = {
+  glb: "model/gltf-binary",
+  usdz: "model/vnd.usdz+zip",
+};
+
+/** 3Dモデルを返す。Scene Viewer・Quick Look が未ログインで取りに来るので、公開キャッシュを許す */
+export function modelResponse(bytes: Uint8Array<ArrayBuffer>, format: ModelFormat) {
+  return new Response(bytes, {
     status: 200,
     headers: {
-      "Content-Type": "model/gltf-binary",
-      "Content-Length": String(glb.byteLength),
+      "Content-Type": CONTENT_TYPES[format],
+      "Content-Length": String(bytes.byteLength),
       "Cache-Control": `public, max-age=${AR_LIMITS.cacheSeconds}`,
     },
   });

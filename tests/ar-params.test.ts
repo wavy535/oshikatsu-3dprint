@@ -6,6 +6,7 @@ import {
   parseNuiQuery,
   parseRoomFile,
   parseWorkFile,
+  quickLookRoomUrl,
   roomModelPath,
   workModelPath,
 } from "@/lib/ar/params";
@@ -15,17 +16,30 @@ const variantId = "33333333-3333-3333-3333-333333333333";
 const nui = { sitHeightMm: 150, shoulderWidthMm: null, hugWidthMm: 120.5 };
 const origin = "https://example.test";
 
-test("room file names map to layouts and anything else is rejected", () => {
-  expect(parseRoomFile("three-walls.glb")).toBe("three-walls");
-  expect(parseRoomFile("back-left.glb")).toBe("back-left");
+test("room file names map to a layout and a model format, anything else is rejected", () => {
+  expect(parseRoomFile("three-walls.glb")).toEqual({ layout: "three-walls", format: "glb" });
+  expect(parseRoomFile("back-left.usdz")).toEqual({ layout: "back-left", format: "usdz" });
   expect(parseRoomFile("three-walls")).toBeNull();
+  expect(parseRoomFile("three-walls.obj")).toBeNull();
   expect(parseRoomFile("four-walls.glb")).toBeNull();
+  expect(parseRoomFile(".glb")).toBeNull();
 });
 
 test("nui dimensions round-trip through the room model URL", () => {
   expect(parseNuiQuery(nuiSearchParams(nui))).toEqual(nui);
   const url = new URL(roomModelPath("back-left", nui), origin);
   expect(url.pathname).toBe("/api/ar/rooms/back-left.glb");
+  expect(parseNuiQuery(url.searchParams)).toEqual(nui);
+  expect(new URL(roomModelPath("three-walls", nui, "usdz"), origin).pathname).toBe(
+    "/api/ar/rooms/three-walls.usdz",
+  );
+});
+
+test("Quick Look URLs are absolute USDZ links with fixed scaling", () => {
+  const url = new URL(quickLookRoomUrl("http://192.168.1.68:3000", "back-left", nui));
+  expect(url.origin).toBe("http://192.168.1.68:3000");
+  expect(url.pathname).toBe("/api/ar/rooms/back-left.usdz");
+  expect(url.hash).toBe("#allowsContentScaling=0");
   expect(parseNuiQuery(url.searchParams)).toEqual(nui);
 });
 
@@ -47,6 +61,7 @@ test("work model URLs carry the variant file and the asset version", () => {
   expect(url.searchParams.get("v")).toBe("abc123");
   expect(parseWorkFile(`${variantId}.glb`)).toBe(variantId);
   expect(parseWorkFile(variantId)).toBeNull();
+  expect(parseWorkFile(`${variantId}.usdz`)).toBeNull();
   expect(parseWorkFile("../secret.glb")).toBeNull();
 });
 

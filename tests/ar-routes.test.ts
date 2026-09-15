@@ -14,6 +14,7 @@ const variantId = "33333333-3333-3333-3333-333333333333";
 const stl = readFileSync(new URL("./fixtures/tetrahedron.stl", import.meta.url));
 const source = { storagePath: "owner/work/model.stl", fileName: "model.stl", scaleRatio: 1 };
 const GLB_MAGIC = 0x46546c67;
+const ZIP_LOCAL_SIGNATURE = 0x04034b50;
 
 const context = <T>(params: T) => ({ params: Promise.resolve(params) });
 const workRequest = (version: string) =>
@@ -32,6 +33,16 @@ test("the provisional room route returns a publicly cacheable GLB", async () => 
   expect(response.headers.get("content-type")).toBe("model/gltf-binary");
   expect(response.headers.get("cache-control")).toMatch(/^public/);
   expect(await magicOf(response)).toBe(GLB_MAGIC);
+});
+
+test("the provisional room route serves USDZ for Quick Look", async () => {
+  const response = await getRoom(
+    new Request("https://example.test/api/ar/rooms/back-left.usdz?sit=150&hug=120"),
+    context({ file: "back-left.usdz" }),
+  );
+  expect(response.status).toBe(200);
+  expect(response.headers.get("content-type")).toBe("model/vnd.usdz+zip");
+  expect(new DataView(await response.arrayBuffer()).getUint32(0, true)).toBe(ZIP_LOCAL_SIGNATURE);
 });
 
 test("the provisional room route rejects unknown layouts and incomplete measurements", async () => {
