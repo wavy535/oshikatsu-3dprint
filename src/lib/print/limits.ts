@@ -13,6 +13,12 @@ export const MODEL_LIMITS = {
   gridReferences: 4_000_000,
   candidateVisits: 50_000_000,
   analysisMs: 10_000,
+  // .blend（Blender）の展開後の大きさ。形状のほかに画面の設定やプレビュー画像も入っている
+  blendBytes: 256 * 1024 * 1024,
+  // .blend のブロック数・DNA の要素数・リストをたどる回数の上限
+  blendBlocks: 1_000_000,
+  // 耳切り法で三角形に分ける多角形の角数の上限。これより多い面（円柱のふたなど）は扇形に分ける
+  earClippingCorners: 256,
 } as const;
 
 export class ModelLimitError extends Error {}
