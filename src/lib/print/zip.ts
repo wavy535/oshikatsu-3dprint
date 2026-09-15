@@ -163,10 +163,14 @@ export function readZipEntry(
   return data;
 }
 
+// 大文字小文字を無視してエントリを探す
+export function findZipEntry(entries: ZipEntry[], path: string): ZipEntry | undefined {
+  const target = path.toLowerCase();
+  return entries.find((e) => e.name.toLowerCase() === target);
+}
+
 // 大文字小文字を無視してエントリを1件取り出す
 export function extractZipFile(buf: Buffer, path: string): Buffer | null {
-  const entries = listZipEntries(buf);
-  const target = path.toLowerCase();
-  const hit = entries.find((e) => e.name.toLowerCase() === target);
+  const hit = findZipEntry(listZipEntries(buf), path);
   return hit ? readZipEntry(buf, hit) : null;
 }
