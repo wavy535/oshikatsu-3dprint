@@ -3,9 +3,15 @@ import { expect, test } from "vitest";
 import { AR_LIMITS } from "@/lib/ar/config";
 import { decimateToBudget } from "@/lib/ar/decimate";
 import { ArInputError } from "@/lib/ar/errors";
-import { buildWorkMeshes, readModelObjects } from "@/lib/ar/work-model";
-import { AnalysisBudget } from "@/lib/print/limits";
-import { modelXml, modelZip, tetrahedronMesh } from "./helpers/model-files";
+import { meshSizeMm } from "@/lib/ar/mesh";
+import {
+  buildWorkMeshes,
+  isUnconvertibleModelError,
+  readModelObjects,
+  workModelExtension,
+} from "@/lib/ar/work-model";
+import { AnalysisBudget, ModelLimitError } from "@/lib/print/limits";
+import { bambuStylePackage, modelXml, modelZip, tetrahedronMesh } from "./helpers/model-files";
 
 // Print coordinates in mm with Z up; every face winds outward.
 const tetrahedron = {
@@ -72,6 +78,26 @@ test("STL and multi-part 3MF files are read by extension and merged", () => {
   const b = bounds(meshes[0].positions);
   expect(b.max[0] - b.min[0]).toBeCloseTo(0.04, 6);
   expect(() => readModelObjects(stl, "model.obj", new AnalysisBudget())).toThrow(ArInputError);
+});
+
+test("Bambu Studio files that keep the shape in another model file convert at their size", () => {
+  const objects = readModelObjects(bambuStylePackage(), "1_Chair_01.gcode.3mf", new AnalysisBudget());
+  expect(objects).toHaveLength(1);
+  const size = meshSizeMm(buildWorkMeshes(objects, 1).meshes);
+  expect(size.widthMm).toBeCloseTo(10, 3);
+  expect(size.depthMm).toBeCloseTo(10, 3);
+  expect(size.heightMm).toBeCloseTo(10, 3);
+  expect(meshSizeMm([])).toEqual({ widthMm: 0, depthMm: 0, heightMm: 0 });
+});
+
+test("file extensions and conversion errors are classified for the AR routes", () => {
+  expect(workModelExtension("1_Chair_01.GCODE.3MF")).toBe("3mf");
+  expect(workModelExtension("part.stl")).toBe("stl");
+  expect(workModelExtension("notes.md")).toBeNull();
+  expect(workModelExtension("3mf")).toBeNull();
+  expect(isUnconvertibleModelError(new ArInputError("bad size"))).toBe(true);
+  expect(isUnconvertibleModelError(new ModelLimitError("too large"))).toBe(true);
+  expect(isUnconvertibleModelError(new Error("storage is down"))).toBe(false);
 });
 
 test("large meshes are decimated to the AR budget while keeping their overall size", () => {

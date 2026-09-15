@@ -1,19 +1,12 @@
-import { ArInputError } from "@/lib/ar/errors";
 import { encodeGlb } from "@/lib/ar/glb";
 import { isId, parseWorkFile, revisionOfUrl } from "@/lib/ar/params";
 import { getArWorkSource } from "@/lib/ar/queries";
 import { modelResponse } from "@/lib/ar/response";
 import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
-import { buildWorkMeshes, readModelObjects } from "@/lib/ar/work-model";
+import { buildWorkMeshes, isUnconvertibleModelError, readModelObjects } from "@/lib/ar/work-model";
 import { readModel } from "@/lib/files/s3";
-import { AnalysisBudget, ModelLimitError } from "@/lib/print/limits";
-import { StlParseError } from "@/lib/print/stl";
-import { ThreeMfParseError } from "@/lib/print/threemf";
-import { ZipError } from "@/lib/print/zip";
-
-// 3Dデータの中身が原因で変換できないもの。サーバーの障害（S3・DB）とは分けて 422 にする
-const MODEL_ERRORS = [ArInputError, ModelLimitError, StlParseError, ThreeMfParseError, ZipError];
+import { AnalysisBudget } from "@/lib/print/limits";
 
 /**
  * 作品の3Dデータを AR 用の GLB に変換して返す。公開中の作品・掲載中のサイズだけ。
@@ -41,8 +34,8 @@ export async function GET(
     const { meshes } = buildWorkMeshes(objects, source.scaleRatio, budget);
     return modelResponse(encodeGlb(meshes), "glb", revisionOfUrl(searchParams) === modelRevision());
   } catch (error) {
-    if (MODEL_ERRORS.some((ErrorType) => error instanceof ErrorType))
-      return new Response(null, { status: 422 });
+    // 3Dデータの中身が原因のものは、サーバーの障害（S3・DB）と分けて 422 にする
+    if (isUnconvertibleModelError(error)) return new Response(null, { status: 422 });
     throw error;
   }
 }

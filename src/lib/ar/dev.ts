@@ -1,3 +1,6 @@
+import { revisionOf } from "./revision.ts";
+import { workModelExtension } from "./work-model.ts";
+
 type NetworkInterfaceLike = { address: string; family: string | number; internal: boolean };
 
 const IPV4 = "IPv4";
@@ -39,3 +42,14 @@ export function phoneReachableOrigin(input: {
   url.hostname = lan;
   return { origin: url.origin, replacedLoopback: true };
 }
+
+/** 手元のフォルダのファイル名から、AR 用に変換できる 3MF / STL を名前順（数字は数として）に選ぶ。隠しファイルは除く */
+export function localModelNames(names: string[]) {
+  return names
+    .filter((name) => !name.startsWith(".") && workModelExtension(name) !== null)
+    .sort((a, b) => a.localeCompare(b, "ja", { numeric: true }));
+}
+
+/** 手元のファイルの版。大きさと更新日時から作り、ファイルを置き換えると変わる */
+export const localModelVersion = (file: { size: number; mtimeMs: number }) =>
+  revisionOf(`${file.size}:${file.mtimeMs}`);

@@ -10,6 +10,10 @@ export type ModelFormat = (typeof MODEL_FORMATS)[number];
 const ROOM_ROUTE = "/api/ar/rooms";
 const WORK_ROUTE = "/api/ar/works";
 const CALIBRATION_ROUTE = "/api/ar/calibration";
+const LOCAL_MODEL_ROUTE = "/api/ar/dev/local-models";
+// 手元のファイル名はクエリで渡し、パスのファイル名は形式だけを表す（"model.usdz" など）
+const LOCAL_MODEL_FILE = "model";
+const LOCAL_MODEL_NAME_PARAM = "name";
 // モデルの版（modelRevision）を載せるクエリ名
 const REVISION_PARAM = "rev";
 // Quick Look に拡大縮小させない指定（AR Quick Look が URL のフラグメントで受け取る）
@@ -86,6 +90,22 @@ export function roomModelPath(
 
 export function calibrationModelPath(model: CalibrationModel, revision: string, format: ModelFormat = "glb") {
   return `${CALIBRATION_ROUTE}/${model}.${format}?${new URLSearchParams({ [REVISION_PARAM]: revision })}`;
+}
+
+/** 開発用：手元のファイルの URL（"model.usdz" と ?name=）から、ファイル名と形式を取り出す */
+export function parseLocalModelRequest(
+  file: string,
+  params: URLSearchParams,
+): { name: string; format: ModelFormat } | null {
+  const parts = splitModelFile(file);
+  const name = params.get(LOCAL_MODEL_NAME_PARAM);
+  return parts?.name === LOCAL_MODEL_FILE && name ? { name, format: parts.format } : null;
+}
+
+/** 開発用：手元のファイルの URL。v はファイルの版で、置き換えると URL が変わる */
+export function localModelPath(name: string, version: string, revision: string, format: ModelFormat = "glb") {
+  const query = new URLSearchParams({ [LOCAL_MODEL_NAME_PARAM]: name, v: version, [REVISION_PARAM]: revision });
+  return `${LOCAL_MODEL_ROUTE}/${LOCAL_MODEL_FILE}.${format}?${query}`;
 }
 
 /** "<サイズのID>.glb" からサイズの ID を取り出す */

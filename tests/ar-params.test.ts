@@ -3,8 +3,10 @@ import { AR_LIMITS } from "@/lib/ar/config";
 import { buildArModelOptions, nuiDimensionsOf } from "@/lib/ar/options";
 import {
   calibrationModelPath,
+  localModelPath,
   nuiSearchParams,
   parseCalibrationFile,
+  parseLocalModelRequest,
   parseNuiQuery,
   parseRoomFile,
   parseWorkFile,
@@ -53,6 +55,19 @@ test("calibration URLs carry the model revision", () => {
   const url = new URL(calibrationModelPath("a4-plate", revision, "usdz"), origin);
   expect(url.pathname).toBe("/api/ar/calibration/a4-plate.usdz");
   expect(revisionOfUrl(url.searchParams)).toBe(revision);
+});
+
+test("local model URLs carry the file name, the file version and the model revision", () => {
+  const name = "椅子 01.gcode.3mf";
+  const url = new URL(localModelPath(name, "f00d", revision, "usdz"), origin);
+  expect(url.pathname).toBe("/api/ar/dev/local-models/model.usdz");
+  expect(url.searchParams.get("v")).toBe("f00d");
+  expect(revisionOfUrl(url.searchParams)).toBe(revision);
+  expect(parseLocalModelRequest("model.usdz", url.searchParams)).toEqual({ name, format: "usdz" });
+  expect(parseLocalModelRequest("model.glb", url.searchParams)).toEqual({ name, format: "glb" });
+  expect(parseLocalModelRequest("other.usdz", url.searchParams)).toBeNull();
+  expect(parseLocalModelRequest("model.obj", url.searchParams)).toBeNull();
+  expect(parseLocalModelRequest("model.usdz", new URLSearchParams())).toBeNull();
 });
 
 test("Quick Look URLs are absolute USDZ links with fixed scaling", () => {

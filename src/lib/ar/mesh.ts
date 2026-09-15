@@ -27,6 +27,28 @@ const BOX_FACES: { normal: Vec3; corners: Vec3[] }[] = [
   { normal: [0, 0, -1], corners: [[1, -1, -1], [-1, -1, -1], [-1, 1, -1], [1, 1, -1]] },
 ];
 
+const MM_PER_M = 1000;
+
+/** メッシュ全体の外形（mm）。幅は左右（X）、奥行は前後（Z）、高さは上下（Y） */
+export function meshSizeMm(meshes: ArMesh[]) {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const mesh of meshes) {
+    for (let i = 0; i < mesh.positions.length; i += 3) {
+      for (let k = 0; k < 3; k++) {
+        if (mesh.positions[i + k] < min[k]) min[k] = mesh.positions[i + k];
+        if (mesh.positions[i + k] > max[k]) max[k] = mesh.positions[i + k];
+      }
+    }
+  }
+  if (!Number.isFinite(min[0])) return { widthMm: 0, depthMm: 0, heightMm: 0 };
+  return {
+    widthMm: (max[0] - min[0]) * MM_PER_M,
+    depthMm: (max[2] - min[2]) * MM_PER_M,
+    heightMm: (max[1] - min[1]) * MM_PER_M,
+  };
+}
+
 /** 最小・最大の座標（メートル）で直方体を作る */
 export function boxMesh(name: string, min: Vec3, max: Vec3, material: ArMaterial): ArMesh {
   const positions = new Float32Array(BOX_FACES.length * 4 * 3);

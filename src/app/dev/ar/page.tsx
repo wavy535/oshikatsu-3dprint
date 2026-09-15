@@ -5,9 +5,25 @@ import QRCode from "qrcode";
 
 import { AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
 import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/dev";
-import { calibrationModelPath, parseNuiQuery, quickLookUrl, roomModelPath } from "@/lib/ar/params";
+import {
+  listLocalModels,
+  localModelDirectory,
+  readLocalModel,
+  realLocalModelDirectory,
+  type LocalModel,
+} from "@/lib/ar/local-models";
+import { meshSizeMm } from "@/lib/ar/mesh";
+import {
+  calibrationModelPath,
+  localModelPath,
+  parseNuiQuery,
+  quickLookUrl,
+  roomModelPath,
+} from "@/lib/ar/params";
 import { modelRevision } from "@/lib/ar/revision";
 import { ROOM_LAYOUTS, nuiGuideSizeMm, roomInteriorMm, roomOuterMm, type RoomLayout } from "@/lib/ar/room";
+import { buildWorkMeshes, readModelObjects } from "@/lib/ar/work-model";
+import { AnalysisBudget } from "@/lib/print/limits";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "AR 実寸テスト（開発用）" };
@@ -17,12 +33,16 @@ const LAYOUT_LABEL: Record<RoomLayout, string> = {
   "back-left": "2面（奥・左）",
 };
 
-type Query = { sit?: string; shoulder?: string; hug?: string; layout?: string };
+const BYTES_PER_MB = 1024 * 1024;
+
+type Query = { sit?: string; shoulder?: string; hug?: string; layout?: string; model?: string };
 
 const field = "w-28 rounded-md border border-line bg-white px-2 py-1.5 text-[13px] text-ink";
 
 const qrCodeOf = (url: string) =>
   QRCode.toDataURL(url, { width: AR_DEV_PAGE.qrCodeWidthPx, margin: AR_DEV_PAGE.qrCodeMargin });
+
+const decimal = (value: number) => value.toFixed(AR_DEV_PAGE.displayDecimals);
 
 function QrImage({ src, alt }: { src: string; alt: string }) {
   return (
@@ -37,8 +57,41 @@ function QrImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+// いまの入力（部屋の寸法など）を残したまま、クエリを1つ変えたリンクを作る
+function hrefWith(query: Query, key: keyof Query, value: string) {
+  const next = new URLSearchParams();
+  for (const [name, current] of Object.entries(query)) {
+    if (typeof current === "string" && current) next.set(name, current);
+  }
+  next.set(key, value);
+  return `?${next}`;
+}
+
+type LocalModelPreview =
+  | { ok: true; sizeMm: ReturnType<typeof meshSizeMm>; sourceTriangles: number; outputTriangles: number }
+  | { ok: false; message: string };
+
+// 選んだファイルを API と同じ処理で変換してみて、AR での大きさと面の数を出す
+async function previewLocalModel(model: LocalModel): Promise<LocalModelPreview> {
+  const buffer = await readLocalModel(model.name);
+  if (!buffer) return { ok: false, message: "ファイルを読めませんでした" };
+  const budget = new AnalysisBudget();
+  try {
+    const objects = readModelObjects(buffer, model.name, budget);
+    const { meshes, sourceTriangles, outputTriangles } = buildWorkMeshes(
+      objects,
+      AR_DEV_PAGE.localModelScale,
+      budget,
+    );
+    return { ok: true, sizeMm: meshSizeMm(meshes), sourceTriangles, outputTriangles };
+  } catch (error) {
+    // 開発用のページなので、変換できない理由をそのまま表示する
+    return { ok: false, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 /**
- * 開発用：仮の部屋と校正用の A4 の板を、iPhone の Quick Look で実寸表示して確かめるページ。本番では 404。
+ * 開発用：仮の部屋・校正用の A4 の板・手元の3Dデータを、iPhone の Quick Look で実寸表示して確かめるページ。本番では 404。
  * QR コードを iPhone のカメラで読むと AR が起動する。DB とログインは使わない。
  */
 export default async function ArRoomTestPage({ searchParams }: { searchParams: Promise<Query> }) {
@@ -60,13 +113,25 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
     lanAddresses: lanIPv4Addresses(networkInterfaces()),
   });
   const revision = modelRevision();
+
+  const localDirectory = localModelDirectory();
+  const realDirectory = await realLocalModelDirectory(localDirectory);
+  const localModels = await listLocalModels(localDirectory);
+  const selectedModel = localModels?.find((model) => model.name === query.model) ?? null;
+  const modelPreview = selectedModel ? await previewLocalModel(selectedModel) : null;
+
   const roomUrl = nui && phone ? quickLookUrl(phone.origin, roomModelPath(layout, nui, revision, "usdz")) : null;
   const calibrationUrl = phone
     ? quickLookUrl(phone.origin, calibrationModelPath("a4-plate", revision, "usdz"))
     : null;
-  const [roomQrCode, calibrationQrCode] = await Promise.all([
+  const modelUrl =
+    selectedModel && modelPreview?.ok && phone
+      ? quickLookUrl(phone.origin, localModelPath(selectedModel.name, selectedModel.version, revision, "usdz"))
+      : null;
+  const [roomQrCode, calibrationQrCode, modelQrCode] = await Promise.all([
     roomUrl ? qrCodeOf(roomUrl) : null,
     calibrationUrl ? qrCodeOf(calibrationUrl) : null,
+    modelUrl ? qrCodeOf(modelUrl) : null,
   ]);
   const interior = nui ? roomInteriorMm(nui) : null;
   const guide = nui ? nuiGuideSizeMm(nui) : null;
@@ -77,7 +142,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-bold text-ink">AR 実寸テスト（開発用）</h1>
         <p className="text-[12.5px] text-muted-foreground">
-          ぬいの寸法から仮の部屋を作り、iPhone の Quick Look で実寸表示します。校正用の A4 の板で、AR の縮尺そのものも確かめられます。
+          ぬいの寸法から作る仮の部屋と、手元の3Dデータ（3MF / STL）を、iPhone の Quick Look で実寸表示します。校正用の A4 の板で、AR の縮尺そのものも確かめられます。
         </p>
         <p className="text-[11px] text-muted-foreground">
           モデルの版（rev）：<span className="num">{revision}</span>（設定を変えると変わり、iPhone に残った古いモデルは使われません）
@@ -125,8 +190,99 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
         </div>
       </section>
 
+      <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
+        <h2 className="text-sm font-bold text-ink">作品の3Dデータ（手元のファイル）</h2>
+        <p className="text-[12px] leading-5 text-muted-foreground">
+          <span className="num break-all">{localDirectory}</span>{" "}
+          {realDirectory && realDirectory !== localDirectory && (
+            <>
+              （リンク先：<span className="num break-all">{realDirectory}</span>）{" "}
+            </>
+          )}
+          にある 3MF / STL を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。向きはプレートに置いた（印刷する）向きのままで、色は反映しません。
+        </p>
+        {localModels === null && (
+          <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
+            フォルダが見つかりません。上の場所にフォルダを作り、3MF / STL を置いてください。
+          </p>
+        )}
+        {localModels?.length === 0 && (
+          <p className="text-[12.5px] text-muted-foreground">3MF / STL のファイルがありません。</p>
+        )}
+        {localModels && localModels.length > 0 && (
+          <ul className="flex flex-col gap-1 text-[12.5px]">
+            {localModels.map((model) => (
+              <li key={model.name} className="flex flex-wrap items-baseline gap-x-2">
+                {model.name === selectedModel?.name ? (
+                  <span className="font-semibold text-ink">▶ {model.name}</span>
+                ) : (
+                  <a href={hrefWith(query, "model", model.name)} className="font-semibold text-brand hover:underline">
+                    {model.name}
+                  </a>
+                )}
+                <span className="num text-[11.5px] text-muted-foreground">
+                  {decimal(model.bytes / BYTES_PER_MB)} MB
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {query.model && localModels && !selectedModel && (
+          <p className="text-[12.5px] text-danger">選んだファイル（{query.model}）が見つかりません。</p>
+        )}
+        {selectedModel && modelPreview && (
+          <div className="flex flex-col gap-4 border-t border-line pt-4 sm:flex-row">
+            {modelQrCode && <QrImage src={modelQrCode} alt="iPhone のカメラで読み取ると作品の AR が起動します" />}
+            <div className="flex min-w-0 flex-col gap-2 text-[12.5px] text-ink">
+              <p className="font-semibold break-all">{selectedModel.name}</p>
+              {modelPreview.ok ? (
+                <>
+                  <table className="text-[12px]">
+                    <tbody>
+                      <tr>
+                        <td className="pr-3 text-muted-foreground">AR での大きさ</td>
+                        <td className="num">
+                          幅 {decimal(modelPreview.sizeMm.widthMm)} × 奥行 {decimal(modelPreview.sizeMm.depthMm)} × 高さ{" "}
+                          {decimal(modelPreview.sizeMm.heightMm)} mm
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="pr-3 text-muted-foreground">面の数</td>
+                        <td className="num">
+                          {modelPreview.outputTriangles < modelPreview.sourceTriangles
+                            ? `${modelPreview.sourceTriangles.toLocaleString("ja-JP")} → ${modelPreview.outputTriangles.toLocaleString("ja-JP")}（AR 用に間引き）`
+                            : `${modelPreview.sourceTriangles.toLocaleString("ja-JP")}（間引きなし）`}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <p className="text-[11.5px] text-muted-foreground">
+                    {modelPreview.outputTriangles < modelPreview.sourceTriangles &&
+                      "間引きで細部はつぶれますが、外形の大きさはほぼ保たれます。"}
+                    定規を当てて、上の大きさと比べてください。
+                  </p>
+                  {modelUrl && (
+                    <p className="text-[11.5px] break-all text-muted-foreground">
+                      iPhone でこのページを開いている場合は{" "}
+                      <a href={modelUrl} className="font-semibold text-brand hover:underline">
+                        ここをタップ
+                      </a>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="rounded-lg bg-danger-bg px-3 py-2 text-danger">
+                  AR 用に変換できませんでした：{modelPreview.message}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
       <form method="get" className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
         <h2 className="text-sm font-bold text-ink">仮の部屋</h2>
+        {query.model && <input type="hidden" name="model" value={query.model} />}
         <div className="flex flex-wrap gap-4">
           <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
             座高（mm）

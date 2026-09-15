@@ -1,7 +1,8 @@
-import { AnalysisBudget } from "../print/limits.ts";
+import { AnalysisBudget, ModelLimitError } from "../print/limits.ts";
 import type { NamedMesh } from "../print/mesh.ts";
-import { parseStl } from "../print/stl.ts";
-import { parseThreeMf } from "../print/threemf.ts";
+import { StlParseError, parseStl } from "../print/stl.ts";
+import { ThreeMfParseError, parseThreeMf } from "../print/threemf.ts";
+import { ZipError } from "../print/zip.ts";
 import { AR_LIMITS, AR_MATERIALS } from "./config.ts";
 import { decimateToBudget, type TriangleMesh } from "./decimate.ts";
 import { ArInputError } from "./errors.ts";
@@ -10,14 +11,27 @@ import type { ArMesh } from "./mesh.ts";
 const MM_PER_M = 1000;
 const UP: [number, number, number] = [0, 1, 0];
 
-function extensionOf(fileName: string) {
+/** AR 用に変換できる3Dデータの拡張子 */
+export const WORK_MODEL_EXTENSIONS = ["3mf", "stl"] as const;
+export type WorkModelExtension = (typeof WORK_MODEL_EXTENSIONS)[number];
+
+/** ファイル名の拡張子が AR 用に変換できる形式ならそれを、違えば null を返す（大文字小文字は区別しない） */
+export function workModelExtension(fileName: string): WorkModelExtension | null {
   const dot = fileName.lastIndexOf(".");
-  return dot === -1 ? "" : fileName.slice(dot + 1).toLowerCase();
+  const extension = dot === -1 ? "" : fileName.slice(dot + 1).toLowerCase();
+  return WORK_MODEL_EXTENSIONS.find((candidate) => candidate === extension) ?? null;
 }
+
+// 3Dデータの中身が原因で変換できないもの。サーバーの障害（S3・DB）とは分けて扱う
+const MODEL_ERRORS = [ArInputError, ModelLimitError, StlParseError, ThreeMfParseError, ZipError];
+
+/** 3Dデータの中身が原因で変換できなかったときのエラーか */
+export const isUnconvertibleModelError = (error: unknown): error is Error =>
+  MODEL_ERRORS.some((ErrorType) => error instanceof ErrorType);
 
 /** 保存されている作品の3Dデータ（3MF / STL）を読み、パーツの一覧にする */
 export function readModelObjects(buf: Buffer, fileName: string, budget: AnalysisBudget): NamedMesh[] {
-  const extension = extensionOf(fileName);
+  const extension = workModelExtension(fileName);
   if (extension === "3mf") return parseThreeMf(buf, budget).objects;
   if (extension === "stl") return parseStl(buf, fileName.replace(/\.[^.]+$/, "")).objects;
   throw new ArInputError("AR に対応していない形式の3Dデータです");
