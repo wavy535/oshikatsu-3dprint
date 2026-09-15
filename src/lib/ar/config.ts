@@ -54,6 +54,15 @@ export const AR_LIMITS = {
   usdaDecimals: 6,
 } as const;
 
+/** Blender の .blend を AR 用に読むときの設定 */
+export const AR_BLEND = {
+  // 1 Blender 単位の長さ（mm）。部屋のデータは 1 単位 = 10cm で作られている（シーンの単位設定は 1m のまま）ため、
+  // シーンの単位は使わずこの値で換算する
+  mmPerUnit: 100,
+  // Subdivision Surface の分割回数の上限（ファイルの指定がこれより多ければ抑える）
+  maxSubdivisionLevels: 3,
+} as const;
+
 /** 作品詳細の AR 表示 */
 export const AR_DISPLAY = {
   // 部屋の内寸（mm）を表示するときの小数の最大桁数。推定したぬいの寸法は 0.1mm 単位になる
@@ -66,7 +75,7 @@ export const AR_DEV_PAGE = {
   qrCodeWidthPx: 280,
   // QR コードの周りの余白（モジュール数）
   qrCodeMargin: 2,
-  // 実寸テストに使う手元の3Dデータの置き場所。直下のフォルダ（test_3mf・roomfile など）ごとに 3MF / STL を探す。
+  // 実寸テストに使う手元の3Dデータの置き場所。直下のフォルダ（test_3mf・roomfile など）ごとに 3MF / STL / .blend を探す。
   // プロジェクトのルートから見た場所で、Git には上げない
   localModelRoot: "local-notes",
   // 手元のファイルはサイズ展開の倍率をかけず、そのままの大きさで出す

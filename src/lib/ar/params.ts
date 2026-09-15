@@ -14,6 +14,8 @@ const LOCAL_MODEL_ROUTE = "/api/ar/dev/local-models";
 // 手元のファイル名はクエリで渡し、パスのファイル名は形式だけを表す（"model.usdz" など）
 const LOCAL_MODEL_FILE = "model";
 const LOCAL_MODEL_NAME_PARAM = "name";
+// .blend で表示から外すオブジェクトの名前（いくつでも並べられる）
+export const LOCAL_MODEL_EXCLUDE_PARAM = "exclude";
 // モデルの版（modelRevision）を載せるクエリ名
 const REVISION_PARAM = "rev";
 // Quick Look に拡大縮小させない指定（AR Quick Look が URL のフラグメントで受け取る）
@@ -98,19 +100,27 @@ export function calibrationModelPath(model: CalibrationModel, revision: string, 
   return `${CALIBRATION_ROUTE}/${model}.${format}?${new URLSearchParams({ [REVISION_PARAM]: revision })}`;
 }
 
-/** 開発用：手元のファイルの URL（"model.usdz" と ?name=）から、ファイル名と形式を取り出す */
+/** 開発用：手元のファイルの URL（"model.usdz" と ?name=、.blend なら ?exclude=）から、ファイル名・形式・外すオブジェクトを取り出す */
 export function parseLocalModelRequest(
   file: string,
   params: URLSearchParams,
-): { name: string; format: ModelFormat } | null {
+): { name: string; format: ModelFormat; excludeObjects: string[] } | null {
   const parts = splitModelFile(file);
   const name = params.get(LOCAL_MODEL_NAME_PARAM);
-  return parts?.name === LOCAL_MODEL_FILE && name ? { name, format: parts.format } : null;
+  if (parts?.name !== LOCAL_MODEL_FILE || !name) return null;
+  return { name, format: parts.format, excludeObjects: params.getAll(LOCAL_MODEL_EXCLUDE_PARAM) };
 }
 
 /** 開発用：手元のファイルの URL。v はファイルの版で、置き換えると URL が変わる */
-export function localModelPath(name: string, version: string, revision: string, format: ModelFormat = "glb") {
+export function localModelPath(
+  name: string,
+  version: string,
+  revision: string,
+  format: ModelFormat = "glb",
+  excludeObjects: readonly string[] = [],
+) {
   const query = new URLSearchParams({ [LOCAL_MODEL_NAME_PARAM]: name, v: version, [REVISION_PARAM]: revision });
+  for (const object of excludeObjects) query.append(LOCAL_MODEL_EXCLUDE_PARAM, object);
   return `${LOCAL_MODEL_ROUTE}/${LOCAL_MODEL_FILE}.${format}?${query}`;
 }
 

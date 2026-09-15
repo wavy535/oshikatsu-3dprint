@@ -8,9 +8,9 @@ import { buildWorkMeshes, isUnconvertibleModelError, readModelObjects } from "@/
 import { AnalysisBudget } from "@/lib/print/limits";
 
 /**
- * 開発用：手元のフォルダにある 3MF / STL を AR 用のモデルにして返す。本番では 404。
+ * 開発用：手元のフォルダにある 3MF / STL / .blend を AR 用のモデルにして返す。本番では 404。
  * DB や S3 に登録していない実データを、実寸テストページの QR コードから iPhone で確かめるために使う。
- * ファイルは置き換わるので、キャッシュさせない。
+ * .blend は ?exclude= のオブジェクトを外す。ファイルは置き換わるので、キャッシュさせない。
  */
 export async function GET(
   request: Request,
@@ -25,7 +25,7 @@ export async function GET(
 
   const budget = new AnalysisBudget();
   try {
-    const objects = readModelObjects(buffer, local.name, budget);
+    const objects = readModelObjects(buffer, local.name, budget, { excludeObjects: local.excludeObjects });
     const { meshes } = buildWorkMeshes(objects, AR_DEV_PAGE.localModelScale, budget);
     return local.format === "usdz"
       ? modelResponse(encodeUsdz(meshes), "usdz", false)

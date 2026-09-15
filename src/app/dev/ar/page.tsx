@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
-import { AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
+import { AR_BLEND, AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
 import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/dev";
 import {
   listLocalModelFolders,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/ar/local-models";
 import { meshSizeMm } from "@/lib/ar/mesh";
 import {
+  LOCAL_MODEL_EXCLUDE_PARAM,
   calibrationModelPath,
   localModelPath,
   parseNuiQuery,
@@ -21,8 +22,15 @@ import {
 } from "@/lib/ar/params";
 import { modelRevision } from "@/lib/ar/revision";
 import { ROOM_LAYOUTS, nuiGuideSizeMm, roomInteriorMm, roomOuterMm, type RoomLayout } from "@/lib/ar/room";
-import { buildWorkMeshes, readModelObjects } from "@/lib/ar/work-model";
+import {
+  buildWorkMeshes,
+  readBlendModel,
+  readModelObjects,
+  workModelExtension,
+} from "@/lib/ar/work-model";
+import type { BlendReport } from "@/lib/print/blend";
 import { AnalysisBudget } from "@/lib/print/limits";
+import type { NamedMesh } from "@/lib/print/mesh";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "AR 実寸テスト（開発用）" };
@@ -41,7 +49,11 @@ type Query = {
   hug?: string;
   layout?: string;
   model?: string;
+  exclude?: string | string[];
 };
+
+// 仮の部屋のフォームの項目。手元のファイルを選び直しても、入力した寸法は残す
+const ROOM_QUERY_KEYS = ["height", "sit", "shoulder", "hug", "layout"] as const;
 
 const field = "w-28 rounded-md border border-line bg-white px-2 py-1.5 text-[13px] text-ink";
 
@@ -63,37 +75,107 @@ function QrImage({ src, alt }: { src: string; alt: string }) {
   );
 }
 
-// いまの入力（部屋の寸法など）を残したまま、クエリを1つ変えたリンクを作る
-function hrefWith(query: Query, key: keyof Query, value: string) {
-  const next = new URLSearchParams();
-  for (const [name, current] of Object.entries(query)) {
-    if (typeof current === "string" && current) next.set(name, current);
-  }
-  next.set(key, value);
-  return `?${next}`;
+// 入力した部屋の寸法を [名前, 値] の組で返す（フォームの hidden やリンクで引き継ぐ）
+const roomQueryEntries = (query: Query) =>
+  ROOM_QUERY_KEYS.flatMap((key) => (query[key] ? [[key, query[key]] as [string, string]] : []));
+
+// 手元のファイルを選ぶリンク。部屋の寸法は残し、前のファイルで外したオブジェクトは引き継がない
+const modelHref = (query: Query, name: string) => `?${new URLSearchParams([...roomQueryEntries(query), ["model", name]])}`;
+
+function HiddenInputs({ entries }: { entries: [string, string][] }) {
+  return entries.map(([name, value]) => <input key={`${name}=${value}`} type="hidden" name={name} value={value} />);
 }
 
 type LocalModelPreview =
-  | { ok: true; sizeMm: ReturnType<typeof meshSizeMm>; sourceTriangles: number; outputTriangles: number }
+  | {
+      ok: true;
+      sizeMm: ReturnType<typeof meshSizeMm>;
+      sourceTriangles: number;
+      outputTriangles: number;
+      blend: BlendReport | null;
+    }
   | { ok: false; message: string };
 
-// 選んだファイルを API と同じ処理で変換してみて、AR での大きさと面の数を出す
-async function previewLocalModel(model: LocalModel): Promise<LocalModelPreview> {
+// 選んだファイルを API と同じ処理で変換してみて、AR での大きさと面の数（.blend なら読み取りの報告も）を出す
+async function previewLocalModel(model: LocalModel, excludeObjects: string[]): Promise<LocalModelPreview> {
   const buffer = await readLocalModel(model.name);
   if (!buffer) return { ok: false, message: "ファイルを読めませんでした" };
   const budget = new AnalysisBudget();
   try {
-    const objects = readModelObjects(buffer, model.name, budget);
+    let objects: NamedMesh[];
+    let blend: BlendReport | null = null;
+    if (workModelExtension(model.name) === "blend") {
+      const read = readBlendModel(buffer, budget, { excludeObjects });
+      objects = read.objects;
+      blend = read.report;
+    } else {
+      objects = readModelObjects(buffer, model.name, budget);
+    }
     const { meshes, sourceTriangles, outputTriangles } = buildWorkMeshes(
       objects,
       AR_DEV_PAGE.localModelScale,
       budget,
     );
-    return { ok: true, sizeMm: meshSizeMm(meshes), sourceTriangles, outputTriangles };
+    return { ok: true, sizeMm: meshSizeMm(meshes), sourceTriangles, outputTriangles, blend };
   } catch (error) {
     // 開発用のページなので、変換できない理由をそのまま表示する
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }
+}
+
+// 「Bevel（Cube、立方体）」のように、モディファイアの種類ごとにオブジェクトの名前をまとめる
+function modifierSummary(notes: BlendReport["modifierNotes"]) {
+  const byModifier = new Map<string, string[]>();
+  for (const note of notes) byModifier.set(note.modifier, [...(byModifier.get(note.modifier) ?? []), note.object]);
+  return [...byModifier].map(([modifier, objects]) => `${modifier}（${objects.join("、")}）`).join(" / ");
+}
+
+/**
+ * .blend の読み取りの報告。ふだんは表示中の数と注意だけを出し、外すオブジェクトは「細かい設定」を開いたときに選ぶ。
+ */
+function BlendSummary({ report, carry }: { report: BlendReport; carry: [string, string][] }) {
+  const excluded = report.objects.filter((object) => object.excluded).length;
+  const unsupported = report.modifierNotes.filter((note) => note.note === "unsupported");
+  const limited = report.modifierNotes.filter((note) => note.note === "levels_limited");
+  return (
+    <div className="flex flex-col gap-1.5 text-[11.5px] leading-5 text-muted-foreground">
+      <p>
+        レンダリングに出るメッシュ <span className="num">{report.objects.length - excluded}</span> 個を、組み立てた配置のまま表示しています（1 Blender 単位 ={" "}
+        <span className="num">{AR_BLEND.mmPerUnit}</span> mm）。
+        {excluded > 0 && <> 外したもの <span className="num">{excluded}</span> 個。</>}
+        {report.hiddenObjects > 0 && <> レンダリングで非表示の <span className="num">{report.hiddenObjects}</span> 個は表示しません。</>}
+      </p>
+      {unsupported.length > 0 && <p>再現していないモディファイア：{modifierSummary(unsupported)}（その部分は適用前の形です）</p>}
+      {limited.length > 0 && (
+        <p>
+          Subdivision Surface の分割を <span className="num">{AR_BLEND.maxSubdivisionLevels}</span> 回に抑えたもの：
+          {limited.map((note) => note.object).join("、")}
+        </p>
+      )}
+      <details open={excluded > 0} className="rounded-lg border border-line px-3 py-2">
+        <summary className="cursor-pointer font-semibold text-ink">細かい設定：表示から外すオブジェクトを選ぶ</summary>
+        <form method="get" className="mt-2 flex flex-col gap-2">
+          <HiddenInputs entries={carry} />
+          <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
+            {report.objects.map((object) => (
+              <label key={object.name} className="flex items-center gap-1.5 text-[12px] text-ink">
+                <input
+                  type="checkbox"
+                  name={LOCAL_MODEL_EXCLUDE_PARAM}
+                  value={object.name}
+                  defaultChecked={object.excluded}
+                />
+                {object.name}
+              </label>
+            ))}
+          </div>
+          <Button type="submit" size="sm" className="self-start">
+            外して表示し直す
+          </Button>
+        </form>
+      </details>
+    </div>
+  );
 }
 
 /**
@@ -124,7 +206,8 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
   const localFolders = await listLocalModelFolders(localRoot);
   const localModels = localFolders?.flatMap((folder) => folder.models) ?? null;
   const selectedModel = localModels?.find((model) => model.name === query.model) ?? null;
-  const modelPreview = selectedModel ? await previewLocalModel(selectedModel) : null;
+  const excludeObjects = [query.exclude ?? []].flat().filter((name) => name !== "");
+  const modelPreview = selectedModel ? await previewLocalModel(selectedModel, excludeObjects) : null;
 
   const roomUrl = nui && phone ? quickLookUrl(phone.origin, roomModelPath(layout, nui, revision, "usdz")) : null;
   const calibrationUrl = phone
@@ -132,7 +215,10 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
     : null;
   const modelUrl =
     selectedModel && modelPreview?.ok && phone
-      ? quickLookUrl(phone.origin, localModelPath(selectedModel.name, selectedModel.version, revision, "usdz"))
+      ? quickLookUrl(
+          phone.origin,
+          localModelPath(selectedModel.name, selectedModel.version, revision, "usdz", excludeObjects),
+        )
       : null;
   const [roomQrCode, calibrationQrCode, modelQrCode] = await Promise.all([
     roomUrl ? qrCodeOf(roomUrl) : null,
@@ -148,7 +234,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-bold text-ink">AR 実寸テスト（開発用）</h1>
         <p className="text-[12.5px] text-muted-foreground">
-          ぬいの寸法から作る仮の部屋と、手元の3Dデータ（3MF / STL）を、iPhone の Quick Look で実寸表示します。校正用の A4 の板で、AR の縮尺そのものも確かめられます。
+          ぬいの寸法から作る仮の部屋と、手元の3Dデータ（3MF / STL / Blender の .blend）を、iPhone の Quick Look で実寸表示します。校正用の A4 の板で、AR の縮尺そのものも確かめられます。
         </p>
         <p className="text-[11px] text-muted-foreground">
           モデルの版（rev）：<span className="num">{revision}</span>（設定を変えると変わり、iPhone に残った古いモデルは使われません）
@@ -200,16 +286,16 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
         <h2 className="text-sm font-bold text-ink">作品の3Dデータ（手元のファイル）</h2>
         <p className="text-[12px] leading-5 text-muted-foreground">
           <span className="num break-all">{localRoot}</span>{" "}
-          の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。向きはプレートに置いた（印刷する）向きのままで、色は反映しません。
+          の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL / .blend を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。3MF / STL はプレートに置いた（印刷する）向きのまま、.blend は組み立てた配置のままで、色は反映しません。
         </p>
         {localFolders === null && (
           <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
-            置き場所が見つかりません。上の場所の中にフォルダを作り、3MF / STL を置いてください。
+            置き場所が見つかりません。上の場所の中にフォルダを作り、3MF / STL / .blend を置いてください。
           </p>
         )}
         {localFolders?.length === 0 && (
           <p className="text-[12.5px] text-muted-foreground">
-            フォルダがありません。上の場所の中にフォルダを作り、3MF / STL を置いてください。
+            フォルダがありません。上の場所の中にフォルダを作り、3MF / STL / .blend を置いてください。
           </p>
         )}
         {localFolders?.map((folder) => (
@@ -232,7 +318,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                     {model.name === selectedModel?.name ? (
                       <span className="font-semibold text-ink">▶ {model.name}</span>
                     ) : (
-                      <a href={hrefWith(query, "model", model.name)} className="font-semibold text-brand hover:underline">
+                      <a href={modelHref(query, model.name)} className="font-semibold text-brand hover:underline">
                         {model.name}
                       </a>
                     )}
@@ -245,7 +331,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
             )}
             {folder.unsupported.length > 0 && (
               <p className="text-[11.5px] break-all text-muted-foreground">
-                読めない形式：{folder.unsupported.join("、")}（3MF か STL で書き出すと表示できます）
+                読めない形式：{folder.unsupported.join("、")}（3MF・STL・.blend 以外のファイルです）
               </p>
             )}
           </div>
@@ -284,6 +370,12 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                       "間引きで細部はつぶれますが、外形の大きさはほぼ保たれます。"}
                     定規を当てて、上の大きさと比べてください。
                   </p>
+                  {modelPreview.blend && (
+                    <BlendSummary
+                      report={modelPreview.blend}
+                      carry={[["model", selectedModel.name], ...roomQueryEntries(query)]}
+                    />
+                  )}
                   {modelUrl && (
                     <p className="text-[11.5px] break-all text-muted-foreground">
                       iPhone でこのページを開いている場合は{" "}
@@ -305,7 +397,12 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
 
       <form method="get" className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
         <h2 className="text-sm font-bold text-ink">仮の部屋</h2>
-        {query.model && <input type="hidden" name="model" value={query.model} />}
+        <HiddenInputs
+          entries={[
+            ...(query.model ? [["model", query.model] as [string, string]] : []),
+            ...excludeObjects.map((name) => [LOCAL_MODEL_EXCLUDE_PARAM, name] as [string, string]),
+          ]}
+        />
         <div className="flex flex-wrap gap-4">
           <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
             身長（mm）

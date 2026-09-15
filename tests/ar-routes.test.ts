@@ -8,12 +8,14 @@ import { GET as getCalibration } from "@/app/api/ar/calibration/[file]/route";
 import { GET as getLocalModel } from "@/app/api/ar/dev/local-models/[file]/route";
 import { GET as getRoom } from "@/app/api/ar/rooms/[file]/route";
 import { GET as getWork } from "@/app/api/ar/works/[workId]/[file]/route";
+import { AR_BLEND } from "@/lib/ar/config";
 import { readLocalModel } from "@/lib/ar/local-models";
 import { localModelPath } from "@/lib/ar/params";
 import { getArWorkSource } from "@/lib/ar/queries";
 import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
 import { readModel } from "@/lib/files/s3";
+import { buildTestBlend, cubeMesh } from "./helpers/blend-files";
 import { bambuStylePackage } from "./helpers/model-files";
 
 const workId = "22222222-2222-2222-2222-222222222222";
@@ -21,6 +23,9 @@ const variantId = "33333333-3333-3333-3333-333333333333";
 const stl = readFileSync(new URL("./fixtures/tetrahedron.stl", import.meta.url));
 const source = { storagePath: "owner/work/model.stl", fileName: "model.stl", scaleRatio: 1 };
 const GLB_MAGIC = 0x46546c67;
+const GLB_JSON_LENGTH_OFFSET = 12;
+const GLB_JSON_START = 20;
+const MM_PER_M = 1000;
 const ZIP_LOCAL_SIGNATURE = 0x04034b50;
 const STALE_REVISION = "00000000";
 
@@ -41,6 +46,16 @@ const localModelRequest = (path: string) => {
 
 async function magicOf(response: Response) {
   return new DataView(await response.arrayBuffer()).getUint32(0, true);
+}
+
+// The GLB magic and the width (X, in mm) over the position accessors' bounds
+async function glbWidthOf(response: Response) {
+  const view = new DataView(await response.arrayBuffer());
+  const jsonLength = view.getUint32(GLB_JSON_LENGTH_OFFSET, true);
+  const json = JSON.parse(new TextDecoder().decode(new Uint8Array(view.buffer, GLB_JSON_START, jsonLength)));
+  const positions: { min: number[]; max: number[] }[] = json.accessors.filter((accessor: { min?: number[] }) => accessor.min);
+  const widthM = Math.max(...positions.map((a) => a.max[0])) - Math.min(...positions.map((a) => a.min[0]));
+  return { magic: view.getUint32(0, true), widthMm: widthM * MM_PER_M };
 }
 
 test("the provisional room route returns a GLB that is cacheable only for the current revision", async () => {
@@ -98,6 +113,35 @@ test("the dev route converts a local Bambu Studio 3MF and never lets it be cache
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(await magicOf(response)).toBe(ZIP_LOCAL_SIGNATURE);
   expect(readLocalModel).toHaveBeenCalledWith("test_3mf/1_Chair_01.gcode.3mf");
+});
+
+test("the dev route converts a local .blend and leaves out the objects named in the URL", async () => {
+  const name = "roomfile/matsu_nuiroom.blend";
+  vi.mocked(readLocalModel).mockResolvedValue(
+    buildTestBlend("current", [
+      { name: "Room", mesh: cubeMesh("Room") },
+      { name: "平面.001", mesh: cubeMesh("Far"), loc: [50, 0, 0] },
+    ]),
+  );
+  // 1 unit = AR_BLEND.mmPerUnit mm: from x = -1 to x = 51 with the far object, 2 units without it
+  const all = await localModelRequest(localModelPath(name, "f00d", modelRevision()));
+  expect(all.status).toBe(200);
+  expect(all.headers.get("cache-control")).toBe("no-store");
+  const allGlb = await glbWidthOf(all);
+  expect(allGlb.magic).toBe(GLB_MAGIC);
+  expect(allGlb.widthMm).toBeCloseTo(52 * AR_BLEND.mmPerUnit, 1);
+
+  const trimmed = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "glb", ["平面.001"]));
+  expect(trimmed.status).toBe(200);
+  expect((await glbWidthOf(trimmed)).widthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 1);
+  expect(readLocalModel).toHaveBeenCalledWith(name);
+
+  const usdz = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "usdz", ["平面.001"]));
+  expect(usdz.status).toBe(200);
+  expect(await magicOf(usdz)).toBe(ZIP_LOCAL_SIGNATURE);
+
+  const nothingLeft = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "glb", ["Room", "平面.001"]));
+  expect(nothingLeft.status).toBe(422);
 });
 
 test("the dev route answers 404 for unknown files and in production, and 422 with the reason for broken data", async () => {

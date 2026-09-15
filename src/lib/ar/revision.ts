@@ -1,5 +1,5 @@
 import { NUI_PROPORTIONS } from "../nuis/config.ts";
-import { AR_CALIBRATION, AR_LIMITS, AR_MATERIALS, AR_MODEL, AR_ROOM } from "./config.ts";
+import { AR_BLEND, AR_CALIBRATION, AR_LIMITS, AR_MATERIALS, AR_MODEL, AR_ROOM } from "./config.ts";
 
 // FNV-1a（32bit）で決まっている値
 const FNV_OFFSET_BASIS = 0x811c9dc5;
@@ -23,6 +23,6 @@ export function revisionOf(source: string) {
  */
 export function modelRevision() {
   return revisionOf(
-    JSON.stringify([AR_MODEL, AR_ROOM, AR_MATERIALS, AR_CALIBRATION, AR_LIMITS, NUI_PROPORTIONS]),
+    JSON.stringify([AR_MODEL, AR_ROOM, AR_MATERIALS, AR_CALIBRATION, AR_LIMITS, AR_BLEND, NUI_PROPORTIONS]),
   );
 }

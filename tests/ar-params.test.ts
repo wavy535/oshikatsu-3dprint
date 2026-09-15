@@ -2,6 +2,7 @@ import { expect, test } from "vitest";
 import { AR_LIMITS } from "@/lib/ar/config";
 import { buildArModelOptions, nuiDimensionsOf } from "@/lib/ar/options";
 import {
+  LOCAL_MODEL_EXCLUDE_PARAM,
   calibrationModelPath,
   localModelPath,
   nuiSearchParams,
@@ -66,11 +67,20 @@ test("local model URLs carry the file name, the file version and the model revis
   expect(url.pathname).toBe("/api/ar/dev/local-models/model.usdz");
   expect(url.searchParams.get("v")).toBe("f00d");
   expect(revisionOfUrl(url.searchParams)).toBe(revision);
-  expect(parseLocalModelRequest("model.usdz", url.searchParams)).toEqual({ name, format: "usdz" });
-  expect(parseLocalModelRequest("model.glb", url.searchParams)).toEqual({ name, format: "glb" });
+  expect(parseLocalModelRequest("model.usdz", url.searchParams)).toEqual({ name, format: "usdz", excludeObjects: [] });
+  expect(parseLocalModelRequest("model.glb", url.searchParams)).toEqual({ name, format: "glb", excludeObjects: [] });
   expect(parseLocalModelRequest("other.usdz", url.searchParams)).toBeNull();
   expect(parseLocalModelRequest("model.obj", url.searchParams)).toBeNull();
   expect(parseLocalModelRequest("model.usdz", new URLSearchParams())).toBeNull();
+});
+
+test("objects excluded from a .blend round-trip through the local model URL, names with spaces and & included", () => {
+  const name = "roomfile/matsu_nuiroom.blend";
+  const excludeObjects = ["平面.001", "Cube & Wall", "立方体.003"];
+  const url = new URL(localModelPath(name, "f00d", revision, "usdz", excludeObjects), origin);
+  expect(url.searchParams.getAll(LOCAL_MODEL_EXCLUDE_PARAM)).toEqual(excludeObjects);
+  expect(parseLocalModelRequest("model.usdz", url.searchParams)).toEqual({ name, format: "usdz", excludeObjects });
+  expect(revisionOfUrl(url.searchParams)).toBe(revision);
 });
 
 test("Quick Look URLs are absolute USDZ links with fixed scaling", () => {

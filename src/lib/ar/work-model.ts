@@ -1,9 +1,10 @@
+import { BlendParseError, parseBlend } from "../print/blend.ts";
 import { AnalysisBudget, ModelLimitError } from "../print/limits.ts";
 import type { NamedMesh } from "../print/mesh.ts";
 import { StlParseError, parseStl } from "../print/stl.ts";
 import { ThreeMfParseError, parseThreeMf } from "../print/threemf.ts";
 import { ZipError } from "../print/zip.ts";
-import { AR_LIMITS, AR_MATERIALS } from "./config.ts";
+import { AR_BLEND, AR_LIMITS, AR_MATERIALS } from "./config.ts";
 import { decimateToBudget, type TriangleMesh } from "./decimate.ts";
 import { ArInputError } from "./errors.ts";
 import type { ArMesh } from "./mesh.ts";
@@ -12,7 +13,7 @@ const MM_PER_M = 1000;
 const UP: [number, number, number] = [0, 1, 0];
 
 /** AR 用に変換できる3Dデータの拡張子 */
-export const WORK_MODEL_EXTENSIONS = ["3mf", "stl"] as const;
+export const WORK_MODEL_EXTENSIONS = ["3mf", "stl", "blend"] as const;
 export type WorkModelExtension = (typeof WORK_MODEL_EXTENSIONS)[number];
 
 /** ファイル名の拡張子が AR 用に変換できる形式ならそれを、違えば null を返す（大文字小文字は区別しない） */
@@ -23,17 +24,41 @@ export function workModelExtension(fileName: string): WorkModelExtension | null 
 }
 
 // 3Dデータの中身が原因で変換できないもの。サーバーの障害（S3・DB）とは分けて扱う
-const MODEL_ERRORS = [ArInputError, ModelLimitError, StlParseError, ThreeMfParseError, ZipError];
+const MODEL_ERRORS = [ArInputError, ModelLimitError, StlParseError, ThreeMfParseError, ZipError, BlendParseError];
 
 /** 3Dデータの中身が原因で変換できなかったときのエラーか */
 export const isUnconvertibleModelError = (error: unknown): error is Error =>
   MODEL_ERRORS.some((ErrorType) => error instanceof ErrorType);
 
-/** 保存されている作品の3Dデータ（3MF / STL）を読み、パーツの一覧にする */
-export function readModelObjects(buf: Buffer, fileName: string, budget: AnalysisBudget): NamedMesh[] {
+export type ModelReadOptions = {
+  // .blend で表示から外すオブジェクトの名前
+  excludeObjects?: readonly string[];
+};
+
+/** .blend を AR 用の設定（1 単位の長さ・分割回数の上限）で読み、オブジェクトと読み取りの報告を返す */
+export function readBlendModel(buf: Buffer, budget: AnalysisBudget, options: ModelReadOptions = {}) {
+  return parseBlend(
+    buf,
+    {
+      mmPerUnit: AR_BLEND.mmPerUnit,
+      maxSubdivisionLevels: AR_BLEND.maxSubdivisionLevels,
+      excludeObjects: options.excludeObjects,
+    },
+    budget,
+  );
+}
+
+/** 作品の3Dデータ（3MF / STL / .blend）を読み、パーツの一覧にする */
+export function readModelObjects(
+  buf: Buffer,
+  fileName: string,
+  budget: AnalysisBudget,
+  options: ModelReadOptions = {},
+): NamedMesh[] {
   const extension = workModelExtension(fileName);
   if (extension === "3mf") return parseThreeMf(buf, budget).objects;
   if (extension === "stl") return parseStl(buf, fileName.replace(/\.[^.]+$/, "")).objects;
+  if (extension === "blend") return readBlendModel(buf, budget, options).objects;
   throw new ArInputError("AR に対応していない形式の3Dデータです");
 }
 

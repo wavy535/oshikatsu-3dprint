@@ -1,16 +1,19 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { AR_LIMITS } from "@/lib/ar/config";
+import { AR_BLEND, AR_LIMITS } from "@/lib/ar/config";
 import { decimateToBudget } from "@/lib/ar/decimate";
 import { ArInputError } from "@/lib/ar/errors";
 import { meshSizeMm } from "@/lib/ar/mesh";
 import {
   buildWorkMeshes,
   isUnconvertibleModelError,
+  readBlendModel,
   readModelObjects,
   workModelExtension,
 } from "@/lib/ar/work-model";
+import { BlendParseError } from "@/lib/print/blend";
 import { AnalysisBudget, ModelLimitError } from "@/lib/print/limits";
+import { buildTestBlend, cubeMesh } from "./helpers/blend-files";
 import { bambuStylePackage, modelXml, modelZip, tetrahedronMesh } from "./helpers/model-files";
 
 // Print coordinates in mm with Z up; every face winds outward.
@@ -90,13 +93,38 @@ test("Bambu Studio files that keep the shape in another model file convert at th
   expect(meshSizeMm([])).toEqual({ widthMm: 0, depthMm: 0, heightMm: 0 });
 });
 
+test("Blender files convert at the AR length of one unit, keep their layout, and can leave objects out", () => {
+  const blend = buildTestBlend("current", [
+    { name: "Floor", mesh: cubeMesh("Floor"), scale: [1, 1, 0.05] },
+    { name: "Chair", mesh: cubeMesh("Chair"), loc: [0, 0, 1] },
+  ]);
+  const objects = readModelObjects(blend, "roomfile/matsu_nuiroom.blend", new AnalysisBudget());
+  expect(objects.map((object) => object.name)).toEqual(["Floor", "Chair"]);
+  const size = meshSizeMm(buildWorkMeshes(objects, 1).meshes);
+  expect(size.widthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 3);
+  expect(size.depthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 3);
+  // From the bottom of the floor (z = -0.05) to the top of the chair (z = 2)
+  expect(size.heightMm).toBeCloseTo(2.05 * AR_BLEND.mmPerUnit, 3);
+
+  const { objects: floorOnly, report } = readBlendModel(blend, new AnalysisBudget(), { excludeObjects: ["Chair"] });
+  expect(floorOnly.map((object) => object.name)).toEqual(["Floor"]);
+  expect(report.objects).toEqual([
+    { name: "Chair", excluded: true },
+    { name: "Floor", excluded: false },
+  ]);
+  expect(readModelObjects(blend, "room.blend", new AnalysisBudget(), { excludeObjects: ["Chair"] })).toHaveLength(1);
+});
+
 test("file extensions and conversion errors are classified for the AR routes", () => {
   expect(workModelExtension("1_Chair_01.GCODE.3MF")).toBe("3mf");
   expect(workModelExtension("part.stl")).toBe("stl");
+  expect(workModelExtension("matsu_nuiroom.BLEND")).toBe("blend");
   expect(workModelExtension("notes.md")).toBeNull();
+  expect(workModelExtension("room.blend1")).toBeNull();
   expect(workModelExtension("3mf")).toBeNull();
   expect(isUnconvertibleModelError(new ArInputError("bad size"))).toBe(true);
   expect(isUnconvertibleModelError(new ModelLimitError("too large"))).toBe(true);
+  expect(isUnconvertibleModelError(new BlendParseError("not a blend file"))).toBe(true);
   expect(isUnconvertibleModelError(new Error("storage is down"))).toBe(false);
 });
 

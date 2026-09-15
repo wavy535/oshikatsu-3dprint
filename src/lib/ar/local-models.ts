@@ -5,7 +5,7 @@ import { AR_DEV_PAGE } from "./config.ts";
 import { localModelVersion, sortLocalNames } from "./dev.ts";
 import { workModelExtension } from "./work-model.ts";
 
-// 開発用の実寸テストで、手元のフォルダに置いた 3MF / STL を読む（DB・S3 は使わない）
+// 開発用の実寸テストで、手元のフォルダに置いた 3MF / STL / .blend を読む（DB・S3 は使わない）
 
 // フォルダ名とファイル名の区切り。一覧の名前（"roomfile/room.3mf"）と URL の name に使う
 const FOLDER_SEPARATOR = "/";
@@ -16,7 +16,7 @@ export type LocalModelFolder = {
   // シンボリックリンクのとき、リンク先の場所
   linkedTo: string | null;
   models: LocalModel[];
-  // 3MF / STL 以外のファイル（Blender の .blend など）
+  // 3MF / STL / .blend 以外のファイル（OBJ・画像・メモなど）
   unsupported: string[];
 };
 
@@ -29,7 +29,7 @@ const isMissing = (error: unknown) =>
 const isVisible = (name: string) => !name.startsWith(".");
 
 /**
- * 置き場所の直下にあるフォルダ（シンボリックリンクを含む）ごとの 3MF / STL。
+ * 置き場所の直下にあるフォルダ（シンボリックリンクを含む）ごとの 3MF / STL / .blend。
  * 置き場所の直下のファイル（メモなど）は見ない。置き場所がなければ null
  */
 export async function listLocalModelFolders(root = localModelRoot()): Promise<LocalModelFolder[] | null> {
