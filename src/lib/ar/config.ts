@@ -22,6 +22,12 @@ export const AR_MATERIALS = {
   roughness: 0.9,
 } as const;
 
+/** AR 用モデルの URL に付ける版（rev）の元になる値 */
+export const AR_MODEL = {
+  // 生成処理のコードを変えて出力が変わるときに上げる。設定値の変更は rev に自動で反映される
+  generatorRevision: 1,
+} as const;
+
 export const AR_LIMITS = {
   // URL で受け取るぬいの寸法（mm）の範囲。明らかな入力ミスを弾くための値
   nuiDimensionMinMm: 10,

@@ -6,6 +6,7 @@ vi.mock("@/lib/files/s3", () => ({ readModel: vi.fn() }));
 import { GET as getRoom } from "@/app/api/ar/rooms/[file]/route";
 import { GET as getWork } from "@/app/api/ar/works/[workId]/[file]/route";
 import { getArWorkSource } from "@/lib/ar/queries";
+import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
 import { readModel } from "@/lib/files/s3";
 
@@ -15,60 +16,67 @@ const stl = readFileSync(new URL("./fixtures/tetrahedron.stl", import.meta.url))
 const source = { storagePath: "owner/work/model.stl", fileName: "model.stl", scaleRatio: 1 };
 const GLB_MAGIC = 0x46546c67;
 const ZIP_LOCAL_SIGNATURE = 0x04034b50;
+const STALE_REVISION = "00000000";
 
 const context = <T>(params: T) => ({ params: Promise.resolve(params) });
-const workRequest = (version: string) =>
-  new Request(`https://example.test/api/ar/works/${workId}/${variantId}.glb?v=${version}`);
+const workRequest = (version: string, revision?: string) =>
+  new Request(
+    `https://example.test/api/ar/works/${workId}/${variantId}.glb?v=${version}` +
+      (revision ? `&rev=${revision}` : ""),
+  );
+const roomRequest = (file: string, query: string) =>
+  getRoom(new Request(`https://example.test/api/ar/rooms/${file}?${query}`), context({ file }));
 
 async function magicOf(response: Response) {
   return new DataView(await response.arrayBuffer()).getUint32(0, true);
 }
 
-test("the provisional room route returns a publicly cacheable GLB", async () => {
-  const response = await getRoom(
-    new Request("https://example.test/api/ar/rooms/three-walls.glb?sit=150&hug=120"),
-    context({ file: "three-walls.glb" }),
-  );
+test("the provisional room route returns a GLB that is cacheable only for the current revision", async () => {
+  const response = await roomRequest("three-walls.glb", `sit=150&hug=120&rev=${modelRevision()}`);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("model/gltf-binary");
   expect(response.headers.get("cache-control")).toMatch(/^public/);
   expect(await magicOf(response)).toBe(GLB_MAGIC);
+
+  const withoutRevision = await roomRequest("three-walls.glb", "sit=150&hug=120");
+  expect(withoutRevision.status).toBe(200);
+  expect(withoutRevision.headers.get("cache-control")).toBe("no-store");
+  const stale = await roomRequest("three-walls.glb", `sit=150&hug=120&rev=${STALE_REVISION}`);
+  expect(stale.headers.get("cache-control")).toBe("no-store");
 });
 
 test("the provisional room route serves USDZ for Quick Look", async () => {
-  const response = await getRoom(
-    new Request("https://example.test/api/ar/rooms/back-left.usdz?sit=150&hug=120"),
-    context({ file: "back-left.usdz" }),
-  );
+  const response = await roomRequest("back-left.usdz", `sit=150&hug=120&rev=${modelRevision()}`);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("model/vnd.usdz+zip");
-  expect(new DataView(await response.arrayBuffer()).getUint32(0, true)).toBe(ZIP_LOCAL_SIGNATURE);
+  expect(response.headers.get("cache-control")).toMatch(/^public/);
+  expect(await magicOf(response)).toBe(ZIP_LOCAL_SIGNATURE);
 });
 
 test("the provisional room route rejects unknown layouts and incomplete measurements", async () => {
-  const unknown = await getRoom(
-    new Request("https://example.test/api/ar/rooms/four-walls.glb?sit=150&hug=120"),
-    context({ file: "four-walls.glb" }),
-  );
-  expect(unknown.status).toBe(404);
-  const noWidth = await getRoom(
-    new Request("https://example.test/api/ar/rooms/three-walls.glb?sit=150"),
-    context({ file: "three-walls.glb" }),
-  );
-  expect(noWidth.status).toBe(404);
+  expect((await roomRequest("four-walls.glb", "sit=150&hug=120")).status).toBe(404);
+  expect((await roomRequest("three-walls.glb", "sit=150")).status).toBe(404);
 });
 
 test("the work route converts the stored model of a published work", async () => {
   vi.mocked(getArWorkSource).mockResolvedValue(source);
   vi.mocked(readModel).mockResolvedValue(stl);
   const response = await getWork(
-    workRequest(assetVersion(source.storagePath)),
+    workRequest(assetVersion(source.storagePath), modelRevision()),
     context({ workId, file: `${variantId}.glb` }),
   );
   expect(response.status).toBe(200);
+  expect(response.headers.get("cache-control")).toMatch(/^public/);
   expect(await magicOf(response)).toBe(GLB_MAGIC);
   expect(getArWorkSource).toHaveBeenCalledWith(workId, variantId);
   expect(readModel).toHaveBeenCalledWith(source.storagePath);
+
+  const withoutRevision = await getWork(
+    workRequest(assetVersion(source.storagePath)),
+    context({ workId, file: `${variantId}.glb` }),
+  );
+  expect(withoutRevision.status).toBe(200);
+  expect(withoutRevision.headers.get("cache-control")).toBe("no-store");
 });
 
 test("the work route hides unpublished works, stale versions and malformed ids without reading storage", async () => {

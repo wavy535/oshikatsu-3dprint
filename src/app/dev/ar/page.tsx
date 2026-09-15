@@ -5,7 +5,8 @@ import QRCode from "qrcode";
 
 import { AR_DEV_PAGE, AR_LIMITS } from "@/lib/ar/config";
 import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/dev";
-import { parseNuiQuery, quickLookRoomUrl } from "@/lib/ar/params";
+import { parseNuiQuery, quickLookUrl, roomModelPath } from "@/lib/ar/params";
+import { modelRevision } from "@/lib/ar/revision";
 import { ROOM_LAYOUTS, nuiGuideSizeMm, roomInteriorMm, type RoomLayout } from "@/lib/ar/room";
 import { Button } from "@/components/ui/button";
 
@@ -42,7 +43,8 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
     forwardedProto: requestHeaders.get("x-forwarded-proto"),
     lanAddresses: lanIPv4Addresses(networkInterfaces()),
   });
-  const arUrl = nui && phone ? quickLookRoomUrl(phone.origin, layout, nui) : null;
+  const revision = modelRevision();
+  const arUrl = nui && phone ? quickLookUrl(phone.origin, roomModelPath(layout, nui, revision, "usdz")) : null;
   const qrCode = arUrl
     ? await QRCode.toDataURL(arUrl, { width: AR_DEV_PAGE.qrCodeWidthPx, margin: AR_DEV_PAGE.qrCodeMargin })
     : null;
@@ -55,6 +57,9 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
         <h1 className="text-lg font-bold text-ink">AR 実寸テスト（開発用）</h1>
         <p className="text-[12.5px] text-muted-foreground">
           ぬいの寸法から仮の部屋を作り、iPhone の Quick Look で実寸表示します。本物のぬいと並べて大きさを確かめてください。
+        </p>
+        <p className="text-[11px] text-muted-foreground">
+          モデルの版（rev）：<span className="num">{revision}</span>（設定を変えると変わり、iPhone に残った古いモデルは使われません）
         </p>
       </div>
 

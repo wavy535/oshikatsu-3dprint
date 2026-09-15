@@ -1,6 +1,7 @@
 import { encodeGlb } from "@/lib/ar/glb";
-import { parseNuiQuery, parseRoomFile } from "@/lib/ar/params";
+import { parseNuiQuery, parseRoomFile, revisionOfUrl } from "@/lib/ar/params";
 import { modelResponse } from "@/lib/ar/response";
+import { modelRevision } from "@/lib/ar/revision";
 import { buildRoomMeshes } from "@/lib/ar/room";
 import { encodeUsdz } from "@/lib/ar/usdz";
 
@@ -13,11 +14,13 @@ export async function GET(
   { params }: { params: Promise<{ file: string }> },
 ) {
   const { file } = await params;
+  const searchParams = new URL(request.url).searchParams;
   const room = parseRoomFile(file);
-  const nui = parseNuiQuery(new URL(request.url).searchParams);
+  const nui = parseNuiQuery(searchParams);
   if (!room || !nui) return new Response(null, { status: 404 });
   const meshes = buildRoomMeshes(nui, room.layout);
+  const cacheable = revisionOfUrl(searchParams) === modelRevision();
   return room.format === "usdz"
-    ? modelResponse(encodeUsdz(meshes), "usdz")
-    : modelResponse(encodeGlb(meshes), "glb");
+    ? modelResponse(encodeUsdz(meshes), "usdz", cacheable)
+    : modelResponse(encodeGlb(meshes), "glb", cacheable);
 }

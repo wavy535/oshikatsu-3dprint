@@ -1,8 +1,9 @@
 import { ArInputError } from "@/lib/ar/errors";
 import { encodeGlb } from "@/lib/ar/glb";
-import { isId, parseWorkFile } from "@/lib/ar/params";
+import { isId, parseWorkFile, revisionOfUrl } from "@/lib/ar/params";
 import { getArWorkSource } from "@/lib/ar/queries";
 import { modelResponse } from "@/lib/ar/response";
+import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
 import { buildWorkMeshes, readModelObjects } from "@/lib/ar/work-model";
 import { readModel } from "@/lib/files/s3";
@@ -24,8 +25,9 @@ export async function GET(
   { params }: { params: Promise<{ workId: string; file: string }> },
 ) {
   const { workId, file } = await params;
+  const searchParams = new URL(request.url).searchParams;
   const variantId = parseWorkFile(file);
-  const version = new URL(request.url).searchParams.get("v");
+  const version = searchParams.get("v");
   if (!isId(workId) || !variantId || !version) return new Response(null, { status: 404 });
 
   const source = await getArWorkSource(workId, variantId);
@@ -37,7 +39,7 @@ export async function GET(
   try {
     const objects = readModelObjects(buffer, source.fileName, budget);
     const { meshes } = buildWorkMeshes(objects, source.scaleRatio, budget);
-    return modelResponse(encodeGlb(meshes), "glb");
+    return modelResponse(encodeGlb(meshes), "glb", revisionOfUrl(searchParams) === modelRevision());
   } catch (error) {
     if (MODEL_ERRORS.some((ErrorType) => error instanceof ErrorType))
       return new Response(null, { status: 422 });

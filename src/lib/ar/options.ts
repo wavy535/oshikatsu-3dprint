@@ -1,4 +1,5 @@
 import { nuiSearchParams, parseNuiQuery, roomModelPath, workModelPath } from "./params.ts";
+import { modelRevision } from "./revision.ts";
 import { ROOM_LAYOUTS, roomInteriorMm, type NuiDimensions, type RoomLayout } from "./room.ts";
 
 /** nui_profiles の行を採寸値にする（numeric 列が文字列で届いても数値にそろえる） */
@@ -31,14 +32,18 @@ export function buildArModelOptions(input: {
   nui: NuiDimensions | null;
 }) {
   const options: ArModelOption[] = [];
+  const revision = modelRevision();
   if (input.variantId && input.assetVersion) {
-    options.push({ kind: "work", src: workModelPath(input.workId, input.variantId, input.assetVersion) });
+    options.push({
+      kind: "work",
+      src: workModelPath(input.workId, input.variantId, input.assetVersion, revision),
+    });
   }
 
   const roomUnavailable = roomUnavailableReason(input.signedIn, input.nui);
   if (roomUnavailable === null && input.nui) {
     for (const layout of ROOM_LAYOUTS) {
-      options.push({ kind: layout, src: roomModelPath(layout, input.nui) });
+      options.push({ kind: layout, src: roomModelPath(layout, input.nui, revision) });
     }
   }
   return {

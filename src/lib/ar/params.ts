@@ -8,6 +8,8 @@ export type ModelFormat = (typeof MODEL_FORMATS)[number];
 
 const ROOM_ROUTE = "/api/ar/rooms";
 const WORK_ROUTE = "/api/ar/works";
+// モデルの版（modelRevision）を載せるクエリ名
+const REVISION_PARAM = "rev";
 // Quick Look に拡大縮小させない指定（AR Quick Look が URL のフラグメントで受け取る）
 const QUICK_LOOK_FIXED_SCALE = "allowsContentScaling=0";
 
@@ -28,6 +30,9 @@ function splitModelFile(file: string) {
 }
 
 export const isId = (value: string) => idSchema.safeParse(value).success;
+
+/** URL に付いたモデルの版。付いていなければ null */
+export const revisionOfUrl = (params: URLSearchParams) => params.get(REVISION_PARAM);
 
 /** "three-walls.glb" / "back-left.usdz" のようなファイル名から部屋の形と形式を取り出す */
 export function parseRoomFile(file: string): { layout: RoomLayout; format: ModelFormat } | null {
@@ -59,16 +64,15 @@ export function nuiSearchParams(nui: NuiDimensions) {
   return query;
 }
 
-export function roomModelPath(layout: RoomLayout, nui: NuiDimensions, format: ModelFormat = "glb") {
-  return `${ROOM_ROUTE}/${layout}.${format}?${nuiSearchParams(nui)}`;
-}
-
-/**
- * iPhone の Safari で開くと、そのまま Quick Look の AR が実寸固定で起動する URL。
- * QR コードにするので、スマホから届く origin（http://192.168.x.x:3000 など）を付けた絶対 URL にする。
- */
-export function quickLookRoomUrl(origin: string, layout: RoomLayout, nui: NuiDimensions) {
-  return `${origin}${roomModelPath(layout, nui, "usdz")}#${QUICK_LOOK_FIXED_SCALE}`;
+export function roomModelPath(
+  layout: RoomLayout,
+  nui: NuiDimensions,
+  revision: string,
+  format: ModelFormat = "glb",
+) {
+  const query = nuiSearchParams(nui);
+  query.set(REVISION_PARAM, revision);
+  return `${ROOM_ROUTE}/${layout}.${format}?${query}`;
 }
 
 /** "<サイズのID>.glb" からサイズの ID を取り出す */
@@ -77,6 +81,15 @@ export function parseWorkFile(file: string): string | null {
   return parts?.format === "glb" && isId(parts.name) ? parts.name : null;
 }
 
-export function workModelPath(workId: string, variantId: string, version: string) {
-  return `${WORK_ROUTE}/${workId}/${variantId}.glb?${new URLSearchParams({ v: version })}`;
+export function workModelPath(workId: string, variantId: string, version: string, revision: string) {
+  const query = new URLSearchParams({ v: version, [REVISION_PARAM]: revision });
+  return `${WORK_ROUTE}/${workId}/${variantId}.glb?${query}`;
+}
+
+/**
+ * iPhone の Safari で開くと、そのまま Quick Look の AR が実寸固定で起動する URL。
+ * QR コードにするので、スマホから届く origin（http://192.168.x.x:3000 など）を付けた絶対 URL にする。
+ */
+export function quickLookUrl(origin: string, usdzPath: string) {
+  return `${origin}${usdzPath}#${QUICK_LOOK_FIXED_SCALE}`;
 }

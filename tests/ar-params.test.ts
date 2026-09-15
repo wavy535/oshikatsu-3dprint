@@ -6,15 +6,18 @@ import {
   parseNuiQuery,
   parseRoomFile,
   parseWorkFile,
-  quickLookRoomUrl,
+  quickLookUrl,
+  revisionOfUrl,
   roomModelPath,
   workModelPath,
 } from "@/lib/ar/params";
+import { modelRevision } from "@/lib/ar/revision";
 
 const workId = "22222222-2222-2222-2222-222222222222";
 const variantId = "33333333-3333-3333-3333-333333333333";
 const nui = { sitHeightMm: 150, shoulderWidthMm: null, hugWidthMm: 120.5 };
 const origin = "https://example.test";
+const revision = "0123abcd";
 
 test("room file names map to a layout and a model format, anything else is rejected", () => {
   expect(parseRoomFile("three-walls.glb")).toEqual({ layout: "three-walls", format: "glb" });
@@ -25,22 +28,27 @@ test("room file names map to a layout and a model format, anything else is rejec
   expect(parseRoomFile(".glb")).toBeNull();
 });
 
-test("nui dimensions round-trip through the room model URL", () => {
+test("nui dimensions and the model revision round-trip through the room model URL", () => {
   expect(parseNuiQuery(nuiSearchParams(nui))).toEqual(nui);
-  const url = new URL(roomModelPath("back-left", nui), origin);
+  const url = new URL(roomModelPath("back-left", nui, revision), origin);
   expect(url.pathname).toBe("/api/ar/rooms/back-left.glb");
   expect(parseNuiQuery(url.searchParams)).toEqual(nui);
-  expect(new URL(roomModelPath("three-walls", nui, "usdz"), origin).pathname).toBe(
+  expect(revisionOfUrl(url.searchParams)).toBe(revision);
+  expect(revisionOfUrl(new URLSearchParams())).toBeNull();
+  expect(new URL(roomModelPath("three-walls", nui, revision, "usdz"), origin).pathname).toBe(
     "/api/ar/rooms/three-walls.usdz",
   );
 });
 
 test("Quick Look URLs are absolute USDZ links with fixed scaling", () => {
-  const url = new URL(quickLookRoomUrl("http://192.168.1.68:3000", "back-left", nui));
+  const url = new URL(
+    quickLookUrl("http://192.168.1.68:3000", roomModelPath("back-left", nui, revision, "usdz")),
+  );
   expect(url.origin).toBe("http://192.168.1.68:3000");
   expect(url.pathname).toBe("/api/ar/rooms/back-left.usdz");
   expect(url.hash).toBe("#allowsContentScaling=0");
   expect(parseNuiQuery(url.searchParams)).toEqual(nui);
+  expect(revisionOfUrl(url.searchParams)).toBe(revision);
 });
 
 test("nui queries without a width, outside the range or not numeric are rejected", () => {
@@ -55,20 +63,22 @@ test("nui queries without a width, outside the range or not numeric are rejected
   ).toBeNull();
 });
 
-test("work model URLs carry the variant file and the asset version", () => {
-  const url = new URL(workModelPath(workId, variantId, "abc123"), origin);
+test("work model URLs carry the variant file, the asset version and the model revision", () => {
+  const url = new URL(workModelPath(workId, variantId, "abc123", revision), origin);
   expect(url.pathname).toBe(`/api/ar/works/${workId}/${variantId}.glb`);
   expect(url.searchParams.get("v")).toBe("abc123");
+  expect(revisionOfUrl(url.searchParams)).toBe(revision);
   expect(parseWorkFile(`${variantId}.glb`)).toBe(variantId);
   expect(parseWorkFile(variantId)).toBeNull();
   expect(parseWorkFile(`${variantId}.usdz`)).toBeNull();
   expect(parseWorkFile("../secret.glb")).toBeNull();
 });
 
-test("options list the work model and both provisional rooms when data is available", () => {
+test("options list the work model and both provisional rooms with the current revision", () => {
   const result = buildArModelOptions({ workId, variantId, assetVersion: "v1", signedIn: true, nui });
   expect(result.options.map((option) => option.kind)).toEqual(["work", "three-walls", "back-left"]);
-  expect(result.options[0].src).toBe(workModelPath(workId, variantId, "v1"));
+  expect(result.options[0].src).toBe(workModelPath(workId, variantId, "v1", modelRevision()));
+  expect(result.options[1].src).toBe(roomModelPath("three-walls", nui, modelRevision()));
   expect(result.roomUnavailable).toBeNull();
   expect(result.interiorMm).not.toBeNull();
 });
