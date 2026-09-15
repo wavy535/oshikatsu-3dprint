@@ -4,11 +4,16 @@ import { ImageIcon, MessageSquare, Package, Star, Truck } from "lucide-react";
 
 import { getNuiFit, getWork, getWorkReviewSummary, isFavorited } from "@/lib/works/queries";
 import { getShellContext } from "@/lib/layout/queries";
+import { getMyNui } from "@/lib/nuis/queries";
+import { buildArModelOptions, nuiDimensionsOf } from "@/lib/ar/options";
+import { getArWorkSource } from "@/lib/ar/queries";
+import { assetVersion } from "@/lib/ar/version";
 import { workImageUrl } from "@/lib/storage";
 import { yen } from "@/components/work/work-card";
 import { Avatar } from "@/components/ui/avatar";
 import { FavoriteButton } from "@/components/work/favorite-button";
 import { AddToCartForm } from "@/components/work/add-to-cart-form";
+import { ArPreview } from "@/components/work/ar-preview";
 import { NuiFitCard } from "@/components/work/nui-fit-card";
 import { cn } from "@/lib/utils";
 
@@ -41,11 +46,22 @@ export default async function WorkDetailPage({
   const variants = work.work_variants;
   const selected = variants.find((v) => v.id === size) ?? variants[0] ?? null;
 
-  const [review, fit, favorited] = await Promise.all([
+  const [review, fit, favorited, arSource, mainNui] = await Promise.all([
     getWorkReviewSummary(work.id),
     selected && shell.mainNui ? getNuiFit(selected.id, shell.mainNui.id) : Promise.resolve(null),
     shell.user ? isFavorited(work.id, shell.user.id) : Promise.resolve(false),
+    selected ? getArWorkSource(work.id, selected.id) : Promise.resolve(null),
+    shell.user && shell.mainNui ? getMyNui(shell.mainNui.id) : Promise.resolve(null),
   ]);
+
+  // AR（実寸表示）に出すモデル。作品の3Dデータと、メインのぬいの寸法から作る仮の部屋
+  const ar = buildArModelOptions({
+    workId: work.id,
+    variantId: selected?.id ?? null,
+    assetVersion: arSource ? assetVersion(arSource.storagePath) : null,
+    signedIn: Boolean(shell.user),
+    nui: mainNui ? nuiDimensionsOf(mainNui) : null,
+  });
 
   const creator = work.profiles;
   const images = work.work_images;
@@ -161,6 +177,15 @@ export default async function WorkDetailPage({
               })}
             </div>
           </div>
+
+          {/* AR で実寸を見る（選択中のサイズで表示） */}
+          <ArPreview
+            options={ar.options}
+            sizeLabel={selected?.size_label ?? null}
+            interiorMm={ar.interiorMm}
+            roomUnavailable={ar.roomUnavailable}
+            signedIn={Boolean(shell.user)}
+          />
 
           {/* マイぬいとの相性 */}
           <NuiFitCard
