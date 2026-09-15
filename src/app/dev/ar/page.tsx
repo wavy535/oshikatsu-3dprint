@@ -6,10 +6,9 @@ import QRCode from "qrcode";
 import { AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
 import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/dev";
 import {
-  listLocalModels,
-  localModelDirectory,
+  listLocalModelFolders,
+  localModelRoot,
   readLocalModel,
-  realLocalModelDirectory,
   type LocalModel,
 } from "@/lib/ar/local-models";
 import { meshSizeMm } from "@/lib/ar/mesh";
@@ -121,9 +120,9 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
   });
   const revision = modelRevision();
 
-  const localDirectory = localModelDirectory();
-  const realDirectory = await realLocalModelDirectory(localDirectory);
-  const localModels = await listLocalModels(localDirectory);
+  const localRoot = localModelRoot();
+  const localFolders = await listLocalModelFolders(localRoot);
+  const localModels = localFolders?.flatMap((folder) => folder.models) ?? null;
   const selectedModel = localModels?.find((model) => model.name === query.model) ?? null;
   const modelPreview = selectedModel ? await previewLocalModel(selectedModel) : null;
 
@@ -200,40 +199,57 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
         <h2 className="text-sm font-bold text-ink">作品の3Dデータ（手元のファイル）</h2>
         <p className="text-[12px] leading-5 text-muted-foreground">
-          <span className="num break-all">{localDirectory}</span>{" "}
-          {realDirectory && realDirectory !== localDirectory && (
-            <>
-              （リンク先：<span className="num break-all">{realDirectory}</span>）{" "}
-            </>
-          )}
-          にある 3MF / STL を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。向きはプレートに置いた（印刷する）向きのままで、色は反映しません。
+          <span className="num break-all">{localRoot}</span>{" "}
+          の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。向きはプレートに置いた（印刷する）向きのままで、色は反映しません。
         </p>
-        {localModels === null && (
+        {localFolders === null && (
           <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
-            フォルダが見つかりません。上の場所にフォルダを作り、3MF / STL を置いてください。
+            置き場所が見つかりません。上の場所の中にフォルダを作り、3MF / STL を置いてください。
           </p>
         )}
-        {localModels?.length === 0 && (
-          <p className="text-[12.5px] text-muted-foreground">3MF / STL のファイルがありません。</p>
+        {localFolders?.length === 0 && (
+          <p className="text-[12.5px] text-muted-foreground">
+            フォルダがありません。上の場所の中にフォルダを作り、3MF / STL を置いてください。
+          </p>
         )}
-        {localModels && localModels.length > 0 && (
-          <ul className="flex flex-col gap-1 text-[12.5px]">
-            {localModels.map((model) => (
-              <li key={model.name} className="flex flex-wrap items-baseline gap-x-2">
-                {model.name === selectedModel?.name ? (
-                  <span className="font-semibold text-ink">▶ {model.name}</span>
-                ) : (
-                  <a href={hrefWith(query, "model", model.name)} className="font-semibold text-brand hover:underline">
-                    {model.name}
-                  </a>
-                )}
-                <span className="num text-[11.5px] text-muted-foreground">
-                  {decimal(model.bytes / BYTES_PER_MB)} MB
+        {localFolders?.map((folder) => (
+          <div key={folder.folder} className="flex flex-col gap-1">
+            <p className="text-[12px] font-semibold text-ink">
+              {folder.folder}/
+              {folder.linkedTo && (
+                <span className="ml-1.5 font-normal break-all text-muted-foreground">
+                  （リンク先：<span className="num">{folder.linkedTo}</span>）
                 </span>
-              </li>
-            ))}
-          </ul>
-        )}
+              )}
+            </p>
+            {folder.models.length === 0 && folder.unsupported.length === 0 && (
+              <p className="text-[12px] text-muted-foreground">ファイルがありません。</p>
+            )}
+            {folder.models.length > 0 && (
+              <ul className="flex flex-col gap-1 text-[12.5px]">
+                {folder.models.map((model) => (
+                  <li key={model.name} className="flex flex-wrap items-baseline gap-x-2">
+                    {model.name === selectedModel?.name ? (
+                      <span className="font-semibold text-ink">▶ {model.name}</span>
+                    ) : (
+                      <a href={hrefWith(query, "model", model.name)} className="font-semibold text-brand hover:underline">
+                        {model.name}
+                      </a>
+                    )}
+                    <span className="num text-[11.5px] text-muted-foreground">
+                      {decimal(model.bytes / BYTES_PER_MB)} MB
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {folder.unsupported.length > 0 && (
+              <p className="text-[11.5px] break-all text-muted-foreground">
+                読めない形式：{folder.unsupported.join("、")}（3MF か STL で書き出すと表示できます）
+              </p>
+            )}
+          </div>
+        ))}
         {query.model && localModels && !selectedModel && (
           <p className="text-[12.5px] text-danger">選んだファイル（{query.model}）が見つかりません。</p>
         )}

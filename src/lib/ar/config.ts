@@ -66,8 +66,9 @@ export const AR_DEV_PAGE = {
   qrCodeWidthPx: 280,
   // QR コードの周りの余白（モジュール数）
   qrCodeMargin: 2,
-  // 実寸テストに使う手元の3Dデータ（3MF / STL）のフォルダ。プロジェクトのルートから見た場所で、Git には上げない
-  localModelDir: "local-notes/test_3mf",
+  // 実寸テストに使う手元の3Dデータの置き場所。直下のフォルダ（test_3mf・roomfile など）ごとに 3MF / STL を探す。
+  // プロジェクトのルートから見た場所で、Git には上げない
+  localModelRoot: "local-notes",
   // 手元のファイルはサイズ展開の倍率をかけず、そのままの大きさで出す
   localModelScale: 1,
   // 寸法（mm）とファイルの大きさ（MB）を表示するときの小数の桁数

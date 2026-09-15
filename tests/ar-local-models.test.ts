@@ -3,38 +3,53 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
-import { listLocalModels, readLocalModel, realLocalModelDirectory } from "@/lib/ar/local-models";
+import { listLocalModelFolders, readLocalModel } from "@/lib/ar/local-models";
 
-const root = realpathSync(mkdtempSync(join(tmpdir(), "ar-local-models-")));
-const directory = join(root, "test_3mf");
-mkdirSync(directory);
-writeFileSync(join(directory, "2_Chair.gcode.3mf"), "chair");
-writeFileSync(join(directory, "notes.md"), "memo");
-mkdirSync(join(directory, "folder.3mf"));
-writeFileSync(join(root, "outside.3mf"), "outside");
+// local-notes/ に見立てた置き場所。直下のメモは見ず、フォルダごとに 3MF / STL を探す
+const base = realpathSync(mkdtempSync(join(tmpdir(), "ar-local-models-")));
+const root = join(base, "local-notes");
+const shared = join(base, "main-checkout-roomfile");
+mkdirSync(join(root, "test_3mf", "nested.3mf"), { recursive: true });
+mkdirSync(shared);
+writeFileSync(join(root, "memo.md"), "memo");
+writeFileSync(join(root, "top-level.3mf"), "ignored");
+writeFileSync(join(root, "test_3mf", "10_Table.gcode.3mf"), "table");
+writeFileSync(join(root, "test_3mf", "2_Chair.gcode.3mf"), "chair");
+writeFileSync(join(root, "test_3mf", ".DS_Store"), "hidden");
+writeFileSync(join(shared, "room.STL"), "room");
+writeFileSync(join(shared, "matsu_nuiroom.blend"), "blender");
+symlinkSync(shared, join(root, "roomfile"));
+writeFileSync(join(base, "outside.3mf"), "outside");
 
-afterAll(() => rmSync(root, { recursive: true, force: true }));
+afterAll(() => rmSync(base, { recursive: true, force: true }));
 
-test("only 3MF and STL files in the folder are listed, with their size and version", async () => {
-  const models = await listLocalModels(directory);
-  expect(models?.map((model) => [model.name, model.bytes])).toEqual([["2_Chair.gcode.3mf", 5]]);
-  expect(models?.[0].version).toMatch(/^[0-9a-f]{8}$/);
-  expect(await listLocalModels(join(root, "missing"))).toBeNull();
+test("each folder lists its 3MF and STL files in natural order, and names other files it cannot read", async () => {
+  const folders = await listLocalModelFolders(root);
+  expect(folders?.map((folder) => folder.folder)).toEqual(["roomfile", "test_3mf"]);
+
+  const [roomfile, test3mf] = folders!;
+  expect(test3mf.models.map((model) => [model.name, model.bytes])).toEqual([
+    ["test_3mf/2_Chair.gcode.3mf", 5],
+    ["test_3mf/10_Table.gcode.3mf", 5],
+  ]);
+  expect(test3mf.models[0].version).toMatch(/^[0-9a-f]{8}$/);
+  expect(test3mf.unsupported).toEqual([]);
+  expect(test3mf.linkedTo).toBeNull();
+
+  // A linked folder, e.g. from a git worktree to the main checkout
+  expect(roomfile.models.map((model) => model.name)).toEqual(["roomfile/room.STL"]);
+  expect(roomfile.unsupported).toEqual(["matsu_nuiroom.blend"]);
+  expect(roomfile.linkedTo).toBe(shared);
+
+  expect(await listLocalModelFolders(join(base, "missing"))).toBeNull();
 });
 
-test("only listed files are read, so names cannot reach outside the folder", async () => {
-  expect((await readLocalModel("2_Chair.gcode.3mf", directory))?.toString()).toBe("chair");
-  expect(await readLocalModel("../outside.3mf", directory)).toBeNull();
-  expect(await readLocalModel("notes.md", directory)).toBeNull();
-  expect(await readLocalModel("folder.3mf", directory)).toBeNull();
-  expect(await readLocalModel("2_Chair.gcode.3mf", join(root, "missing"))).toBeNull();
-});
-
-test("a linked folder (e.g. from a git worktree) is read through the link and reports where it points", async () => {
-  const link = join(root, "linked_3mf");
-  symlinkSync(directory, link);
-  expect(await realLocalModelDirectory(link)).toBe(directory);
-  expect((await listLocalModels(link))?.map((model) => model.name)).toEqual(["2_Chair.gcode.3mf"]);
-  expect((await readLocalModel("2_Chair.gcode.3mf", link))?.toString()).toBe("chair");
-  expect(await realLocalModelDirectory(join(root, "missing"))).toBeNull();
+test("only listed files are read, so names cannot reach outside the folders", async () => {
+  expect((await readLocalModel("test_3mf/2_Chair.gcode.3mf", root))?.toString()).toBe("chair");
+  expect((await readLocalModel("roomfile/room.STL", root))?.toString()).toBe("room");
+  expect(await readLocalModel("top-level.3mf", root)).toBeNull();
+  expect(await readLocalModel("roomfile/matsu_nuiroom.blend", root)).toBeNull();
+  expect(await readLocalModel("test_3mf/../../outside.3mf", root)).toBeNull();
+  expect(await readLocalModel("test_3mf/nested.3mf", root)).toBeNull();
+  expect(await readLocalModel("test_3mf/2_Chair.gcode.3mf", join(base, "missing"))).toBeNull();
 });

@@ -91,13 +91,13 @@ test("the calibration route serves the A4 plate as USDZ and GLB with the same ca
 test("the dev route converts a local Bambu Studio 3MF and never lets it be cached", async () => {
   vi.mocked(readLocalModel).mockResolvedValue(bambuStylePackage());
   const response = await localModelRequest(
-    localModelPath("1_Chair_01.gcode.3mf", "f00d", modelRevision(), "usdz"),
+    localModelPath("test_3mf/1_Chair_01.gcode.3mf", "f00d", modelRevision(), "usdz"),
   );
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("model/vnd.usdz+zip");
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(await magicOf(response)).toBe(ZIP_LOCAL_SIGNATURE);
-  expect(readLocalModel).toHaveBeenCalledWith("1_Chair_01.gcode.3mf");
+  expect(readLocalModel).toHaveBeenCalledWith("test_3mf/1_Chair_01.gcode.3mf");
 });
 
 test("the dev route answers 404 for unknown files and in production, and 422 with the reason for broken data", async () => {
@@ -113,7 +113,7 @@ test("the dev route answers 404 for unknown files and in production, and 422 wit
   vi.mocked(readLocalModel).mockResolvedValue(bambuStylePackage());
   vi.stubEnv("NODE_ENV", "production");
   try {
-    const response = await localModelRequest(localModelPath("1_Chair_01.gcode.3mf", "f00d", modelRevision()));
+    const response = await localModelRequest(localModelPath("test_3mf/1_Chair_01.gcode.3mf", "f00d", modelRevision()));
     expect(response.status).toBe(404);
   } finally {
     vi.unstubAllEnvs();

@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { lanIPv4Addresses, localModelNames, localModelVersion, phoneReachableOrigin } from "@/lib/ar/dev";
+import { lanIPv4Addresses, localModelVersion, phoneReachableOrigin, sortLocalNames } from "@/lib/ar/dev";
 
 test("LAN addresses keep external IPv4 interfaces only", () => {
   expect(
@@ -38,18 +38,10 @@ test("loopback hosts are replaced by the first LAN address on the same port", ()
   expect(phoneReachableOrigin({ host: null, forwardedProto: null, lanAddresses: ["192.168.1.68"] })).toBeNull();
 });
 
-test("local model folders list 3MF and STL files in natural order without hidden files", () => {
-  expect(
-    localModelNames([
-      ".DS_Store",
-      "10_Table.gcode.3mf",
-      "notes.md",
-      "2_Chair.gcode.3mf",
-      "part.STL",
-      ".hidden.3mf",
-      "4_Room",
-    ]),
-  ).toEqual(["2_Chair.gcode.3mf", "10_Table.gcode.3mf", "part.STL"]);
+test("local file names are listed in natural order without changing the input", () => {
+  const names = ["10_Table.gcode.3mf", "roomfile", "2_Chair.gcode.3mf", "test_3mf"];
+  expect(sortLocalNames(names)).toEqual(["2_Chair.gcode.3mf", "10_Table.gcode.3mf", "roomfile", "test_3mf"]);
+  expect(names[0]).toBe("10_Table.gcode.3mf");
 });
 
 test("local model versions change when the file is replaced", () => {

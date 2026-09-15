@@ -61,7 +61,7 @@ test("calibration URLs carry the model revision", () => {
 });
 
 test("local model URLs carry the file name, the file version and the model revision", () => {
-  const name = "椅子 01.gcode.3mf";
+  const name = "roomfile/椅子 01.gcode.3mf";
   const url = new URL(localModelPath(name, "f00d", revision, "usdz"), origin);
   expect(url.pathname).toBe("/api/ar/dev/local-models/model.usdz");
   expect(url.searchParams.get("v")).toBe("f00d");
