@@ -19,7 +19,8 @@ import { modelRevision } from "@/lib/ar/revision";
 
 const workId = "22222222-2222-2222-2222-222222222222";
 const variantId = "33333333-3333-3333-3333-333333333333";
-const nui = { sitHeightMm: 150, shoulderWidthMm: null, hugWidthMm: 120.5 };
+const nui = { heightMm: 170, sitHeightMm: 150, shoulderWidthMm: null, hugWidthMm: 120.5 };
+const heightOnly = { heightMm: 150, sitHeightMm: null, shoulderWidthMm: null, hugWidthMm: null };
 const origin = "https://example.test";
 const revision = "0123abcd";
 
@@ -41,6 +42,8 @@ test("calibration file names map to a model and a format", () => {
 
 test("nui dimensions and the model revision round-trip through the room model URL", () => {
   expect(parseNuiQuery(nuiSearchParams(nui))).toEqual(nui);
+  expect(parseNuiQuery(nuiSearchParams(heightOnly))).toEqual(heightOnly);
+  expect([...nuiSearchParams(heightOnly).keys()]).toEqual(["height"]);
   const url = new URL(roomModelPath("back-left", nui, revision), origin);
   expect(url.pathname).toBe("/api/ar/rooms/back-left.glb");
   expect(parseNuiQuery(url.searchParams)).toEqual(nui);
@@ -81,15 +84,13 @@ test("Quick Look URLs are absolute USDZ links with fixed scaling", () => {
   expect(revisionOfUrl(url.searchParams)).toBe(revision);
 });
 
-test("nui queries without a width, outside the range or not numeric are rejected", () => {
-  expect(parseNuiQuery(new URLSearchParams({ sit: "150" }))).toBeNull();
-  expect(parseNuiQuery(new URLSearchParams({ sit: "150", hug: "" }))).toBeNull();
-  expect(parseNuiQuery(new URLSearchParams({ sit: "abc", hug: "100" }))).toBeNull();
+test("nui queries without a height, outside the range or not numeric are rejected", () => {
+  expect(parseNuiQuery(new URLSearchParams({ sit: "150", hug: "100" }))).toBeNull();
+  expect(parseNuiQuery(new URLSearchParams({ height: "150", hug: "" }))).toBeNull();
+  expect(parseNuiQuery(new URLSearchParams({ height: "abc" }))).toBeNull();
+  expect(parseNuiQuery(new URLSearchParams({ height: String(AR_LIMITS.nuiDimensionMaxMm + 1) }))).toBeNull();
   expect(
-    parseNuiQuery(new URLSearchParams({ sit: String(AR_LIMITS.nuiDimensionMaxMm + 1), hug: "100" })),
-  ).toBeNull();
-  expect(
-    parseNuiQuery(new URLSearchParams({ sit: "150", shoulder: String(AR_LIMITS.nuiDimensionMinMm - 1) })),
+    parseNuiQuery(new URLSearchParams({ height: "150", shoulder: String(AR_LIMITS.nuiDimensionMinMm - 1) })),
   ).toBeNull();
 });
 
@@ -121,19 +122,24 @@ test("provisional rooms report why they are unavailable", () => {
     interiorMm: null,
   });
   expect(buildArModelOptions({ ...base, signedIn: true, nui: null }).roomUnavailable).toBe("no_nui");
-  expect(
-    buildArModelOptions({ ...base, signedIn: true, nui: { ...nui, hugWidthMm: null } }).roomUnavailable,
-  ).toBe("no_width");
-  const tooTall = { ...nui, sitHeightMm: AR_LIMITS.nuiDimensionMaxMm + 1 };
+  const tooTall = { ...nui, heightMm: AR_LIMITS.nuiDimensionMaxMm + 1 };
   const outOfRange = buildArModelOptions({ ...base, signedIn: true, nui: tooTall });
   expect(outOfRange.roomUnavailable).toBe("out_of_range");
   expect(outOfRange.options).toEqual([]);
 });
 
+test("a nui registered with its height only still gets both provisional rooms", () => {
+  const result = buildArModelOptions({ workId, variantId, assetVersion: null, signedIn: true, nui: heightOnly });
+  expect(result.roomUnavailable).toBeNull();
+  expect(result.options.map((option) => option.kind)).toEqual(["three-walls", "back-left"]);
+  expect(result.interiorMm).not.toBeNull();
+});
+
 test("profile rows with numeric strings become dimensions", () => {
-  expect(nuiDimensionsOf({ sit_height_mm: "150.0", shoulder_width_mm: null, hug_width_mm: "120.5" })).toEqual({
-    sitHeightMm: 150,
-    shoulderWidthMm: null,
-    hugWidthMm: 120.5,
-  });
+  expect(
+    nuiDimensionsOf({ height_mm: "170.0", sit_height_mm: "150.0", shoulder_width_mm: null, hug_width_mm: "120.5" }),
+  ).toEqual({ heightMm: 170, sitHeightMm: 150, shoulderWidthMm: null, hugWidthMm: 120.5 });
+  expect(nuiDimensionsOf({ height_mm: 150, sit_height_mm: null, shoulder_width_mm: null, hug_width_mm: null })).toEqual(
+    heightOnly,
+  );
 });

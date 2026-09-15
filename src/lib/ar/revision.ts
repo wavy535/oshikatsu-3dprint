@@ -1,3 +1,4 @@
+import { NUI_PROPORTIONS } from "../nuis/config.ts";
 import { AR_CALIBRATION, AR_LIMITS, AR_MATERIALS, AR_MODEL, AR_ROOM } from "./config.ts";
 
 // FNV-1a（32bit）で決まっている値
@@ -17,9 +18,11 @@ export function revisionOf(source: string) {
 }
 
 /**
- * AR 用モデルの版。形・色を決める設定値と、生成処理の版から作る。
+ * AR 用モデルの版。形・色を決める設定値（ぬいの寸法の推定比率を含む）と、生成処理の版から作る。
  * URL に rev として付けるので、設定やコードを変えると URL が変わり、端末に残った古いモデルが使われない。
  */
 export function modelRevision() {
-  return revisionOf(JSON.stringify([AR_MODEL, AR_ROOM, AR_MATERIALS, AR_CALIBRATION, AR_LIMITS]));
+  return revisionOf(
+    JSON.stringify([AR_MODEL, AR_ROOM, AR_MATERIALS, AR_CALIBRATION, AR_LIMITS, NUI_PROPORTIONS]),
+  );
 }

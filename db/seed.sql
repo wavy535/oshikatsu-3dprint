@@ -104,10 +104,11 @@ values ('22222222-2222-2222-2222-222222222222', 'ためし置き用の小箱（�
 -- -----------------------------------------------------------------------------
 -- 3. 買う人のデータ（マイぬい・お気に入り・配送先）
 -- -----------------------------------------------------------------------------
-insert into public.nui_profiles (user_id, name, kind, sit_height_mm, shoulder_width_mm, hug_width_mm, is_main)
+-- 身長だけが必須。もかは身長だけを登録した例（座高・幅は身長から推定される）
+insert into public.nui_profiles (user_id, name, kind, height_mm, sit_height_mm, shoulder_width_mm, hug_width_mm, is_main)
 values
-  ('11111111-1111-1111-1111-111111111111', 'みるく', 'plush', 95.0, 62.0, 88.0, true),
-  ('11111111-1111-1111-1111-111111111111', 'もか',   'plush', 148.0, 96.0, 132.0, false);
+  ('11111111-1111-1111-1111-111111111111', 'みるく', 'plush', 108.0, 95.0, 62.0, 88.0, true),
+  ('11111111-1111-1111-1111-111111111111', 'もか',   'plush', 150.0, null, null, null, false);
 
 insert into public.addresses (user_id, recipient_name, postal_code, prefecture, city, address_line, phone, is_default)
 values ('11111111-1111-1111-1111-111111111111', '推し活 花子', '1500001', '東京都', '渋谷区',

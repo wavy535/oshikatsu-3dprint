@@ -5,7 +5,7 @@ import { buildRoomMeshes } from "@/lib/ar/room";
 import { buildUsda, encodeUsdz } from "@/lib/ar/usdz";
 import { extractZipFile } from "@/lib/print/zip";
 
-const nui = { sitHeightMm: 150, shoulderWidthMm: 100, hugWidthMm: 120 };
+const nui = { heightMm: 170, sitHeightMm: 150, shoulderWidthMm: 100, hugWidthMm: 120 };
 const glass: ArMaterial = { name: "glass", color: [0.5, 0.25, 1, 0.2], roughness: 0.5, doubleSided: true };
 
 // Reads the first local file header independently from the production writer.

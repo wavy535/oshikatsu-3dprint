@@ -1,27 +1,22 @@
+import { effectiveNuiSize, type NuiMeasurements } from "../nuis/dimensions.ts";
 import { AR_MATERIALS, AR_ROOM } from "./config.ts";
-import { ArInputError } from "./errors.ts";
 import { boxMesh, type ArMaterial, type ArMesh, type Rgba, type Vec3 } from "./mesh.ts";
 
 export const ROOM_LAYOUTS = ["three-walls", "back-left"] as const;
 export type RoomLayout = (typeof ROOM_LAYOUTS)[number];
 
-/** マイぬいの採寸値（mm）。nui_profiles の列に対応する */
-export type NuiDimensions = {
-  sitHeightMm: number;
-  shoulderWidthMm: number | null;
-  hugWidthMm: number | null;
-};
+/** マイぬいの採寸値（mm）。nui_profiles の列に対応し、身長だけが必須 */
+export type NuiDimensions = NuiMeasurements;
 
 const MM_PER_M = 1000;
 
 /**
- * ぬいの大きさの目安（箱）。相性判定（nui_fit_axes）と同じ対応で、
- * 幅と奥行きは抱き幅（なければ肩幅）、高さは座高を使う。
+ * ぬいの大きさの目安（座らせた状態の箱）。相性判定（nui_fit_axes）と同じ対応で、
+ * 幅と奥行きは抱き幅（なければ肩幅）、高さは座高を使い、入力がない値は身長から推定する。
  */
 export function nuiGuideSizeMm(nui: NuiDimensions) {
-  const width = nui.hugWidthMm ?? nui.shoulderWidthMm;
-  if (width === null) throw new ArInputError("肩幅か抱き幅が登録されていません");
-  return { widthMm: width, depthMm: width, heightMm: nui.sitHeightMm };
+  const size = effectiveNuiSize(nui);
+  return { widthMm: size.widthMm, depthMm: size.widthMm, heightMm: size.sitHeightMm };
 }
 
 /** 仮の部屋の内寸（mm）。目安の箱に設定の余白を足す */

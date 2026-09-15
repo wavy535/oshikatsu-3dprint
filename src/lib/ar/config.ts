@@ -54,6 +54,12 @@ export const AR_LIMITS = {
   usdaDecimals: 6,
 } as const;
 
+/** 作品詳細の AR 表示 */
+export const AR_DISPLAY = {
+  // 部屋の内寸（mm）を表示するときの小数の最大桁数。推定したぬいの寸法は 0.1mm 単位になる
+  mmDecimals: 1,
+} as const;
+
 /** 開発用の実寸テストページ（/dev/ar） */
 export const AR_DEV_PAGE = {
   // QR コードの画像の幅（px）

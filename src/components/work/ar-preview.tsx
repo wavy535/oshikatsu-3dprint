@@ -4,9 +4,13 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Box } from "lucide-react";
 
+import { AR_DISPLAY } from "@/lib/ar/config";
 import type { ArModelKind, ArModelOption, RoomUnavailableReason } from "@/lib/ar/options";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+// 小数の誤差（125.50000000000001 など）を出さず、整数なら小数点も付けない
+const mm = (value: number) => Number(value.toFixed(AR_DISPLAY.mmDecimals));
 
 const LABEL: Record<ArModelKind, string> = {
   work: "この作品",
@@ -17,7 +21,6 @@ const LABEL: Record<ArModelKind, string> = {
 const ROOM_HINT: Record<RoomUnavailableReason, string> = {
   signed_out: "ログインしてマイぬいを登録すると、うちの子の寸法に合わせた仮の部屋も表示できます。",
   no_nui: "メインのマイぬいを登録すると、うちの子の寸法に合わせた仮の部屋も表示できます。",
-  no_width: "マイぬいの肩幅か抱き幅を登録すると、仮の部屋を表示できます。",
   out_of_range: "マイぬいの採寸値が表示できる範囲の外なので、仮の部屋を表示できません。",
 };
 
@@ -145,9 +148,9 @@ export function ArPreview({ options, sizeLabel, interiorMm, roomUnavailable, sig
 
           {selected.kind !== "work" && interiorMm && (
             <p className="text-[11px] leading-4 text-muted-foreground">
-              部屋の内寸 <span className="num">{interiorMm.widthMm}</span> ×{" "}
-              <span className="num">{interiorMm.depthMm}</span> ×{" "}
-              <span className="num">{interiorMm.heightMm}</span> mm（幅×奥行×高さ）。
+              部屋の内寸 <span className="num">{mm(interiorMm.widthMm)}</span> ×{" "}
+              <span className="num">{mm(interiorMm.depthMm)}</span> ×{" "}
+              <span className="num">{mm(interiorMm.heightMm)}</span> mm（幅×奥行×高さ）。
               ピンクの箱がマイぬいの大きさの目安です。
             </p>
           )}

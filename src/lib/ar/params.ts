@@ -24,9 +24,12 @@ const dimension = z.coerce
   .min(AR_LIMITS.nuiDimensionMinMm)
   .max(AR_LIMITS.nuiDimensionMaxMm);
 
-const nuiQuerySchema = z
-  .object({ sit: dimension, shoulder: dimension.optional(), hug: dimension.optional() })
-  .refine((query) => query.shoulder !== undefined || query.hug !== undefined);
+const nuiQuerySchema = z.object({
+  height: dimension,
+  sit: dimension.optional(),
+  shoulder: dimension.optional(),
+  hug: dimension.optional(),
+});
 
 function splitModelFile(file: string) {
   const dot = file.lastIndexOf(".");
@@ -54,24 +57,27 @@ export function parseCalibrationFile(file: string): { model: CalibrationModel; f
   return parts && model ? { model, format: parts.format } : null;
 }
 
-/** URL の sit / shoulder / hug（mm）を採寸値にする。範囲外や幅がないときは null */
+/** URL の height（身長、必須）/ sit / shoulder / hug（mm）を採寸値にする。身長がない・範囲外なら null */
 export function parseNuiQuery(params: URLSearchParams): NuiDimensions | null {
   const result = nuiQuerySchema.safeParse({
+    height: params.get("height") ?? undefined,
     sit: params.get("sit") ?? undefined,
     shoulder: params.get("shoulder") ?? undefined,
     hug: params.get("hug") ?? undefined,
   });
   if (!result.success) return null;
   return {
-    sitHeightMm: result.data.sit,
+    heightMm: result.data.height,
+    sitHeightMm: result.data.sit ?? null,
     shoulderWidthMm: result.data.shoulder ?? null,
     hugWidthMm: result.data.hug ?? null,
   };
 }
 
-/** parseNuiQuery の逆。採寸値を URL のクエリにする */
+/** parseNuiQuery の逆。採寸値を URL のクエリにする（入力されていない値は載せない） */
 export function nuiSearchParams(nui: NuiDimensions) {
-  const query = new URLSearchParams({ sit: String(nui.sitHeightMm) });
+  const query = new URLSearchParams({ height: String(nui.heightMm) });
+  if (nui.sitHeightMm !== null) query.set("sit", String(nui.sitHeightMm));
   if (nui.shoulderWidthMm !== null) query.set("shoulder", String(nui.shoulderWidthMm));
   if (nui.hugWidthMm !== null) query.set("hug", String(nui.hugWidthMm));
   return query;

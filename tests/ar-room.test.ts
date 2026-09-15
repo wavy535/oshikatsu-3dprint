@@ -1,10 +1,10 @@
 import { expect, test } from "vitest";
 import { AR_ROOM } from "@/lib/ar/config";
-import { ArInputError } from "@/lib/ar/errors";
 import { boxMesh, type ArMesh } from "@/lib/ar/mesh";
 import { buildRoomMeshes, nuiGuideSizeMm, roomInteriorMm, roomOuterMm } from "@/lib/ar/room";
+import { effectiveNuiSize } from "@/lib/nuis/dimensions";
 
-const nui = { sitHeightMm: 150, shoulderWidthMm: 100, hugWidthMm: 120 };
+const nui = { heightMm: 170, sitHeightMm: 150, shoulderWidthMm: 100, hugWidthMm: 120 };
 const MM_PER_M = 1000;
 
 function extent(meshes: ArMesh | ArMesh[]) {
@@ -26,7 +26,17 @@ const named = (meshes: ArMesh[], name: string) => meshes.find((mesh) => mesh.nam
 test("the nui guide follows the fit judgment: hug width first, shoulder width as fallback", () => {
   expect(nuiGuideSizeMm(nui)).toEqual({ widthMm: 120, depthMm: 120, heightMm: 150 });
   expect(nuiGuideSizeMm({ ...nui, hugWidthMm: null })).toEqual({ widthMm: 100, depthMm: 100, heightMm: 150 });
-  expect(() => nuiGuideSizeMm({ ...nui, hugWidthMm: null, shoulderWidthMm: null })).toThrow(ArInputError);
+});
+
+test("a nui registered with its height only gets a guide estimated from the height", () => {
+  const heightOnly = { heightMm: 170, sitHeightMm: null, shoulderWidthMm: null, hugWidthMm: null };
+  const estimated = effectiveNuiSize(heightOnly);
+  expect(nuiGuideSizeMm(heightOnly)).toEqual({
+    widthMm: estimated.widthMm,
+    depthMm: estimated.widthMm,
+    heightMm: estimated.sitHeightMm,
+  });
+  expect(buildRoomMeshes(heightOnly, "back-left").map((mesh) => mesh.name)).toContain("nui-guide");
 });
 
 test("the room interior adds the configured margins around the guide", () => {

@@ -35,7 +35,14 @@ const LAYOUT_LABEL: Record<RoomLayout, string> = {
 
 const BYTES_PER_MB = 1024 * 1024;
 
-type Query = { sit?: string; shoulder?: string; hug?: string; layout?: string; model?: string };
+type Query = {
+  height?: string;
+  sit?: string;
+  shoulder?: string;
+  hug?: string;
+  layout?: string;
+  model?: string;
+};
 
 const field = "w-28 rounded-md border border-line bg-white px-2 py-1.5 text-[13px] text-ink";
 
@@ -99,9 +106,9 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
 
   const query = await searchParams;
   const layout = ROOM_LAYOUTS.find((candidate) => candidate === query.layout) ?? ROOM_LAYOUTS[0];
-  const submitted = Boolean(query.sit);
+  const submitted = Boolean(query.height);
   const input = new URLSearchParams();
-  for (const key of ["sit", "shoulder", "hug"] as const) {
+  for (const key of ["height", "sit", "shoulder", "hug"] as const) {
     if (query[key]) input.set(key, query[key]);
   }
   const nui = parseNuiQuery(input);
@@ -285,8 +292,12 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
         {query.model && <input type="hidden" name="model" value={query.model} />}
         <div className="flex flex-wrap gap-4">
           <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
+            身長（mm）
+            <input name="height" type="number" step="0.1" required defaultValue={query.height} className={field} />
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
             座高（mm）
-            <input name="sit" type="number" step="0.1" required defaultValue={query.sit} className={field} />
+            <input name="sit" type="number" step="0.1" defaultValue={query.sit} className={field} />
           </label>
           <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
             肩幅（mm）
@@ -307,7 +318,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
           ))}
         </fieldset>
         <p className="text-[11px] text-muted-foreground">
-          単位は mm です（15cm なら 150）。肩幅か抱き幅のどちらかは必須で、両方あれば抱き幅を使います。
+          単位は mm です（15cm なら 150）。身長は必須で、座高・肩幅・抱き幅は測れた場合だけ入力します（両方あれば抱き幅を使います）。
           <span className="num">{AR_LIMITS.nuiDimensionMinMm}</span>〜
           <span className="num">{AR_LIMITS.nuiDimensionMaxMm}</span>mm の範囲で入力してください。
         </p>
@@ -318,7 +329,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
 
       {submitted && !nui && (
         <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
-          寸法を確認してください（座高と、肩幅か抱き幅のどちらかが範囲内で必要です）。
+          寸法を確認してください（身長が必要で、入力した値はすべて範囲内にしてください）。
         </p>
       )}
 
@@ -329,24 +340,20 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
             <p className="font-semibold">{LAYOUT_LABEL[layout]}</p>
             <table className="text-[12px]">
               <tbody>
-                <tr>
-                  <td className="pr-3 text-muted-foreground">部屋の外寸</td>
-                  <td className="num">
-                    幅 {outer.widthMm} × 奥行 {outer.depthMm} × 高さ {outer.heightMm} mm
-                  </td>
-                </tr>
-                <tr>
-                  <td className="pr-3 text-muted-foreground">部屋の内寸</td>
-                  <td className="num">
-                    幅 {interior.widthMm} × 奥行 {interior.depthMm} × 高さ {interior.heightMm} mm
-                  </td>
-                </tr>
-                <tr>
-                  <td className="pr-3 text-muted-foreground">ピンクの箱</td>
-                  <td className="num">
-                    幅 {guide.widthMm} × 奥行 {guide.depthMm} × 高さ {guide.heightMm} mm
-                  </td>
-                </tr>
+                {(
+                  [
+                    ["部屋の外寸", outer],
+                    ["部屋の内寸", interior],
+                    ["ピンクの箱", guide],
+                  ] as const
+                ).map(([label, size]) => (
+                  <tr key={label}>
+                    <td className="pr-3 text-muted-foreground">{label}</td>
+                    <td className="num">
+                      幅 {decimal(size.widthMm)} × 奥行 {decimal(size.depthMm)} × 高さ {decimal(size.heightMm)} mm
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
             {roomUrl && (
@@ -370,7 +377,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
           <li>幅：床の手前の辺に沿って定規を置き、真上から読みます。</li>
           <li>奥行：床の左の辺に沿って定規を置き、真上から読みます。</li>
           <li>高さ：左の壁の手前側の縦の辺に定規を立て、真横から読みます（壁の上端までは外寸の高さから天井の厚み {AR_ROOM.ceilingThicknessMm}mm を引いた値）。</li>
-          <li>本物のぬいを部屋の横に置き、ピンクの箱（高さ＝座高）と見比べます。</li>
+          <li>本物のぬいを部屋の横に置き、ピンクの箱（座らせたぬいの大きさの目安）と見比べます。</li>
         </ol>
       </section>
     </main>

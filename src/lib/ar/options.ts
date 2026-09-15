@@ -4,13 +4,15 @@ import { ROOM_LAYOUTS, roomInteriorMm, type NuiDimensions, type RoomLayout } fro
 
 /** nui_profiles の行を採寸値にする（numeric 列が文字列で届いても数値にそろえる） */
 export function nuiDimensionsOf(profile: {
-  sit_height_mm: number | string;
+  height_mm: number | string;
+  sit_height_mm: number | string | null;
   shoulder_width_mm: number | string | null;
   hug_width_mm: number | string | null;
 }): NuiDimensions {
   const optional = (value: number | string | null) => (value === null ? null : Number(value));
   return {
-    sitHeightMm: Number(profile.sit_height_mm),
+    heightMm: Number(profile.height_mm),
+    sitHeightMm: optional(profile.sit_height_mm),
     shoulderWidthMm: optional(profile.shoulder_width_mm),
     hugWidthMm: optional(profile.hug_width_mm),
   };
@@ -18,7 +20,7 @@ export function nuiDimensionsOf(profile: {
 
 export type ArModelKind = "work" | RoomLayout;
 export type ArModelOption = { kind: ArModelKind; src: string };
-export type RoomUnavailableReason = "signed_out" | "no_nui" | "no_width" | "out_of_range";
+export type RoomUnavailableReason = "signed_out" | "no_nui" | "out_of_range";
 
 /**
  * 作品詳細で AR に出せるモデルの一覧。
@@ -56,7 +58,6 @@ export function buildArModelOptions(input: {
 function roomUnavailableReason(signedIn: boolean, nui: NuiDimensions | null): RoomUnavailableReason | null {
   if (!signedIn) return "signed_out";
   if (!nui) return "no_nui";
-  if (nui.hugWidthMm === null && nui.shoulderWidthMm === null) return "no_width";
   // URL で受け取れない値（範囲外）の部屋は、表示しても読み込めないので出さない
   return parseNuiQuery(nuiSearchParams(nui)) ? null : "out_of_range";
 }

@@ -44,30 +44,32 @@ async function magicOf(response: Response) {
 }
 
 test("the provisional room route returns a GLB that is cacheable only for the current revision", async () => {
-  const response = await roomRequest("three-walls.glb", `sit=150&hug=120&rev=${modelRevision()}`);
+  const response = await roomRequest("three-walls.glb", `height=170&sit=150&hug=120&rev=${modelRevision()}`);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("model/gltf-binary");
   expect(response.headers.get("cache-control")).toMatch(/^public/);
   expect(await magicOf(response)).toBe(GLB_MAGIC);
 
-  const withoutRevision = await roomRequest("three-walls.glb", "sit=150&hug=120");
+  const withoutRevision = await roomRequest("three-walls.glb", "height=170&sit=150&hug=120");
   expect(withoutRevision.status).toBe(200);
   expect(withoutRevision.headers.get("cache-control")).toBe("no-store");
-  const stale = await roomRequest("three-walls.glb", `sit=150&hug=120&rev=${STALE_REVISION}`);
+  const stale = await roomRequest("three-walls.glb", `height=170&sit=150&hug=120&rev=${STALE_REVISION}`);
   expect(stale.headers.get("cache-control")).toBe("no-store");
 });
 
-test("the provisional room route serves USDZ for Quick Look", async () => {
-  const response = await roomRequest("back-left.usdz", `sit=150&hug=120&rev=${modelRevision()}`);
+test("the provisional room route serves USDZ for Quick Look, also for a nui registered with its height only", async () => {
+  const heightOnly = await roomRequest("back-left.usdz", `height=150&rev=${modelRevision()}`);
+  expect(heightOnly.status).toBe(200);
+  const response = await roomRequest("back-left.usdz", `height=170&sit=150&hug=120&rev=${modelRevision()}`);
   expect(response.status).toBe(200);
   expect(response.headers.get("content-type")).toBe("model/vnd.usdz+zip");
   expect(response.headers.get("cache-control")).toMatch(/^public/);
   expect(await magicOf(response)).toBe(ZIP_LOCAL_SIGNATURE);
 });
 
-test("the provisional room route rejects unknown layouts and incomplete measurements", async () => {
-  expect((await roomRequest("four-walls.glb", "sit=150&hug=120")).status).toBe(404);
-  expect((await roomRequest("three-walls.glb", "sit=150")).status).toBe(404);
+test("the provisional room route rejects unknown layouts and measurements without a height", async () => {
+  expect((await roomRequest("four-walls.glb", "height=170&sit=150&hug=120")).status).toBe(404);
+  expect((await roomRequest("three-walls.glb", "sit=150&hug=120")).status).toBe(404);
 });
 
 test("the calibration route serves the A4 plate as USDZ and GLB with the same cache rule", async () => {
