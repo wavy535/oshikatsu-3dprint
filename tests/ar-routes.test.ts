@@ -3,6 +3,7 @@ import { expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ar/queries", () => ({ getArWorkSource: vi.fn() }));
 vi.mock("@/lib/files/s3", () => ({ readModel: vi.fn() }));
+import { GET as getCalibration } from "@/app/api/ar/calibration/[file]/route";
 import { GET as getRoom } from "@/app/api/ar/rooms/[file]/route";
 import { GET as getWork } from "@/app/api/ar/works/[workId]/[file]/route";
 import { getArWorkSource } from "@/lib/ar/queries";
@@ -26,6 +27,8 @@ const workRequest = (version: string, revision?: string) =>
   );
 const roomRequest = (file: string, query: string) =>
   getRoom(new Request(`https://example.test/api/ar/rooms/${file}?${query}`), context({ file }));
+const calibrationRequest = (file: string, query = "") =>
+  getCalibration(new Request(`https://example.test/api/ar/calibration/${file}?${query}`), context({ file }));
 
 async function magicOf(response: Response) {
   return new DataView(await response.arrayBuffer()).getUint32(0, true);
@@ -56,6 +59,22 @@ test("the provisional room route serves USDZ for Quick Look", async () => {
 test("the provisional room route rejects unknown layouts and incomplete measurements", async () => {
   expect((await roomRequest("four-walls.glb", "sit=150&hug=120")).status).toBe(404);
   expect((await roomRequest("three-walls.glb", "sit=150")).status).toBe(404);
+});
+
+test("the calibration route serves the A4 plate as USDZ and GLB with the same cache rule", async () => {
+  const usdz = await calibrationRequest("a4-plate.usdz", `rev=${modelRevision()}`);
+  expect(usdz.status).toBe(200);
+  expect(usdz.headers.get("content-type")).toBe("model/vnd.usdz+zip");
+  expect(usdz.headers.get("cache-control")).toMatch(/^public/);
+  expect(await magicOf(usdz)).toBe(ZIP_LOCAL_SIGNATURE);
+
+  const glb = await calibrationRequest("a4-plate.glb");
+  expect(glb.status).toBe(200);
+  expect(glb.headers.get("content-type")).toBe("model/gltf-binary");
+  expect(glb.headers.get("cache-control")).toBe("no-store");
+  expect(await magicOf(glb)).toBe(GLB_MAGIC);
+
+  expect((await calibrationRequest("a3-plate.usdz")).status).toBe(404);
 });
 
 test("the work route converts the stored model of a published work", async () => {

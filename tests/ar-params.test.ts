@@ -2,7 +2,9 @@ import { expect, test } from "vitest";
 import { AR_LIMITS } from "@/lib/ar/config";
 import { buildArModelOptions, nuiDimensionsOf } from "@/lib/ar/options";
 import {
+  calibrationModelPath,
   nuiSearchParams,
+  parseCalibrationFile,
   parseNuiQuery,
   parseRoomFile,
   parseWorkFile,
@@ -28,6 +30,13 @@ test("room file names map to a layout and a model format, anything else is rejec
   expect(parseRoomFile(".glb")).toBeNull();
 });
 
+test("calibration file names map to a model and a format", () => {
+  expect(parseCalibrationFile("a4-plate.usdz")).toEqual({ model: "a4-plate", format: "usdz" });
+  expect(parseCalibrationFile("a4-plate.glb")).toEqual({ model: "a4-plate", format: "glb" });
+  expect(parseCalibrationFile("a3-plate.glb")).toBeNull();
+  expect(parseCalibrationFile("a4-plate")).toBeNull();
+});
+
 test("nui dimensions and the model revision round-trip through the room model URL", () => {
   expect(parseNuiQuery(nuiSearchParams(nui))).toEqual(nui);
   const url = new URL(roomModelPath("back-left", nui, revision), origin);
@@ -38,6 +47,12 @@ test("nui dimensions and the model revision round-trip through the room model UR
   expect(new URL(roomModelPath("three-walls", nui, revision, "usdz"), origin).pathname).toBe(
     "/api/ar/rooms/three-walls.usdz",
   );
+});
+
+test("calibration URLs carry the model revision", () => {
+  const url = new URL(calibrationModelPath("a4-plate", revision, "usdz"), origin);
+  expect(url.pathname).toBe("/api/ar/calibration/a4-plate.usdz");
+  expect(revisionOfUrl(url.searchParams)).toBe(revision);
 });
 
 test("Quick Look URLs are absolute USDZ links with fixed scaling", () => {

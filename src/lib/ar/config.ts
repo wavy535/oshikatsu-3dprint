@@ -19,7 +19,15 @@ export const AR_MATERIALS = {
   ceiling: [0.8, 0.9, 1, 0.15],
   nuiGuide: [1, 0.45, 0.62, 0.35],
   work: [0.9, 0.9, 0.9, 1],
+  calibration: [0.15, 0.55, 1, 0.45],
   roughness: 0.9,
+} as const;
+
+/** 校正用モデル（開発用の実寸テスト）。A4 用紙（ISO 216）と同じ大きさの薄い板 */
+export const AR_CALIBRATION = {
+  a4LongMm: 297,
+  a4ShortMm: 210,
+  plateThicknessMm: 1,
 } as const;
 
 /** AR 用モデルの URL に付ける版（rev）の元になる値 */

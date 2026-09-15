@@ -34,6 +34,19 @@ export function roomInteriorMm(nui: NuiDimensions) {
   };
 }
 
+// 左右の壁の枚数（奥の壁は両方の形にある）
+const SIDE_WALLS: Record<RoomLayout, number> = { "three-walls": 2, "back-left": 1 };
+
+/** 仮の部屋の外寸（mm）。幅と奥行は壁の外側まで、高さは床の下面から天井の上面まで */
+export function roomOuterMm(nui: NuiDimensions, layout: RoomLayout) {
+  const inner = roomInteriorMm(nui);
+  return {
+    widthMm: inner.widthMm + AR_ROOM.wallThicknessMm * SIDE_WALLS[layout],
+    depthMm: inner.depthMm + AR_ROOM.wallThicknessMm,
+    heightMm: AR_ROOM.floorThicknessMm + inner.heightMm + AR_ROOM.ceilingThicknessMm,
+  };
+}
+
 function material(name: string, color: Rgba, doubleSided: boolean): ArMaterial {
   return { name, color, roughness: AR_MATERIALS.roughness, doubleSided };
 }

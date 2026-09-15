@@ -1,4 +1,4 @@
-import { AR_LIMITS, AR_MATERIALS, AR_MODEL, AR_ROOM } from "./config.ts";
+import { AR_CALIBRATION, AR_LIMITS, AR_MATERIALS, AR_MODEL, AR_ROOM } from "./config.ts";
 
 // FNV-1a（32bit）で決まっている値
 const FNV_OFFSET_BASIS = 0x811c9dc5;
@@ -21,5 +21,5 @@ export function revisionOf(source: string) {
  * URL に rev として付けるので、設定やコードを変えると URL が変わり、端末に残った古いモデルが使われない。
  */
 export function modelRevision() {
-  return revisionOf(JSON.stringify([AR_MODEL, AR_ROOM, AR_MATERIALS, AR_LIMITS]));
+  return revisionOf(JSON.stringify([AR_MODEL, AR_ROOM, AR_MATERIALS, AR_CALIBRATION, AR_LIMITS]));
 }

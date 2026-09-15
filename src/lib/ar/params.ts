@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { idSchema } from "@/lib/validation";
+import { CALIBRATION_MODELS, type CalibrationModel } from "./calibration.ts";
 import { AR_LIMITS } from "./config.ts";
 import { ROOM_LAYOUTS, type NuiDimensions, type RoomLayout } from "./room.ts";
 
@@ -8,6 +9,7 @@ export type ModelFormat = (typeof MODEL_FORMATS)[number];
 
 const ROOM_ROUTE = "/api/ar/rooms";
 const WORK_ROUTE = "/api/ar/works";
+const CALIBRATION_ROUTE = "/api/ar/calibration";
 // モデルの版（modelRevision）を載せるクエリ名
 const REVISION_PARAM = "rev";
 // Quick Look に拡大縮小させない指定（AR Quick Look が URL のフラグメントで受け取る）
@@ -39,6 +41,13 @@ export function parseRoomFile(file: string): { layout: RoomLayout; format: Model
   const parts = splitModelFile(file);
   const layout = ROOM_LAYOUTS.find((candidate) => candidate === parts?.name);
   return parts && layout ? { layout, format: parts.format } : null;
+}
+
+/** "a4-plate.usdz" のようなファイル名から校正用モデルと形式を取り出す */
+export function parseCalibrationFile(file: string): { model: CalibrationModel; format: ModelFormat } | null {
+  const parts = splitModelFile(file);
+  const model = CALIBRATION_MODELS.find((candidate) => candidate === parts?.name);
+  return parts && model ? { model, format: parts.format } : null;
 }
 
 /** URL の sit / shoulder / hug（mm）を採寸値にする。範囲外や幅がないときは null */
@@ -73,6 +82,10 @@ export function roomModelPath(
   const query = nuiSearchParams(nui);
   query.set(REVISION_PARAM, revision);
   return `${ROOM_ROUTE}/${layout}.${format}?${query}`;
+}
+
+export function calibrationModelPath(model: CalibrationModel, revision: string, format: ModelFormat = "glb") {
+  return `${CALIBRATION_ROUTE}/${model}.${format}?${new URLSearchParams({ [REVISION_PARAM]: revision })}`;
 }
 
 /** "<サイズのID>.glb" からサイズの ID を取り出す */

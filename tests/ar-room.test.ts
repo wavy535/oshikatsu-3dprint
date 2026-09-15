@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 import { AR_ROOM } from "@/lib/ar/config";
 import { ArInputError } from "@/lib/ar/errors";
 import { boxMesh, type ArMesh } from "@/lib/ar/mesh";
-import { buildRoomMeshes, nuiGuideSizeMm, roomInteriorMm } from "@/lib/ar/room";
+import { buildRoomMeshes, nuiGuideSizeMm, roomInteriorMm, roomOuterMm } from "@/lib/ar/room";
 
 const nui = { sitHeightMm: 150, shoulderWidthMm: 100, hugWidthMm: 120 };
 const MM_PER_M = 1000;
@@ -63,6 +63,21 @@ test("a back-left room leaves the right side and the front open", () => {
   expect(meshes.map((mesh) => mesh.name)).toEqual(["floor", "wall-back", "wall-left", "ceiling", "nui-guide"]);
   expect(extent(named(meshes, "floor")).max[0]).toBeCloseTo(inner.widthMm / 2, 3);
   expect(extent(named(meshes, "wall-left")).min[0]).toBeCloseTo(-inner.widthMm / 2 - AR_ROOM.wallThicknessMm, 3);
+});
+
+test("the reported outer size matches the generated meshes for both layouts", () => {
+  for (const layout of ["three-walls", "back-left"] as const) {
+    const whole = extent(buildRoomMeshes(nui, layout));
+    const outer = roomOuterMm(nui, layout);
+    expect(whole.max[0] - whole.min[0]).toBeCloseTo(outer.widthMm, 3);
+    expect(whole.max[2] - whole.min[2]).toBeCloseTo(outer.depthMm, 3);
+    expect(whole.max[1] - whole.min[1]).toBeCloseTo(outer.heightMm, 3);
+  }
+  expect(roomOuterMm(nui, "back-left")).toEqual({
+    widthMm: 120 + AR_ROOM.sideMarginMm * 2 + AR_ROOM.wallThicknessMm,
+    depthMm: 120 + AR_ROOM.frontMarginMm + AR_ROOM.backMarginMm + AR_ROOM.wallThicknessMm,
+    heightMm: AR_ROOM.floorThicknessMm + 150 + AR_ROOM.topMarginMm + AR_ROOM.ceilingThicknessMm,
+  });
 });
 
 test("the guide box stands on the floor and only the ceiling and guide are translucent", () => {
