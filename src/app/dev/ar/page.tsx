@@ -179,6 +179,29 @@ function BlendSummary({ report, carry }: { report: BlendReport; carry: [string, 
 }
 
 /**
+ * AR で置く前の案内。置く場所はアプリでは決めておらず、床（水平面）に置いたあとは利用者が動かして合わせる。
+ * モデルの基準は外形の中心の床で、組み立てた配置のもの（部屋）は向きも自分で合わせる。
+ */
+function PlacementGuide({ assembled }: { assembled: boolean }) {
+  return (
+    <div className="flex flex-col gap-1 text-[11.5px] leading-5 text-muted-foreground">
+      <p className="font-semibold text-ink">AR での置き方</p>
+      <ol className="list-decimal space-y-0.5 pl-4">
+        <li>iPhone を床にゆっくり向け、床が認識されてから置きます（机の上など、水平な面なら置けます）。</li>
+        <li>置いたあとは、1本指で動かし、2本指で回して向きを変えられます。大きさは変わりません。</li>
+        {assembled ? (
+          <li>
+            外形の中心の床が基準です。開いている面を自分のほうに向けると中が見えます。実際の部屋の壁に沿わせたいときは、床に置いてから回して寄せてください（自動では壁に吸い付きません）。
+          </li>
+        ) : (
+          <li>外形の中心の床が基準です。置きたい場所に形の中心が来るように動かしてください。</li>
+        )}
+      </ol>
+    </div>
+  );
+}
+
+/**
  * 開発用：仮の部屋・校正用の A4 の板・手元の3Dデータを、iPhone の Quick Look で実寸表示して確かめるページ。本番では 404。
  * QR コードを iPhone のカメラで読むと AR が起動する。DB とログインは使わない。
  */
@@ -376,6 +399,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                       carry={[["model", selectedModel.name], ...roomQueryEntries(query)]}
                     />
                   )}
+                  <PlacementGuide assembled={modelPreview.blend !== null} />
                   {modelUrl && (
                     <p className="text-[11.5px] break-all text-muted-foreground">
                       iPhone でこのページを開いている場合は{" "}
@@ -469,6 +493,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                 ))}
               </tbody>
             </table>
+            <PlacementGuide assembled />
             {roomUrl && (
               <p className="text-[11.5px] break-all text-muted-foreground">
                 iPhone でこのページを開いている場合は{" "}

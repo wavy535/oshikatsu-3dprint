@@ -158,6 +158,14 @@ export function ArPreview({ options, sizeLabel, interiorMm, roomUnavailable, sig
           <ul className="list-disc space-y-0.5 pl-4 text-[10.5px] leading-4 text-muted-foreground">
             <li>実寸で表示され、拡大・縮小はできません。</li>
             <li>
+              置く場所は決まっていません。iPhone を床に向けて床が認識されてから置き、そのあとは1本指で動かし、2本指で回して向きを変えられます。
+            </li>
+            {selected.kind !== "work" && (
+              <li>
+                部屋は、外形の中心の床が基準です。開いている面を自分のほうに向けると中が見えます。実際の壁には自動では沿わないので、床に置いてから回して寄せてください。
+              </li>
+            )}
+            <li>
               本物のぬいは、画面上で部屋と重ならない位置（横）に置いて撮影してください。部屋の手前に置くと、部屋がぬいの上に表示されます。
             </li>
             <li>実寸でも数cmずれることがあります。入るかどうかは相性判定をご確認ください。</li>
