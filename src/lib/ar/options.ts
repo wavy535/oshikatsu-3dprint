@@ -22,6 +22,16 @@ export type ArModelKind = "work" | RoomLayout;
 export type ArModelOption = { kind: ArModelKind; src: string };
 export type RoomUnavailableReason = "signed_out" | "no_nui" | "out_of_range";
 
+/** ぬいのサイズ区分（nui_size_cm）に合う作品のサイズ。同じ区分がなければ null */
+export function variantForNui<T extends { nui_size_cm: number | string | null }>(
+  variants: readonly T[],
+  nui: { nui_size_cm: number | string | null },
+): T | null {
+  if (nui.nui_size_cm === null) return null;
+  const size = Number(nui.nui_size_cm);
+  return variants.find((variant) => variant.nui_size_cm !== null && Number(variant.nui_size_cm) === size) ?? null;
+}
+
 /**
  * 作品詳細で AR に出せるモデルの一覧。
  * 作品の3Dデータがあれば作品を、メインのぬいの採寸値があれば仮の部屋2種を並べる。

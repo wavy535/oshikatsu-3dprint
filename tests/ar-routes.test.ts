@@ -199,6 +199,25 @@ test("the work route converts the stored model of a published work", async () =>
   expect(withoutRevision.headers.get("cache-control")).toBe("no-store");
 });
 
+test("the work route serves USDZ for the QR code and rejects other formats", async () => {
+  vi.mocked(getArWorkSource).mockResolvedValue(source);
+  vi.mocked(readModel).mockResolvedValue(stl);
+  const version = assetVersion(source.storagePath);
+  const usdz = await getWork(
+    new Request(
+      `https://example.test/api/ar/works/${workId}/${variantId}.usdz?v=${version}&rev=${modelRevision()}`,
+    ),
+    context({ workId, file: `${variantId}.usdz` }),
+  );
+  expect(usdz.status).toBe(200);
+  expect(usdz.headers.get("content-type")).toBe("model/vnd.usdz+zip");
+  expect(usdz.headers.get("cache-control")).toMatch(/^public/);
+  expect(await magicOf(usdz)).toBe(ZIP_LOCAL_SIGNATURE);
+
+  const other = await getWork(workRequest(version), context({ workId, file: `${variantId}.obj` }));
+  expect(other.status).toBe(404);
+});
+
 test("the work route hides unpublished works, stale versions and malformed ids without reading storage", async () => {
   vi.mocked(getArWorkSource).mockResolvedValue(null);
   expect((await getWork(workRequest("any"), context({ workId, file: `${variantId}.glb` }))).status).toBe(404);

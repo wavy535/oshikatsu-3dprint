@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
-import { lanIPv4Addresses, localModelVersion, phoneReachableOrigin, sortLocalNames } from "@/lib/ar/dev";
+import { localModelVersion, sortLocalNames } from "@/lib/ar/dev";
+import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/origin";
 
 test("LAN addresses keep external IPv4 interfaces only", () => {
   expect(

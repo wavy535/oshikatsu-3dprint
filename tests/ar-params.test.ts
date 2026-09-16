@@ -1,6 +1,6 @@
 import { expect, test } from "vitest";
 import { AR_LIMITS } from "@/lib/ar/config";
-import { buildArModelOptions, nuiDimensionsOf } from "@/lib/ar/options";
+import { buildArModelOptions, nuiDimensionsOf, variantForNui } from "@/lib/ar/options";
 import {
   LOCAL_MODEL_EXCLUDE_PARAM,
   calibrationModelPath,
@@ -109,10 +109,32 @@ test("work model URLs carry the variant file, the asset version and the model re
   expect(url.pathname).toBe(`/api/ar/works/${workId}/${variantId}.glb`);
   expect(url.searchParams.get("v")).toBe("abc123");
   expect(revisionOfUrl(url.searchParams)).toBe(revision);
-  expect(parseWorkFile(`${variantId}.glb`)).toBe(variantId);
+  expect(parseWorkFile(`${variantId}.glb`)).toEqual({ variantId, format: "glb" });
   expect(parseWorkFile(variantId)).toBeNull();
-  expect(parseWorkFile(`${variantId}.usdz`)).toBeNull();
   expect(parseWorkFile("../secret.glb")).toBeNull();
+  expect(parseWorkFile(`${variantId}.obj`)).toBeNull();
+
+  // QR コードから開く Quick Look 用に、同じサイズを USDZ でも返す
+  const usdz = new URL(workModelPath(workId, variantId, "abc123", revision, "usdz"), origin);
+  expect(usdz.pathname).toBe(`/api/ar/works/${workId}/${variantId}.usdz`);
+  expect(parseWorkFile(`${variantId}.usdz`)).toEqual({ variantId, format: "usdz" });
+  expect(quickLookUrl(origin, workModelPath(workId, variantId, "abc123", revision, "usdz"))).toBe(
+    `${origin}${workModelPath(workId, variantId, "abc123", revision, "usdz")}#allowsContentScaling=0`,
+  );
+});
+
+test("the AR size is the work size for the nui's size class", () => {
+  // numeric 列は文字列で届くことがある
+  const variants = [
+    { id: "small", nui_size_cm: "10.0" },
+    { id: "medium", nui_size_cm: "15.0" },
+    { id: "custom", nui_size_cm: null },
+  ];
+  expect(variantForNui(variants, { nui_size_cm: 15 })?.id).toBe("medium");
+  expect(variantForNui(variants, { nui_size_cm: "10.0" })?.id).toBe("small");
+  expect(variantForNui(variants, { nui_size_cm: 20 })).toBeNull();
+  expect(variantForNui(variants, { nui_size_cm: null })).toBeNull();
+  expect(variantForNui([], { nui_size_cm: 15 })).toBeNull();
 });
 
 test("options list the work model and both provisional rooms with the current revision", () => {

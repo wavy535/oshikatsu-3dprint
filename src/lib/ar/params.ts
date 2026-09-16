@@ -124,15 +124,21 @@ export function localModelPath(
   return `${LOCAL_MODEL_ROUTE}/${LOCAL_MODEL_FILE}.${format}?${query}`;
 }
 
-/** "<サイズのID>.glb" からサイズの ID を取り出す */
-export function parseWorkFile(file: string): string | null {
+/** "<サイズのID>.glb" / "<サイズのID>.usdz" からサイズの ID と形式を取り出す */
+export function parseWorkFile(file: string): { variantId: string; format: ModelFormat } | null {
   const parts = splitModelFile(file);
-  return parts?.format === "glb" && isId(parts.name) ? parts.name : null;
+  return parts && isId(parts.name) ? { variantId: parts.name, format: parts.format } : null;
 }
 
-export function workModelPath(workId: string, variantId: string, version: string, revision: string) {
+export function workModelPath(
+  workId: string,
+  variantId: string,
+  version: string,
+  revision: string,
+  format: ModelFormat = "glb",
+) {
   const query = new URLSearchParams({ v: version, [REVISION_PARAM]: revision });
-  return `${WORK_ROUTE}/${workId}/${variantId}.glb?${query}`;
+  return `${WORK_ROUTE}/${workId}/${variantId}.${format}?${query}`;
 }
 
 /**

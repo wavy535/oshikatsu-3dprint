@@ -87,6 +87,9 @@ export const AR_BLEND = {
 export const AR_DISPLAY = {
   // 部屋の内寸（mm）を表示するときの小数の最大桁数。推定したぬいの寸法は 0.1mm 単位になる
   mmDecimals: 1,
+  // スマホの AR に飛ぶ QR コードの画像の幅（px）と、周りの余白（モジュール数）
+  qrCodeWidthPx: 200,
+  qrCodeMargin: 2,
 } as const;
 
 /** 開発用の実寸テストページ（/dev/ar） */

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Box } from "lucide-react";
 
@@ -24,12 +25,27 @@ const ROOM_HINT: Record<RoomUnavailableReason, string> = {
   out_of_range: "マイぬいの採寸値が表示できる範囲の外なので、仮の部屋を表示できません。",
 };
 
+/** QR コードを出せない理由 */
+const QR_HINT = {
+  no_size: "選んだぬいのサイズに対応する展開がないため、QR コードを出せません。",
+  no_model: "このサイズの3Dデータが登録されていないため、QR コードを出せません。",
+} as const;
+
 type Props = {
   options: ArModelOption[];
   sizeLabel: string | null;
   interiorMm: { widthMm: number; depthMm: number; heightMm: number } | null;
   roomUnavailable: RoomUnavailableReason | null;
   signedIn: boolean;
+  // 登録済みのマイぬい（プルダウン）と、選ばれているぬい
+  nuis: { id: string; label: string }[];
+  selectedNuiId: string | null;
+  // 選び直すときのリンク（basePath?baseQuery&nui=...）
+  basePath: string;
+  baseQuery: string;
+  // 選んだぬいのサイズの作品を AR で開く QR コード
+  qr: { url: string; imageDataUrl: string } | null;
+  qrUnavailable: keyof typeof QR_HINT | null;
 };
 
 /**
@@ -37,7 +53,20 @@ type Props = {
  * model-viewer が端末に合わせて iPhone は Quick Look、Android は WebXR / Scene Viewer を選ぶ。
  * 3D表示の部品は重いので、「開く」を押したときに読み込む。
  */
-export function ArPreview({ options, sizeLabel, interiorMm, roomUnavailable, signedIn }: Props) {
+export function ArPreview({
+  options,
+  sizeLabel,
+  interiorMm,
+  roomUnavailable,
+  signedIn,
+  nuis,
+  selectedNuiId,
+  basePath,
+  baseQuery,
+  qr,
+  qrUnavailable,
+}: Props) {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [viewerReady, setViewerReady] = useState(false);
   const [viewerFailed, setViewerFailed] = useState(false);
@@ -93,6 +122,55 @@ export function ArPreview({ options, sizeLabel, interiorMm, roomUnavailable, sig
           </button>
         )}
       </div>
+
+      {/* マイぬいを選ぶと、そのぬいに合うサイズで AR に出せる（スマホ用の QR コードもここに出す） */}
+      {nuis.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <label className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
+            マイぬい
+            <select
+              value={selectedNuiId ?? ""}
+              onChange={(event) => {
+                const query = new URLSearchParams(baseQuery);
+                if (event.target.value) query.set("nui", event.target.value);
+                const suffix = query.toString();
+                router.push(suffix ? `${basePath}?${suffix}` : basePath, { scroll: false });
+              }}
+              className="min-w-0 flex-1 rounded-md border border-line bg-white px-2 py-1 text-[12px] text-ink"
+            >
+              <option value="">選んでください</option>
+              {nuis.map((nui) => (
+                <option key={nui.id} value={nui.id}>
+                  {nui.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {selectedNuiId && qr && (
+            <div className="flex items-start gap-3 rounded-lg border border-line bg-white p-2.5">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qr.imageDataUrl}
+                alt="スマホのカメラで読み取ると、この作品の AR が起動します"
+                className="size-[120px] shrink-0"
+              />
+              <p className="flex flex-col gap-1 text-[11px] leading-4 text-muted-foreground">
+                <span>
+                  スマホのカメラでこの QR コードを読み取ると、選んだぬいに合うサイズ
+                  {sizeLabel && <span className="font-semibold text-ink">（{sizeLabel}）</span>}
+                  のこの作品が、実寸で AR に出ます。
+                </span>
+                <a href={qr.url} className="font-semibold text-brand hover:underline">
+                  スマホでこのページを見ている場合はここをタップ
+                </a>
+              </p>
+            </div>
+          )}
+          {selectedNuiId && !qr && qrUnavailable && (
+            <p className="text-[11px] leading-4 text-muted-foreground">{QR_HINT[qrUnavailable]}</p>
+          )}
+        </div>
+      )}
 
       {open && selected && (
         <>

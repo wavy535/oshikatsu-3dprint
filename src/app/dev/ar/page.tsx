@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
 import { AR_ANCHOR, AR_BLEND, AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
-import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/dev";
+import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/origin";
 import {
   listLocalModelFolders,
   localModelRoot,
