@@ -48,14 +48,17 @@ async function magicOf(response: Response) {
   return new DataView(await response.arrayBuffer()).getUint32(0, true);
 }
 
-// The GLB magic and the width (X, in mm) over the position accessors' bounds
-async function glbWidthOf(response: Response) {
+// The GLB magic and the model's extent (mm) over the position accessors' bounds
+async function glbBoundsOf(response: Response) {
   const view = new DataView(await response.arrayBuffer());
   const jsonLength = view.getUint32(GLB_JSON_LENGTH_OFFSET, true);
   const json = JSON.parse(new TextDecoder().decode(new Uint8Array(view.buffer, GLB_JSON_START, jsonLength)));
   const positions: { min: number[]; max: number[] }[] = json.accessors.filter((accessor: { min?: number[] }) => accessor.min);
-  const widthM = Math.max(...positions.map((a) => a.max[0])) - Math.min(...positions.map((a) => a.min[0]));
-  return { magic: view.getUint32(0, true), widthMm: widthM * MM_PER_M };
+  const edge = (k: number, pick: (values: number[]) => number, side: "min" | "max") =>
+    pick(positions.map((accessor) => accessor[side][k])) * MM_PER_M;
+  const min = [0, 1, 2].map((k) => edge(k, (values) => Math.min(...values), "min"));
+  const max = [0, 1, 2].map((k) => edge(k, (values) => Math.max(...values), "max"));
+  return { magic: view.getUint32(0, true), min, max, widthMm: max[0] - min[0] };
 }
 
 test("the provisional room route returns a GLB that is cacheable only for the current revision", async () => {
@@ -113,6 +116,10 @@ test("the dev route converts a local Bambu Studio 3MF and never lets it be cache
   expect(response.headers.get("cache-control")).toBe("no-store");
   expect(await magicOf(response)).toBe(ZIP_LOCAL_SIGNATURE);
   expect(readLocalModel).toHaveBeenCalledWith("test_3mf/1_Chair_01.gcode.3mf");
+
+  // 手元のファイルは形式にかかわらず、奥の左下の角が基準点
+  const glb = await localModelRequest(localModelPath("test_3mf/1_Chair_01.gcode.3mf", "f00d", modelRevision()));
+  for (const value of (await glbBoundsOf(glb)).min) expect(value).toBeCloseTo(0, 3);
 });
 
 test("the dev route converts a local .blend and leaves out the objects named in the URL", async () => {
@@ -127,13 +134,15 @@ test("the dev route converts a local .blend and leaves out the objects named in 
   const all = await localModelRequest(localModelPath(name, "f00d", modelRevision()));
   expect(all.status).toBe(200);
   expect(all.headers.get("cache-control")).toBe("no-store");
-  const allGlb = await glbWidthOf(all);
+  const allGlb = await glbBoundsOf(all);
   expect(allGlb.magic).toBe(GLB_MAGIC);
   expect(allGlb.widthMm).toBeCloseTo(52 * AR_BLEND.mmPerUnit, 1);
+  // 手元のファイルは奥の左下の角が基準点
+  for (const value of allGlb.min) expect(value).toBeCloseTo(0, 3);
 
   const trimmed = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "glb", ["平面.001"]));
   expect(trimmed.status).toBe(200);
-  expect((await glbWidthOf(trimmed)).widthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 1);
+  expect((await glbBoundsOf(trimmed)).widthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 1);
   expect(readLocalModel).toHaveBeenCalledWith(name);
 
   const usdz = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "usdz", ["平面.001"]));
@@ -173,7 +182,12 @@ test("the work route converts the stored model of a published work", async () =>
   );
   expect(response.status).toBe(200);
   expect(response.headers.get("cache-control")).toMatch(/^public/);
-  expect(await magicOf(response)).toBe(GLB_MAGIC);
+  const glb = await glbBoundsOf(response);
+  expect(glb.magic).toBe(GLB_MAGIC);
+  // 作品は底面の中心が基準点（手元のファイル・仮の部屋の角とは違う）
+  expect(glb.min[0]).toBeCloseTo(-glb.max[0], 6);
+  expect(glb.min[2]).toBeCloseTo(-glb.max[2], 6);
+  expect(glb.min[1]).toBeCloseTo(0, 6);
   expect(getArWorkSource).toHaveBeenCalledWith(workId, variantId);
   expect(readModel).toHaveBeenCalledWith(source.storagePath);
 

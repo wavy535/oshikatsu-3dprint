@@ -1,10 +1,10 @@
-import { AR_DEV_PAGE } from "@/lib/ar/config";
+import { AR_ANCHOR, AR_DEV_PAGE } from "@/lib/ar/config";
 import { encodeGlb } from "@/lib/ar/glb";
 import { readLocalModel } from "@/lib/ar/local-models";
 import { parseLocalModelRequest } from "@/lib/ar/params";
 import { modelResponse } from "@/lib/ar/response";
 import { encodeUsdz } from "@/lib/ar/usdz";
-import { buildWorkMeshes, isUnconvertibleModelError, modelAnchor, readModelObjects } from "@/lib/ar/work-model";
+import { buildWorkMeshes, isUnconvertibleModelError, readModelObjects } from "@/lib/ar/work-model";
 import { AnalysisBudget } from "@/lib/print/limits";
 
 /**
@@ -26,7 +26,8 @@ export async function GET(
   const budget = new AnalysisBudget();
   try {
     const objects = readModelObjects(buffer, local.name, budget, { excludeObjects: local.excludeObjects });
-    const { meshes } = buildWorkMeshes(objects, AR_DEV_PAGE.localModelScale, budget, modelAnchor(local.name));
+    // 手元のファイルは部屋のデータを見るためのものなので、基準点は部屋と同じ奥の左下の角にする
+    const { meshes } = buildWorkMeshes(objects, AR_DEV_PAGE.localModelScale, budget, AR_ANCHOR.room);
     return local.format === "usdz"
       ? modelResponse(encodeUsdz(meshes), "usdz", false)
       : modelResponse(encodeGlb(meshes), "glb", false);

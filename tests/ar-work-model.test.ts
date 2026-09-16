@@ -7,7 +7,6 @@ import { meshSizeMm } from "@/lib/ar/mesh";
 import {
   buildWorkMeshes,
   isUnconvertibleModelError,
-  modelAnchor,
   readBlendModel,
   readModelObjects,
   workModelExtension,
@@ -57,9 +56,7 @@ test("the size variant ratio scales the converted model", () => {
 });
 
 test("the room anchor puts the back-left bottom corner at the origin, and scaling keeps it there", () => {
-  expect(modelAnchor("roomfile/matsu_nuiroom.blend")).toBe(AR_ANCHOR.room);
-  expect(modelAnchor("1_Chair_01.gcode.3mf")).toBe(AR_ANCHOR.work);
-
+  // 作品は底面の中心（上のテスト）、部屋と手元のファイルは角
   const corner = bounds(buildWorkMeshes([tetrahedron], 1, new AnalysisBudget(), AR_ANCHOR.room).meshes[0].positions);
   for (const value of corner.min) expect(value).toBeCloseTo(0, 6);
   for (const value of corner.max) expect(value).toBeCloseTo(0.01, 6);

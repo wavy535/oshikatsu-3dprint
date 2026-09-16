@@ -92,7 +92,9 @@ Server ComponentsからKyselyで直接取得し、同じリクエスト中の重
 
 現実のどこに置くかは決めていない（2026-09）。モデル側で決めるのは基準点（原点）だけで、実際の場所は Quick Look / Scene Viewer が見つけた水平面と利用者の操作にまかせる（USDZ には水平面に合わせる指定だけを入れ、model-viewer は `ar-placement="floor"`・`ar-scale="fixed"`）。実際の壁に沿わせる制御はできないので、代わりに「床に向けてから置き、置いたあと回して合わせる」手順を作品詳細と `/dev/ar` に表示する。壁（縦の平面）に合わせる案は、Quick Look では指定できないため未検討。
 
-基準点は種類で分ける（[設定](../src/lib/ar/config.ts)の `AR_ANCHOR`）。単体の作品・パーツは底面の中心、部屋（仮の部屋と、組み立てた配置の .blend）は**奥の左下の角**にする。部屋を実際の部屋の角に合わせて置けるようにするためで、寸法や倍率が変わっても基準点の角は動かない（=拡大縮小の中心になる）。仮の部屋は奥と左に必ず壁があるので、その壁の外側・床の下面が原点で、開いている面は手前（+Z）。手元のファイルは .blend だけを部屋として扱う。
+基準点は種類で分ける（[設定](../src/lib/ar/config.ts)の `AR_ANCHOR`）。作品は底面の中心、部屋は**奥の左下の角**にする。部屋を実際の部屋の角に合わせて置けるようにするためで、寸法や倍率が変わっても基準点の角は動かない（=拡大縮小の中心になる）。仮の部屋は奥と左に必ず壁があるので、その壁の外側・床の下面が原点で、開いている面は手前（+Z）。`/dev/ar` の手元のファイルは部屋のデータを見るためのものなので、形式にかかわらず角を基準点にする。
+
+拡大縮小は禁止したままにする（2026-09 に理由を確認）。Quick Look の `#allowsContentScaling=0` と model-viewer の `ar-scale="fixed"` は、[Apple のヒューマンインターフェイスガイドライン](https://developer.apple.com/design/human-interface-guidelines/augmented-reality)が「購入を検討するための表示で拡大縮小を許すと比較の役に立たない」としていること、[Google の AR 設計ガイド](https://developers.google.com/ar/design/environment/experience-size)が「実寸で作る」としていることに沿う。この AR の目的が実寸での収まりの確認なので、`/dev/ar` も作品詳細と同じ実寸固定にしている。基準点を角にした効果は、置く位置と、寸法・倍率が変わったときに出る。
 
 仮の部屋は `.usdz` でも返す。Quick Look は USDZ の URL を直接開けるので、`#allowsContentScaling=0` を付けたリンクなら実寸固定のままARを起動できる。USDZは無圧縮ZIPで各ファイルを64バイト境界に置き、USDAの構成は three.js の USDZExporter に合わせた。開発環境専用の [`/dev/ar`](../src/app/dev/ar/page.tsx) は、入力した寸法からこのリンクのQRコードを作る（localhost で開いてもLANアドレスを入れる。本番は404で、DBとログインは使わない）。同じページに、A4用紙と同じ大きさ（297×210mm、厚さ1mm）の校正用の板 [`/api/ar/calibration/a4-plate.usdz`](../src/app/api/ar/calibration/[file]/route.ts) のQRコードも置く。本物の用紙と重ねれば、遠近の影響を受けずにARの縮尺を確かめられる。部屋の外寸と、定規を測る辺に触れさせて読む手順も表示する。
 

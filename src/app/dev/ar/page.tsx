@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
-import { AR_BLEND, AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
+import { AR_ANCHOR, AR_BLEND, AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
 import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/dev";
 import {
   listLocalModelFolders,
@@ -24,7 +24,6 @@ import { modelRevision } from "@/lib/ar/revision";
 import { ROOM_LAYOUTS, nuiGuideSizeMm, roomInteriorMm, roomOuterMm, type RoomLayout } from "@/lib/ar/room";
 import {
   buildWorkMeshes,
-  modelAnchor,
   readBlendModel,
   readModelObjects,
   workModelExtension,
@@ -116,7 +115,7 @@ async function previewLocalModel(model: LocalModel, excludeObjects: string[]): P
       objects,
       AR_DEV_PAGE.localModelScale,
       budget,
-      modelAnchor(model.name),
+      AR_ANCHOR.room,
     );
     return { ok: true, sizeMm: meshSizeMm(meshes), sourceTriangles, outputTriangles, blend };
   } catch (error) {
@@ -182,22 +181,18 @@ function BlendSummary({ report, carry }: { report: BlendReport; carry: [string, 
 
 /**
  * AR で置く前の案内。置く場所はアプリでは決めておらず、床（水平面）に置いたあとは利用者が動かして合わせる。
- * 基準点は、単体のパーツは底面の中心、組み立てた配置のもの（部屋）は奥の左下の角。
+ * このページのモデル（仮の部屋・手元のファイル）は、基準点が奥の左下の角。
  */
-function PlacementGuide({ assembled }: { assembled: boolean }) {
+function PlacementGuide() {
   return (
     <div className="flex flex-col gap-1 text-[11.5px] leading-5 text-muted-foreground">
       <p className="font-semibold text-ink">AR での置き方</p>
       <ol className="list-decimal space-y-0.5 pl-4">
         <li>iPhone を床にゆっくり向け、床が認識されてから置きます（机の上など、水平な面なら置けます）。</li>
-        <li>置いたあとは、1本指で動かし、2本指で回して向きを変えられます。大きさは変わりません。</li>
-        {assembled ? (
-          <li>
-            基準点は奥の左下の角（床の下面）です。実際の部屋の角に合わせ、開いている面を自分のほうに向けると中が見えます。壁には自動で沿わないので、置いてから回して寄せてください。
-          </li>
-        ) : (
-          <li>基準点は底面の中心です。置きたい場所に形の中心が来るように動かしてください。</li>
-        )}
+        <li>置いたあとは、1本指で動かし、2本指で回して向きを変えられます。大きさは変わりません（実寸固定）。</li>
+        <li>
+          基準点は奥の左下の角（床の下面）です。部屋のデータなら、実際の部屋の角に合わせ、開いている面を自分のほうに向けると中が見えます。壁には自動で沿わないので、置いてから回して寄せてください。
+        </li>
       </ol>
     </div>
   );
@@ -401,7 +396,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                       carry={[["model", selectedModel.name], ...roomQueryEntries(query)]}
                     />
                   )}
-                  <PlacementGuide assembled={modelPreview.blend !== null} />
+                  <PlacementGuide />
                   {modelUrl && (
                     <p className="text-[11.5px] break-all text-muted-foreground">
                       iPhone でこのページを開いている場合は{" "}
@@ -495,7 +490,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                 ))}
               </tbody>
             </table>
-            <PlacementGuide assembled />
+            <PlacementGuide />
             {roomUrl && (
               <p className="text-[11.5px] break-all text-muted-foreground">
                 iPhone でこのページを開いている場合は{" "}

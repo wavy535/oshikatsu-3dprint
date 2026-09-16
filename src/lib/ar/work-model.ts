@@ -48,10 +48,6 @@ export function readBlendModel(buf: Buffer, budget: AnalysisBudget, options: Mod
   );
 }
 
-/** 組み立てた配置のデータ（.blend）は部屋として扱い、基準点を奥の左下の角にする */
-export const modelAnchor = (fileName: string): ArAnchor =>
-  workModelExtension(fileName) === "blend" ? AR_ANCHOR.room : AR_ANCHOR.work;
-
 /** 作品の3Dデータ（3MF / STL / .blend）を読み、パーツの一覧にする */
 export function readModelObjects(
   buf: Buffer,

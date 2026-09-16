@@ -41,7 +41,10 @@ export type ArAnchor =
   // 奥の左下の角。部屋向けで、実際の部屋の角に合わせられる
   | "back-left-bottom";
 
-/** 種類ごとの基準点。部屋（仮の部屋・組み立てた配置の .blend）だけ角にする */
+/**
+ * 種類ごとの基準点。作品（購入者が見る3Dデータ）は底面の中心、
+ * 部屋（仮の部屋と、実寸テストで見る手元のファイル）は角にする
+ */
 export const AR_ANCHOR = {
   work: "bottom-center",
   room: "back-left-bottom",
