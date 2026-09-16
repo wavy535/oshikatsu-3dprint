@@ -4,7 +4,7 @@ import { readLocalModel } from "@/lib/ar/local-models";
 import { parseLocalModelRequest } from "@/lib/ar/params";
 import { modelResponse } from "@/lib/ar/response";
 import { encodeUsdz } from "@/lib/ar/usdz";
-import { buildWorkMeshes, isUnconvertibleModelError, readModelObjects } from "@/lib/ar/work-model";
+import { buildWorkMeshes, isUnconvertibleModelError, modelAnchor, readModelObjects } from "@/lib/ar/work-model";
 import { AnalysisBudget } from "@/lib/print/limits";
 
 /**
@@ -26,7 +26,7 @@ export async function GET(
   const budget = new AnalysisBudget();
   try {
     const objects = readModelObjects(buffer, local.name, budget, { excludeObjects: local.excludeObjects });
-    const { meshes } = buildWorkMeshes(objects, AR_DEV_PAGE.localModelScale, budget);
+    const { meshes } = buildWorkMeshes(objects, AR_DEV_PAGE.localModelScale, budget, modelAnchor(local.name));
     return local.format === "usdz"
       ? modelResponse(encodeUsdz(meshes), "usdz", false)
       : modelResponse(encodeGlb(meshes), "glb", false);

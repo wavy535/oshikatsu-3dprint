@@ -53,7 +53,7 @@ const box = (name: string, minMm: Vec3, maxMm: Vec3, m: ArMaterial) =>
 
 /**
  * 仮の部屋。床・壁・透明な天井と、ぬいの目安の箱を返す。
- * 床の下面が y=0、手前（+Z）が開いている面。
+ * 奥の左下の角（壁の外側・床の下面）が原点で、手前（+Z）が開いている面。
  * "back-left" は奥と左だけに壁があり、右と手前が開いている。
  */
 export function buildRoomMeshes(nui: NuiDimensions, layout: RoomLayout): ArMesh[] {
@@ -62,25 +62,31 @@ export function buildRoomMeshes(nui: NuiDimensions, layout: RoomLayout): ArMesh[
   const wall = AR_ROOM.wallThicknessMm;
   const floorTop = AR_ROOM.floorThicknessMm;
   const ceilingBottom = floorTop + inner.heightMm;
-  const left = -inner.widthMm / 2 - wall;
-  const right = layout === "three-walls" ? inner.widthMm / 2 + wall : inner.widthMm / 2;
-  const back = -inner.depthMm / 2 - wall;
-  const front = inner.depthMm / 2;
+  // 奥（-Z 側）と左（-X 側）には必ず壁があり、その外側の面が原点になる
+  const left = 0;
+  const back = 0;
+  const innerLeft = left + wall;
+  const innerBack = back + wall;
+  const innerRight = innerLeft + inner.widthMm;
+  const right = layout === "three-walls" ? innerRight + wall : innerRight;
+  const front = innerBack + inner.depthMm;
 
   const floorMaterial = material("floor", AR_MATERIALS.floor, false);
   const wallMaterial = material("wall", AR_MATERIALS.wall, false);
   const meshes: ArMesh[] = [
     box("floor", [left, 0, back], [right, floorTop, front], floorMaterial),
-    box("wall-back", [left, floorTop, back], [right, ceilingBottom, back + wall], wallMaterial),
-    box("wall-left", [left, floorTop, back + wall], [left + wall, ceilingBottom, front], wallMaterial),
+    box("wall-back", [left, floorTop, back], [right, ceilingBottom, innerBack], wallMaterial),
+    box("wall-left", [left, floorTop, innerBack], [innerLeft, ceilingBottom, front], wallMaterial),
   ];
   if (layout === "three-walls") {
     meshes.push(
-      box("wall-right", [right - wall, floorTop, back + wall], [right, ceilingBottom, front], wallMaterial),
+      box("wall-right", [right - wall, floorTop, innerBack], [right, ceilingBottom, front], wallMaterial),
     );
   }
 
-  const guideBack = -inner.depthMm / 2 + AR_ROOM.backMarginMm;
+  // 目安の箱は、内寸の幅の中央に置き、奥の壁から余白の分だけ離す
+  const guideLeft = innerLeft + (inner.widthMm - guide.widthMm) / 2;
+  const guideBack = innerBack + AR_ROOM.backMarginMm;
   meshes.push(
     box(
       "ceiling",
@@ -90,8 +96,8 @@ export function buildRoomMeshes(nui: NuiDimensions, layout: RoomLayout): ArMesh[
     ),
     box(
       "nui-guide",
-      [-guide.widthMm / 2, floorTop, guideBack],
-      [guide.widthMm / 2, floorTop + guide.heightMm, guideBack + guide.depthMm],
+      [guideLeft, floorTop, guideBack],
+      [guideLeft + guide.widthMm, floorTop + guide.heightMm, guideBack + guide.depthMm],
       material("nui-guide", AR_MATERIALS.nuiGuide, true),
     ),
   );

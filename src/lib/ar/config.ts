@@ -30,6 +30,23 @@ export const AR_CALIBRATION = {
   plateThicknessMm: 1,
 } as const;
 
+/**
+ * AR モデルの基準点（原点）の置き方。AR ではこの点が置いた場所になり、
+ * 大きさを変えてもこの点は動かない（拡大縮小の中心になる）。
+ * glTF の座標では -X が左、-Z が奥、+Z が手前（開いている面）。
+ */
+export type ArAnchor =
+  // 底面の中心。単体の作品・パーツ向け
+  | "bottom-center"
+  // 奥の左下の角。部屋向けで、実際の部屋の角に合わせられる
+  | "back-left-bottom";
+
+/** 種類ごとの基準点。部屋（仮の部屋・組み立てた配置の .blend）だけ角にする */
+export const AR_ANCHOR = {
+  work: "bottom-center",
+  room: "back-left-bottom",
+} as const satisfies Record<string, ArAnchor>;
+
 /** AR 用モデルの URL に付ける版（rev）の元になる値 */
 export const AR_MODEL = {
   // 生成処理のコードを変えて出力が変わるときに上げる。設定値の変更は rev に自動で反映される

@@ -50,29 +50,44 @@ test("the room interior adds the configured margins around the guide", () => {
 test("a three-wall room has back, left and right walls with the interior between them", () => {
   const meshes = buildRoomMeshes(nui, "three-walls");
   const inner = roomInteriorMm(nui);
+  const front = AR_ROOM.wallThicknessMm + inner.depthMm;
   expect(meshes.map((mesh) => mesh.name)).toEqual([
     "floor", "wall-back", "wall-left", "wall-right", "ceiling", "nui-guide",
   ]);
   const whole = extent(meshes);
   expect(whole.min[1]).toBeCloseTo(0, 3);
-  expect(whole.max[2]).toBeCloseTo(inner.depthMm / 2, 3);
+  expect(whole.max[2]).toBeCloseTo(front, 3);
 
   const left = extent(named(meshes, "wall-left"));
   const right = extent(named(meshes, "wall-right"));
   const back = extent(named(meshes, "wall-back"));
   expect(right.min[0] - left.max[0]).toBeCloseTo(inner.widthMm, 3);
   expect(left.max[1] - left.min[1]).toBeCloseTo(inner.heightMm, 3);
-  expect(inner.depthMm / 2 - back.max[2]).toBeCloseTo(inner.depthMm, 3);
+  expect(front - back.max[2]).toBeCloseTo(inner.depthMm, 3);
   // 手前（+Z）には壁がない
-  expect(left.max[2]).toBeCloseTo(inner.depthMm / 2, 3);
+  expect(left.max[2]).toBeCloseTo(front, 3);
 });
 
 test("a back-left room leaves the right side and the front open", () => {
   const meshes = buildRoomMeshes(nui, "back-left");
   const inner = roomInteriorMm(nui);
   expect(meshes.map((mesh) => mesh.name)).toEqual(["floor", "wall-back", "wall-left", "ceiling", "nui-guide"]);
-  expect(extent(named(meshes, "floor")).max[0]).toBeCloseTo(inner.widthMm / 2, 3);
-  expect(extent(named(meshes, "wall-left")).min[0]).toBeCloseTo(-inner.widthMm / 2 - AR_ROOM.wallThicknessMm, 3);
+  expect(extent(named(meshes, "floor")).max[0]).toBeCloseTo(AR_ROOM.wallThicknessMm + inner.widthMm, 3);
+  expect(extent(named(meshes, "wall-left")).min[0]).toBeCloseTo(0, 3);
+});
+
+test("the back-left bottom corner is the origin, so a bigger room grows away from that corner", () => {
+  const bigger = { ...nui, hugWidthMm: nui.hugWidthMm * 2, sitHeightMm: nui.sitHeightMm * 2 };
+  for (const layout of ["three-walls", "back-left"] as const) {
+    for (const measurements of [nui, bigger]) {
+      const whole = extent(buildRoomMeshes(measurements, layout));
+      // 奥（-Z）の左（-X）の、床の下面の角
+      for (const value of whole.min) expect(value).toBeCloseTo(0, 6);
+      const outer = roomOuterMm(measurements, layout);
+      expect(whole.max[0]).toBeCloseTo(outer.widthMm, 3);
+      expect(whole.max[2]).toBeCloseTo(outer.depthMm, 3);
+    }
+  }
 });
 
 test("the reported outer size matches the generated meshes for both layouts", () => {

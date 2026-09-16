@@ -1,12 +1,13 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { AR_BLEND, AR_LIMITS } from "@/lib/ar/config";
+import { AR_ANCHOR, AR_BLEND, AR_LIMITS } from "@/lib/ar/config";
 import { decimateToBudget } from "@/lib/ar/decimate";
 import { ArInputError } from "@/lib/ar/errors";
 import { meshSizeMm } from "@/lib/ar/mesh";
 import {
   buildWorkMeshes,
   isUnconvertibleModelError,
+  modelAnchor,
   readBlendModel,
   readModelObjects,
   workModelExtension,
@@ -53,6 +54,20 @@ test("print coordinates (mm, Z up) become AR coordinates (m, Y up) resting on th
 test("the size variant ratio scales the converted model", () => {
   const b = bounds(buildWorkMeshes([tetrahedron], 4 / 3).meshes[0].positions);
   expect(b.max[1] - b.min[1]).toBeCloseTo((0.01 * 4) / 3, 6);
+});
+
+test("the room anchor puts the back-left bottom corner at the origin, and scaling keeps it there", () => {
+  expect(modelAnchor("roomfile/matsu_nuiroom.blend")).toBe(AR_ANCHOR.room);
+  expect(modelAnchor("1_Chair_01.gcode.3mf")).toBe(AR_ANCHOR.work);
+
+  const corner = bounds(buildWorkMeshes([tetrahedron], 1, new AnalysisBudget(), AR_ANCHOR.room).meshes[0].positions);
+  for (const value of corner.min) expect(value).toBeCloseTo(0, 6);
+  for (const value of corner.max) expect(value).toBeCloseTo(0.01, 6);
+
+  // 大きさを変えても基準点の角は動かない（拡大縮小の中心になる）
+  const bigger = bounds(buildWorkMeshes([tetrahedron], 2, new AnalysisBudget(), AR_ANCHOR.room).meshes[0].positions);
+  for (const value of bigger.min) expect(value).toBeCloseTo(0, 6);
+  for (const value of bigger.max) expect(value).toBeCloseTo(0.02, 6);
 });
 
 test("flat normals are unit length and keep the outward orientation after the axis change", () => {

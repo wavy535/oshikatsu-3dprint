@@ -24,6 +24,7 @@ import { modelRevision } from "@/lib/ar/revision";
 import { ROOM_LAYOUTS, nuiGuideSizeMm, roomInteriorMm, roomOuterMm, type RoomLayout } from "@/lib/ar/room";
 import {
   buildWorkMeshes,
+  modelAnchor,
   readBlendModel,
   readModelObjects,
   workModelExtension,
@@ -115,6 +116,7 @@ async function previewLocalModel(model: LocalModel, excludeObjects: string[]): P
       objects,
       AR_DEV_PAGE.localModelScale,
       budget,
+      modelAnchor(model.name),
     );
     return { ok: true, sizeMm: meshSizeMm(meshes), sourceTriangles, outputTriangles, blend };
   } catch (error) {
@@ -180,7 +182,7 @@ function BlendSummary({ report, carry }: { report: BlendReport; carry: [string, 
 
 /**
  * AR で置く前の案内。置く場所はアプリでは決めておらず、床（水平面）に置いたあとは利用者が動かして合わせる。
- * モデルの基準は外形の中心の床で、組み立てた配置のもの（部屋）は向きも自分で合わせる。
+ * 基準点は、単体のパーツは底面の中心、組み立てた配置のもの（部屋）は奥の左下の角。
  */
 function PlacementGuide({ assembled }: { assembled: boolean }) {
   return (
@@ -191,10 +193,10 @@ function PlacementGuide({ assembled }: { assembled: boolean }) {
         <li>置いたあとは、1本指で動かし、2本指で回して向きを変えられます。大きさは変わりません。</li>
         {assembled ? (
           <li>
-            外形の中心の床が基準です。開いている面を自分のほうに向けると中が見えます。実際の部屋の壁に沿わせたいときは、床に置いてから回して寄せてください（自動では壁に吸い付きません）。
+            基準点は奥の左下の角（床の下面）です。実際の部屋の角に合わせ、開いている面を自分のほうに向けると中が見えます。壁には自動で沿わないので、置いてから回して寄せてください。
           </li>
         ) : (
-          <li>外形の中心の床が基準です。置きたい場所に形の中心が来るように動かしてください。</li>
+          <li>基準点は底面の中心です。置きたい場所に形の中心が来るように動かしてください。</li>
         )}
       </ol>
     </div>

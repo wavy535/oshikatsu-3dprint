@@ -4,7 +4,7 @@ import type { NamedMesh } from "../print/mesh.ts";
 import { StlParseError, parseStl } from "../print/stl.ts";
 import { ThreeMfParseError, parseThreeMf } from "../print/threemf.ts";
 import { ZipError } from "../print/zip.ts";
-import { AR_BLEND, AR_LIMITS, AR_MATERIALS } from "./config.ts";
+import { AR_ANCHOR, AR_BLEND, AR_LIMITS, AR_MATERIALS, type ArAnchor } from "./config.ts";
 import { decimateToBudget, type TriangleMesh } from "./decimate.ts";
 import { ArInputError } from "./errors.ts";
 import type { ArMesh } from "./mesh.ts";
@@ -48,6 +48,10 @@ export function readBlendModel(buf: Buffer, budget: AnalysisBudget, options: Mod
   );
 }
 
+/** 組み立てた配置のデータ（.blend）は部屋として扱い、基準点を奥の左下の角にする */
+export const modelAnchor = (fileName: string): ArAnchor =>
+  workModelExtension(fileName) === "blend" ? AR_ANCHOR.room : AR_ANCHOR.work;
+
 /** 作品の3Dデータ（3MF / STL / .blend）を読み、パーツの一覧にする */
 export function readModelObjects(
   buf: Buffer,
@@ -86,10 +90,15 @@ function mergeObjects(objects: NamedMesh[]): TriangleMesh {
 
 /**
  * 作品の3Dデータ（mm、Z 軸が上）を AR 用のメッシュ（m、Y 軸が上）にする。
- * サイズ展開の倍率をかけ、底面を y=0、水平方向の中心を原点に置く。
+ * サイズ展開の倍率をかけ、底面を y=0 に置く。水平方向の原点は基準点の指定で決める。
  * 3MF の複数パーツは、印刷用に並べた位置のまま1つにまとめる。色は反映しない。
  */
-export function buildWorkMeshes(objects: NamedMesh[], scaleRatio: number, budget = new AnalysisBudget()) {
+export function buildWorkMeshes(
+  objects: NamedMesh[],
+  scaleRatio: number,
+  budget = new AnalysisBudget(),
+  anchor: ArAnchor = AR_ANCHOR.work,
+) {
   if (!Number.isFinite(scaleRatio) || scaleRatio <= 0)
     throw new ArInputError("サイズの倍率が不正です");
 
@@ -115,7 +124,11 @@ export function buildWorkMeshes(objects: NamedMesh[], scaleRatio: number, budget
     }
   }
 
-  const shift = [-(min[0] + max[0]) / 2, -min[1], -(min[2] + max[2]) / 2];
+  // 底面はどちらの基準点でも y=0。角を基準にするときは、奥（-Z）の左（-X）の端を原点に持ってくる
+  const shift =
+    anchor === "back-left-bottom"
+      ? [-min[0], -min[1], -min[2]]
+      : [-(min[0] + max[0]) / 2, -min[1], -(min[2] + max[2]) / 2];
   const positions = new Float32Array(corners.length);
   for (let i = 0; i < corners.length; i++) positions[i] = corners[i] + shift[i % 3];
 

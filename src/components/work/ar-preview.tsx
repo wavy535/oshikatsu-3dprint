@@ -162,7 +162,7 @@ export function ArPreview({ options, sizeLabel, interiorMm, roomUnavailable, sig
             </li>
             {selected.kind !== "work" && (
               <li>
-                部屋は、外形の中心の床が基準です。開いている面を自分のほうに向けると中が見えます。実際の壁には自動では沿わないので、床に置いてから回して寄せてください。
+                部屋の基準点は奥の左下の角です。実際の部屋の角に合わせ、開いている面を自分のほうに向けると中が見えます。壁には自動では沿わないので、床に置いてから回して寄せてください。
               </li>
             )}
             <li>
