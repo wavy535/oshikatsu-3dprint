@@ -53,7 +53,8 @@ export const AR_ANCHOR = {
 /** AR 用モデルの URL に付ける版（rev）の元になる値 */
 export const AR_MODEL = {
   // 生成処理のコードを変えて出力が変わるときに上げる。設定値の変更は rev に自動で反映される
-  generatorRevision: 1,
+  // 2: 3MF・.blend の色を AR に反映（色ごとにメッシュを分ける）
+  generatorRevision: 2,
 } as const;
 
 export const AR_LIMITS = {
@@ -63,6 +64,8 @@ export const AR_LIMITS = {
   // 作品データを AR 用に間引くときの三角形数の上限。
   // 面ごとに頂点を分けて出すので頂点数は3倍になり、Quick Look の目安（頂点10万未満）に収まる
   workTriangleBudget: 30_000,
+  // 色ごとにメッシュを分ける数の上限（これを超える色は「色の指定なし」にまとめる）
+  maxColorGroups: 8,
   // 間引きに使う格子の分割数（いちばん長い辺を何分割するか）の探索範囲
   decimateMinResolution: 8,
   decimateMaxResolution: 4096,

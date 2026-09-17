@@ -32,8 +32,8 @@ export async function GET(
   const budget = new AnalysisBudget();
   const buffer = await readModel(source.storagePath);
   try {
-    const objects = readModelObjects(buffer, source.fileName, budget);
-    const { meshes } = buildWorkMeshes(objects, source.scaleRatio, budget);
+    const model = readModelObjects(buffer, source.fileName, budget);
+    const { meshes } = buildWorkMeshes(model, source.scaleRatio, budget);
     const current = revisionOfUrl(searchParams) === modelRevision();
     return work.format === "usdz"
       ? modelResponse(encodeUsdz(meshes), "usdz", current)

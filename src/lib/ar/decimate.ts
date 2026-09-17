@@ -5,6 +5,9 @@ import { ArInputError } from "./errors.ts";
 /** 位置（[x0,y0,z0, x1,...]）と三角形の頂点番号だけを持つメッシュ */
 export type TriangleMesh = { positions: Float64Array; indices: Uint32Array };
 
+/** 三角形ごとの色番号（色を持たないデータでは null）を添えたメッシュ */
+export type ColoredTriangleMesh = TriangleMesh & { colors?: Int32Array | null };
+
 // 処理時間の上限を確認する間隔（頂点数）
 const BUDGET_CHECK_INTERVAL = 1 << 16;
 
@@ -56,8 +59,8 @@ function countSurviving(indices: Uint32Array, keys: Float64Array) {
   return count;
 }
 
-// 同じセルの頂点を平均の位置の1頂点にまとめ、つぶれた三角形を捨てる
-function clusterByKeys(mesh: TriangleMesh, keys: Float64Array): TriangleMesh {
+// 同じセルの頂点を平均の位置の1頂点にまとめ、つぶれた三角形を捨てる（色は残った三角形の分だけ持ち回る）
+function clusterByKeys(mesh: ColoredTriangleMesh, keys: Float64Array): ColoredTriangleMesh {
   const idOfKey = new Map<number, number>();
   const sums: number[] = [];
   const counts: number[] = [];
@@ -81,13 +84,20 @@ function clusterByKeys(mesh: TriangleMesh, keys: Float64Array): TriangleMesh {
   }
 
   const indices: number[] = [];
+  const colors: number[] = [];
   for (let t = 0; t < mesh.indices.length; t += 3) {
     const a = ids[mesh.indices[t]];
     const b = ids[mesh.indices[t + 1]];
     const c = ids[mesh.indices[t + 2]];
-    if (a !== b && b !== c && a !== c) indices.push(a, b, c);
+    if (a === b || b === c || a === c) continue;
+    indices.push(a, b, c);
+    if (mesh.colors) colors.push(mesh.colors[t / 3]);
   }
-  return { positions, indices: Uint32Array.from(indices) };
+  return {
+    positions,
+    indices: Uint32Array.from(indices),
+    colors: mesh.colors ? Int32Array.from(colors) : null,
+  };
 }
 
 /**
@@ -96,11 +106,11 @@ function clusterByKeys(mesh: TriangleMesh, keys: Float64Array): TriangleMesh {
  * 三角形数が maxTriangles 以下に収まる範囲で、いちばん細かい格子を二分探索で選ぶ。
  */
 export function decimateToBudget(
-  mesh: TriangleMesh,
+  mesh: ColoredTriangleMesh,
   maxTriangles: number,
   budget = new AnalysisBudget(),
-): TriangleMesh & { resolution: number | null } {
-  if (mesh.indices.length / 3 <= maxTriangles) return { ...mesh, resolution: null };
+): ColoredTriangleMesh & { resolution: number | null } {
+  if (mesh.indices.length / 3 <= maxTriangles) return { ...mesh, colors: mesh.colors ?? null, resolution: null };
 
   const grid = gridOf(mesh.positions);
   const keys = new Float64Array(mesh.positions.length / 3);

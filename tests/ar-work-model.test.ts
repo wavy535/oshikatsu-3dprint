@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
-import { AR_ANCHOR, AR_BLEND, AR_LIMITS } from "@/lib/ar/config";
+import { AR_ANCHOR, AR_BLEND, AR_LIMITS, AR_MATERIALS } from "@/lib/ar/config";
 import { decimateToBudget } from "@/lib/ar/decimate";
 import { ArInputError } from "@/lib/ar/errors";
 import { meshSizeMm } from "@/lib/ar/mesh";
@@ -12,9 +12,21 @@ import {
   workModelExtension,
 } from "@/lib/ar/work-model";
 import { BlendParseError } from "@/lib/print/blend";
+import { srgbHexToLinear } from "@/lib/print/color";
 import { AnalysisBudget, ModelLimitError } from "@/lib/print/limits";
+import type { NamedMesh } from "@/lib/print/mesh";
 import { buildTestBlend, cubeMesh } from "./helpers/blend-files";
-import { bambuStylePackage, modelXml, modelZip, tetrahedronMesh } from "./helpers/model-files";
+import {
+  bambuStylePackage,
+  basematerialsXml,
+  modelXml,
+  modelZip,
+  tetrahedronMesh,
+  tetrahedronMeshWith,
+} from "./helpers/model-files";
+
+// 色を持たないデータ（STL など）の形
+const plain = (objects: NamedMesh[]) => ({ objects, materials: [] });
 
 // Print coordinates in mm with Z up; every face winds outward.
 const tetrahedron = {
@@ -39,7 +51,7 @@ function bounds(positions: ArrayLike<number>) {
 }
 
 test("print coordinates (mm, Z up) become AR coordinates (m, Y up) resting on the floor", () => {
-  const { meshes, outputTriangles } = buildWorkMeshes([tetrahedron], 1);
+  const { meshes, outputTriangles } = buildWorkMeshes(plain([tetrahedron]), 1);
   expect(outputTriangles).toBe(4);
   const b = bounds(meshes[0].positions);
   expect(b.min[1]).toBeCloseTo(0, 6);
@@ -51,24 +63,24 @@ test("print coordinates (mm, Z up) become AR coordinates (m, Y up) resting on th
 });
 
 test("the size variant ratio scales the converted model", () => {
-  const b = bounds(buildWorkMeshes([tetrahedron], 4 / 3).meshes[0].positions);
+  const b = bounds(buildWorkMeshes(plain([tetrahedron]), 4 / 3).meshes[0].positions);
   expect(b.max[1] - b.min[1]).toBeCloseTo((0.01 * 4) / 3, 6);
 });
 
 test("the room anchor puts the back-left bottom corner at the origin, and scaling keeps it there", () => {
   // 作品は底面の中心（上のテスト）、部屋と手元のファイルは角
-  const corner = bounds(buildWorkMeshes([tetrahedron], 1, new AnalysisBudget(), AR_ANCHOR.room).meshes[0].positions);
+  const corner = bounds(buildWorkMeshes(plain([tetrahedron]), 1, new AnalysisBudget(), AR_ANCHOR.room).meshes[0].positions);
   for (const value of corner.min) expect(value).toBeCloseTo(0, 6);
   for (const value of corner.max) expect(value).toBeCloseTo(0.01, 6);
 
   // 大きさを変えても基準点の角は動かない（拡大縮小の中心になる）
-  const bigger = bounds(buildWorkMeshes([tetrahedron], 2, new AnalysisBudget(), AR_ANCHOR.room).meshes[0].positions);
+  const bigger = bounds(buildWorkMeshes(plain([tetrahedron]), 2, new AnalysisBudget(), AR_ANCHOR.room).meshes[0].positions);
   for (const value of bigger.min) expect(value).toBeCloseTo(0, 6);
   for (const value of bigger.max) expect(value).toBeCloseTo(0.02, 6);
 });
 
 test("flat normals are unit length and keep the outward orientation after the axis change", () => {
-  const mesh = buildWorkMeshes([tetrahedron], 1).meshes[0];
+  const mesh = buildWorkMeshes(plain([tetrahedron]), 1).meshes[0];
   for (let i = 0; i < mesh.normals.length; i += 3) {
     expect(Math.hypot(mesh.normals[i], mesh.normals[i + 1], mesh.normals[i + 2])).toBeCloseTo(1, 5);
   }
@@ -78,7 +90,7 @@ test("flat normals are unit length and keep the outward orientation after the ax
 
 test("STL and multi-part 3MF files are read by extension and merged", () => {
   const stl = readFileSync(new URL("./fixtures/tetrahedron.stl", import.meta.url));
-  expect(readModelObjects(stl, "model.STL", new AnalysisBudget())).toHaveLength(1);
+  expect(readModelObjects(stl, "model.STL", new AnalysisBudget()).objects).toHaveLength(1);
 
   const threeMf = modelZip(
     modelXml(
@@ -86,19 +98,70 @@ test("STL and multi-part 3MF files are read by extension and merged", () => {
       '<item objectid="1"/><item objectid="1" transform="1 0 0 0 1 0 0 0 1 30 0 0"/>',
     ),
   );
-  const objects = readModelObjects(threeMf, "room.3mf", new AnalysisBudget());
-  expect(objects).toHaveLength(2);
-  const { meshes, outputTriangles } = buildWorkMeshes(objects, 1);
+  const model = readModelObjects(threeMf, "room.3mf", new AnalysisBudget());
+  expect(model.objects).toHaveLength(2);
+  const { meshes, outputTriangles } = buildWorkMeshes(model, 1);
   expect(outputTriangles).toBe(8);
   const b = bounds(meshes[0].positions);
   expect(b.max[0] - b.min[0]).toBeCloseTo(0.04, 6);
   expect(() => readModelObjects(stl, "model.obj", new AnalysisBudget())).toThrow(ArInputError);
 });
 
+test("colored data becomes one mesh per color, with the same origin for every color", () => {
+  const threeMf = modelZip(
+    modelXml(
+      basematerialsXml(1, [
+        ["木", "#DAC3A0"],
+        ["黒", "#101010"],
+      ]) + `<object id="2" pid="1" pindex="0">${tetrahedronMeshWith([0, 0, 1, 1])}</object>`,
+      '<item objectid="2"/>',
+    ),
+  );
+  const model = readModelObjects(threeMf, "colored.3mf", new AnalysisBudget());
+  const { meshes, outputTriangles } = buildWorkMeshes(model, 1);
+  expect(outputTriangles).toBe(4);
+  expect(meshes.map((mesh) => mesh.material.name)).toEqual(["木", "黒"]);
+  expect(meshes.map((mesh) => mesh.positions.length / 9)).toEqual([2, 2]);
+  // 色は sRGB からリニアに直して入れる（glTF・USDZ はリニア）
+  expect(meshes[0].material.color).toEqual([...srgbHexToLinear("#DAC3A0")!, 1]);
+  expect(meshes[1].material.color).toEqual([...srgbHexToLinear("#101010")!, 1]);
+
+  // 色で分けても位置はずれない：全体の外形は色を持たないときと同じ
+  const together = bounds([...meshes[0].positions, ...meshes[1].positions]);
+  const single = bounds(buildWorkMeshes(plain(model.objects), 1).meshes[0].positions);
+  for (const axis of [0, 1, 2]) {
+    expect(together.min[axis]).toBeCloseTo(single.min[axis], 6);
+    expect(together.max[axis]).toBeCloseTo(single.max[axis], 6);
+  }
+});
+
+test("too many colors are merged into the plain work color", () => {
+  const colors = Array.from({ length: AR_LIMITS.maxColorGroups + 2 }, (_, i) => [`色${i}`, "#102030"] as const);
+  const objects = colors.map((_, i) => `<object id="${i + 2}" pid="1">${tetrahedronMeshWith(i, i * 20)}</object>`);
+  const threeMf = modelZip(
+    modelXml(
+      basematerialsXml(1, colors) + objects.join(""),
+      colors.map((_, i) => `<item objectid="${i + 2}"/>`).join(""),
+    ),
+  );
+  const model = readModelObjects(threeMf, "many-colors.3mf", new AnalysisBudget());
+  const { meshes } = buildWorkMeshes(model, 1);
+  expect(meshes).toHaveLength(AR_LIMITS.maxColorGroups);
+  // あふれた色は作品用の単色にまとめる
+  expect(meshes.filter((mesh) => mesh.material.name === "work")).toHaveLength(1);
+});
+
+test("data without colors stays a single mesh in the plain work color", () => {
+  const { meshes } = buildWorkMeshes(plain([tetrahedron]), 1);
+  expect(meshes).toHaveLength(1);
+  expect(meshes[0].name).toBe("work");
+  expect(meshes[0].material.color).toEqual(AR_MATERIALS.work);
+});
+
 test("Bambu Studio files that keep the shape in another model file convert at their size", () => {
-  const objects = readModelObjects(bambuStylePackage(), "1_Chair_01.gcode.3mf", new AnalysisBudget());
-  expect(objects).toHaveLength(1);
-  const size = meshSizeMm(buildWorkMeshes(objects, 1).meshes);
+  const model = readModelObjects(bambuStylePackage(), "1_Chair_01.gcode.3mf", new AnalysisBudget());
+  expect(model.objects).toHaveLength(1);
+  const size = meshSizeMm(buildWorkMeshes(model, 1).meshes);
   expect(size.widthMm).toBeCloseTo(10, 3);
   expect(size.depthMm).toBeCloseTo(10, 3);
   expect(size.heightMm).toBeCloseTo(10, 3);
@@ -110,9 +173,9 @@ test("Blender files convert at the AR length of one unit, keep their layout, and
     { name: "Floor", mesh: cubeMesh("Floor"), scale: [1, 1, 0.05] },
     { name: "Chair", mesh: cubeMesh("Chair"), loc: [0, 0, 1] },
   ]);
-  const objects = readModelObjects(blend, "roomfile/matsu_nuiroom.blend", new AnalysisBudget());
-  expect(objects.map((object) => object.name)).toEqual(["Floor", "Chair"]);
-  const size = meshSizeMm(buildWorkMeshes(objects, 1).meshes);
+  const model = readModelObjects(blend, "roomfile/matsu_nuiroom.blend", new AnalysisBudget());
+  expect(model.objects.map((object) => object.name)).toEqual(["Floor", "Chair"]);
+  const size = meshSizeMm(buildWorkMeshes(model, 1).meshes);
   expect(size.widthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 3);
   expect(size.depthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 3);
   // From the bottom of the floor (z = -0.05) to the top of the chair (z = 2)
@@ -124,7 +187,9 @@ test("Blender files convert at the AR length of one unit, keep their layout, and
     { name: "Chair", excluded: true },
     { name: "Floor", excluded: false },
   ]);
-  expect(readModelObjects(blend, "room.blend", new AnalysisBudget(), { excludeObjects: ["Chair"] })).toHaveLength(1);
+  expect(
+    readModelObjects(blend, "room.blend", new AnalysisBudget(), { excludeObjects: ["Chair"] }).objects,
+  ).toHaveLength(1);
 });
 
 test("file extensions and conversion errors are classified for the AR routes", () => {
@@ -185,9 +250,9 @@ test("meshes within the budget are left unchanged", () => {
 });
 
 test("invalid scale ratios and zero-size shapes are rejected", () => {
-  expect(() => buildWorkMeshes([tetrahedron], 0)).toThrow(ArInputError);
-  expect(() => buildWorkMeshes([tetrahedron], Number.NaN)).toThrow(ArInputError);
-  expect(() => buildWorkMeshes([], 1)).toThrow(ArInputError);
+  expect(() => buildWorkMeshes(plain([tetrahedron]), 0)).toThrow(ArInputError);
+  expect(() => buildWorkMeshes(plain([tetrahedron]), Number.NaN)).toThrow(ArInputError);
+  expect(() => buildWorkMeshes(plain([]), 1)).toThrow(ArInputError);
   const collapsed = { positions: new Float64Array(12), indices: tetrahedron.mesh.indices };
   expect(() => decimateToBudget(collapsed, 1)).toThrow(ArInputError);
 });

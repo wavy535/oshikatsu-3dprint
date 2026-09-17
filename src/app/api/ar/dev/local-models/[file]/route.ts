@@ -25,9 +25,9 @@ export async function GET(
 
   const budget = new AnalysisBudget();
   try {
-    const objects = readModelObjects(buffer, local.name, budget, { excludeObjects: local.excludeObjects });
+    const model = readModelObjects(buffer, local.name, budget, { excludeObjects: local.excludeObjects });
     // 手元のファイルは部屋のデータを見るためのものなので、基準点は部屋と同じ奥の左下の角にする
-    const { meshes } = buildWorkMeshes(objects, AR_DEV_PAGE.localModelScale, budget, AR_ANCHOR.room);
+    const { meshes } = buildWorkMeshes(model, AR_DEV_PAGE.localModelScale, budget, AR_ANCHOR.room);
     return local.format === "usdz"
       ? modelResponse(encodeUsdz(meshes), "usdz", false)
       : modelResponse(encodeGlb(meshes), "glb", false);
