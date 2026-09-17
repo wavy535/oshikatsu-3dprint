@@ -20,7 +20,8 @@ type Nui = {
   id: string;
   name: string;
   kind: string;
-  sit_height_mm: number;
+  height_mm: number;
+  sit_height_mm: number | null;
   shoulder_width_mm: number | null;
   hug_width_mm: number | null;
   nui_size_cm: number | null;
@@ -63,8 +64,9 @@ export function NuiRow({ nui }: { nui: Nui }) {
         )}
       </div>
 
-      <dl className={cn("grid grid-cols-3 gap-2 rounded-lg bg-ground/60 p-2.5 text-[11.5px]")}>
+      <dl className={cn("grid grid-cols-4 gap-2 rounded-lg bg-ground/60 p-2.5 text-[11.5px]")}>
         {[
+          ["身長", nui.height_mm],
           ["座高", nui.sit_height_mm],
           ["肩幅", nui.shoulder_width_mm],
           ["抱き幅", nui.hug_width_mm],

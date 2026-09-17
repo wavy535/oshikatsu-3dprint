@@ -1,14 +1,26 @@
+import { networkInterfaces } from "node:os";
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import QRCode from "qrcode";
 import { ImageIcon, MessageSquare, Package, Star, Truck } from "lucide-react";
 
 import { getNuiFit, getWork, getWorkReviewSummary, isFavorited } from "@/lib/works/queries";
 import { getShellContext } from "@/lib/layout/queries";
+import { listMyNuis } from "@/lib/nuis/queries";
+import { AR_DISPLAY } from "@/lib/ar/config";
+import { buildArModelOptions, nuiDimensionsOf, variantForNui } from "@/lib/ar/options";
+import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/origin";
+import { quickLookUrl, workModelPath } from "@/lib/ar/params";
+import { getArWorkSource } from "@/lib/ar/queries";
+import { modelRevision } from "@/lib/ar/revision";
+import { assetVersion } from "@/lib/ar/version";
 import { workImageUrl } from "@/lib/storage";
 import { yen } from "@/components/work/work-card";
 import { Avatar } from "@/components/ui/avatar";
 import { FavoriteButton } from "@/components/work/favorite-button";
 import { AddToCartForm } from "@/components/work/add-to-cart-form";
+import { ArPreview } from "@/components/work/ar-preview";
 import { NuiFitCard } from "@/components/work/nui-fit-card";
 import { cn } from "@/lib/utils";
 
@@ -19,21 +31,51 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 }
 
 /**
+ * 選んだサイズの作品を、スマホの AR で開く QR コード。
+ * 3Dデータがない場合と、スマホから届く URL を作れない場合は null。
+ */
+async function workArQrCode(
+  workId: string,
+  variant: { id: string } | null,
+  source: { storagePath: string } | null,
+) {
+  if (!variant || !source) return null;
+  const requestHeaders = await headers();
+  const phone = phoneReachableOrigin({
+    host: requestHeaders.get("host"),
+    forwardedProto: requestHeaders.get("x-forwarded-proto"),
+    lanAddresses: lanIPv4Addresses(networkInterfaces()),
+  });
+  if (!phone) return null;
+  const url = quickLookUrl(
+    phone.origin,
+    workModelPath(workId, variant.id, assetVersion(source.storagePath), modelRevision(), "usdz"),
+  );
+  return {
+    url,
+    imageDataUrl: await QRCode.toDataURL(url, {
+      width: AR_DISPLAY.qrCodeWidthPx,
+      margin: AR_DISPLAY.qrCodeMargin,
+    }),
+  };
+}
+
+/**
  * Figma ①購入フロー「作品詳細 46:1738」。
  * 左が画像と説明、右の InfoPanel が
  * 価格 → サイズ選択 → 相性 → CTA → 発送サマリ → クリエイター → レビュー → Q&A の順。
  *
- * 選択中のサイズは URL の `?size=` が持つ。サーバー側で組み立てるので、
- * 相性判定も選択に合わせて出し直せる。
+ * 選択中のサイズは URL の `?size=`、AR に出すぬいは `?nui=` が持つ。サーバー側で組み立てるので、
+ * 相性判定も AR も選択に合わせて出し直せる。
  */
 export default async function WorkDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ size?: string }>;
+  searchParams: Promise<{ size?: string; nui?: string }>;
 }) {
-  const [{ id }, { size }] = await Promise.all([params, searchParams]);
+  const [{ id }, { size, nui: nuiId }] = await Promise.all([params, searchParams]);
   const work = await getWork(id);
   if (!work || work.status !== "published") notFound();
 
@@ -41,11 +83,41 @@ export default async function WorkDetailPage({
   const variants = work.work_variants;
   const selected = variants.find((v) => v.id === size) ?? variants[0] ?? null;
 
-  const [review, fit, favorited] = await Promise.all([
+  const [review, fit, favorited, myNuis] = await Promise.all([
     getWorkReviewSummary(work.id),
     selected && shell.mainNui ? getNuiFit(selected.id, shell.mainNui.id) : Promise.resolve(null),
     shell.user ? isFavorited(work.id, shell.user.id) : Promise.resolve(false),
+    shell.user ? listMyNuis() : Promise.resolve([]),
   ]);
+
+  // AR（実寸表示）。ぬいを選んでいればそのぬいに合うサイズの作品を出し、選んでいなければ選択中のサイズ
+  const arNui = myNuis.find((candidate) => candidate.id === nuiId) ?? null;
+  const arVariant = arNui ? variantForNui(variants, arNui) : selected;
+  const arSource = arVariant ? await getArWorkSource(work.id, arVariant.id) : null;
+  const roomNui = arNui ?? myNuis.find((candidate) => candidate.is_main) ?? null;
+  const ar = buildArModelOptions({
+    workId: work.id,
+    variantId: arVariant?.id ?? null,
+    assetVersion: arSource ? assetVersion(arSource.storagePath) : null,
+    signedIn: Boolean(shell.user),
+    nui: roomNui ? nuiDimensionsOf(roomNui) : null,
+  });
+  // 選んだぬいのサイズの作品を、スマホの AR で開く QR コード（iPhone は読むだけで Quick Look が起動する）
+  const arQr = arNui ? await workArQrCode(work.id, arVariant, arSource) : null;
+  const detailQuery = new URLSearchParams(selected ? { size: selected.id } : {});
+  const nuiChoices = myNuis.map((candidate) => ({
+    id: candidate.id,
+    label:
+      candidate.nui_size_cm === null
+        ? candidate.name
+        : `${candidate.name}（${Number(candidate.nui_size_cm)}cm）`,
+  }));
+  // サイズを選び直しても、AR に出すぬいは持ち回る
+  const sizeHref = (variantId: string) => {
+    const query = new URLSearchParams({ size: variantId });
+    if (arNui) query.set("nui", arNui.id);
+    return `/works/${work.id}?${query}`;
+  };
 
   const creator = work.profiles;
   const images = work.work_images;
@@ -141,7 +213,7 @@ export default async function WorkDetailPage({
                 return (
                   <Link
                     key={v.id}
-                    href={`/works/${work.id}?size=${v.id}`}
+                    href={sizeHref(v.id)}
                     scroll={false}
                     className={cn(
                       "flex min-w-[86px] flex-col items-center gap-0.5 rounded-lg border px-3 py-2 text-center transition-colors",
@@ -161,6 +233,21 @@ export default async function WorkDetailPage({
               })}
             </div>
           </div>
+
+          {/* AR で実寸を見る（ぬいを選べばそのぬいに合うサイズ、選ばなければ選択中のサイズ） */}
+          <ArPreview
+            options={ar.options}
+            sizeLabel={arVariant?.size_label ?? null}
+            interiorMm={ar.interiorMm}
+            roomUnavailable={ar.roomUnavailable}
+            signedIn={Boolean(shell.user)}
+            nuis={nuiChoices}
+            selectedNuiId={arNui?.id ?? null}
+            basePath={`/works/${work.id}`}
+            baseQuery={detailQuery.toString()}
+            qr={arQr}
+            qrUnavailable={arNui ? (arVariant ? (arSource ? null : "no_model") : "no_size") : null}
+          />
 
           {/* マイぬいとの相性 */}
           <NuiFitCard

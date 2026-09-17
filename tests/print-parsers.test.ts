@@ -5,7 +5,15 @@ import { parseStl } from "@/lib/print/stl";
 import { analyzeModelFile } from "@/lib/print";
 import { extractZipFile, listZipEntries } from "@/lib/print/zip";
 import { MODEL_LIMITS, ModelLimitError } from "@/lib/print/limits";
-import { modelZip, modelXml, tetrahedronMesh } from "./helpers/model-files";
+import {
+  PRODUCTION_NAMESPACE,
+  bambuStylePackage,
+  modelPackage,
+  modelZip,
+  modelXml,
+  productionModelXml,
+  tetrahedronMesh,
+} from "./helpers/model-files";
 
 function changeDirectory(buf: Buffer, offset: number, value: number) {
   const directory = buf.readUInt32LE(buf.length - 6);
@@ -150,5 +158,141 @@ describe("3MF component expansion", () => {
         modelZip(modelXml(undefined, '<item objectid="1" transform="1 2 3"/>')),
       ),
     ).toThrow(/変換行列/);
+  });
+});
+
+describe("3MF production extension (p:path)", () => {
+  const referencing = (id: string, path: string, objectid = "1") =>
+    `<object id="${id}"><components><component p:path="${path}" objectid="${objectid}"/></components></object>`;
+  const objectFile = (resources = `<object id="1">${tetrahedronMesh}</object>`, unit = "millimeter") =>
+    productionModelXml(resources, "", PRODUCTION_NAMESPACE, unit);
+
+  test("components that point into another model file are expanded with both transforms", () => {
+    const pkg = bambuStylePackage({
+      componentTransform: "1 0 0 0 1 0 0 0 1 0 0 5",
+      itemTransform: "1 0 0 0 1 0 0 0 1 100 0 0",
+    });
+    const doc = parseThreeMf(pkg);
+    expect(doc.objects).toHaveLength(1);
+    // The vertex (10, 0, 0) moves by the component (z + 5), then by the build item (x + 100).
+    expect([...doc.objects[0].mesh.positions.subarray(3, 6)]).toEqual([110, 0, 5]);
+    const analysis = analyzeModelFile(pkg, { fileName: "1_Chair_01.gcode.3mf" });
+    expect(analysis.triangleCount).toBe(4);
+    expect(analysis.objects[0].isManifold).toBe(true);
+  });
+
+  test("build items may point into another model file, and paths ignore case", () => {
+    const pkg = modelPackage({
+      "3D/3dmodel.model": productionModelXml(
+        "",
+        '<item objectid="7" p:path="/3d/objects/PART.model"/>',
+      ),
+      "3D/Objects/part.model": objectFile(`<object id="7">${tetrahedronMesh}</object>`),
+    });
+    expect(parseThreeMf(pkg).objects).toHaveLength(1);
+  });
+
+  test("the prefix of the production namespace is taken from its declaration", () => {
+    const namespace =
+      'xmlns:prod="http://schemas.microsoft.com/3dmanufacturing/production/2015/06"';
+    const pkg = modelPackage({
+      "3D/3dmodel.model": productionModelXml(
+        referencing("2", "/3D/Objects/a.model").replace("p:path", "prod:path"),
+        '<item objectid="2"/>',
+        namespace,
+      ),
+      "3D/Objects/a.model": productionModelXml(
+        `<object id="1">${tetrahedronMesh}</object>`,
+        "",
+        namespace,
+      ),
+    });
+    expect(parseThreeMf(pkg).objects).toHaveLength(1);
+  });
+
+  test("missing model files, missing objects and references from non-root files fail", () => {
+    const root = (resources: string) =>
+      productionModelXml(resources, '<item objectid="2"/>');
+    expect(() =>
+      parseThreeMf(
+        modelPackage({ "3D/3dmodel.model": root(referencing("2", "/3D/Objects/missing.model")) }),
+      ),
+    ).toThrow(/参照しているモデル/);
+    expect(() =>
+      parseThreeMf(
+        modelPackage({
+          "3D/3dmodel.model": root(referencing("2", "/3D/Objects/a.model", "9")),
+          "3D/Objects/a.model": objectFile(),
+        }),
+      ),
+    ).toThrow(/存在しない/);
+    expect(() =>
+      parseThreeMf(
+        modelPackage({
+          "3D/3dmodel.model": root(referencing("2", "/3D/Objects/a.model")),
+          "3D/Objects/a.model": objectFile(
+            `<object id="1">${tetrahedronMesh}</object>${referencing("3", "/3D/Objects/b.model")}`,
+          ),
+          "3D/Objects/b.model": objectFile(),
+        }),
+      ),
+    ).toThrow(/さらに別のファイル/);
+  });
+
+  test("each model file converts its own unit, and colors stay within the file that defines them", () => {
+    const pkg = modelPackage({
+      "3D/3dmodel.model": productionModelXml(
+        '<basematerials id="5"><base name="blue" displaycolor="#0000FF"/></basematerials>' +
+          referencing("2", "/3D/Objects/a.model"),
+        '<item objectid="2"/>',
+      ),
+      "3D/Objects/a.model": objectFile(
+        '<basematerials id="5"><base name="red" displaycolor="#FF0000"/></basematerials>' +
+          `<object id="1" pid="5" pindex="0">${tetrahedronMesh}</object>`,
+        "centimeter",
+      ),
+    });
+    const doc = parseThreeMf(pkg);
+    expect(doc.declaredUnit).toBe("millimeter");
+    expect(doc.objects[0].mesh.positions[3]).toBe(100);
+    expect(doc.materials.map((m) => [m.name, m.faceCount])).toEqual([
+      ["blue", 0],
+      ["red", 4],
+    ]);
+  });
+
+  test("the triangle limit adds up the meshes of every model file", () => {
+    const triangles = '<triangle v1="0" v2="2" v3="1"/>'.repeat(
+      MODEL_LIMITS.triangles / 2 + 1,
+    );
+    const mesh = tetrahedronMesh.replace(
+      /<triangles>[\s\S]*<\/triangles>/,
+      `<triangles>${triangles}</triangles>`,
+    );
+    const pkg = modelPackage({
+      "3D/3dmodel.model": productionModelXml(
+        referencing("2", "/3D/Objects/a.model") + referencing("3", "/3D/Objects/b.model"),
+        '<item objectid="2"/><item objectid="3"/>',
+      ),
+      "3D/Objects/a.model": objectFile(`<object id="1">${mesh}</object>`),
+      "3D/Objects/b.model": objectFile(`<object id="1">${mesh}</object>`),
+    });
+    expect(() => parseThreeMf(pkg)).toThrow(ModelLimitError);
+  });
+
+  test("the expanded XML limit covers every model file together", () => {
+    const rootXml = productionModelXml(
+      referencing("2", "/3D/Objects/a.model"),
+      '<item objectid="2"/>',
+    );
+    const pkg = modelPackage({
+      "3D/3dmodel.model": rootXml,
+      "3D/Objects/a.model": objectFile(),
+    });
+    // Declare the second file one byte larger than what the root model leaves of the limit.
+    const directory = pkg.readUInt32LE(pkg.length - 6);
+    const second = directory + 46 + Buffer.byteLength("3D/3dmodel.model");
+    pkg.writeUInt32LE(MODEL_LIMITS.xmlBytes - Buffer.byteLength(rootXml) + 1, second + 24);
+    expect(() => parseThreeMf(pkg)).toThrow(ModelLimitError);
   });
 });

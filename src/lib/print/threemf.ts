@@ -5,7 +5,7 @@ import {
   checkModelFileSize,
   checkMeshSize,
 } from "./limits.ts";
-import { extractZipFile } from "./zip.ts";
+import { findZipEntry, listZipEntries, readZipEntry, type ZipEntry } from "./zip.ts";
 import {
   applyTransform,
   validateMesh,
@@ -17,6 +17,8 @@ import {
 } from "./mesh.ts";
 
 // 3MF は ZIP の中に 3D/3dmodel.model（XML）が入っている。
+// Bambu Studio などは形状を 3D/Objects/*.model に分け、ルートのモデルから
+// Production 拡張の p:path で参照する（仕様上、参照できるのはルートのモデルからだけ）。
 // 汎用の XML パーサを積むと 313,348 三角形のようなファイルで重くなるので、
 // 必要なタグだけを走査する軽量スキャナで読む。
 
@@ -37,6 +39,10 @@ export type ThreeMfDocument = {
   objects: NamedMesh[];
   materials: ThreeMfMaterial[];
 };
+
+const ROOT_MODEL_PATH = "/3D/3dmodel.model";
+const PRODUCTION_NAMESPACE =
+  "http://schemas.microsoft.com/3dmanufacturing/production/2015/06";
 
 const UNIT_TO_MM: Record<string, number> = {
   micron: 0.001,
@@ -119,14 +125,47 @@ function eachTag(
   }
 }
 
+// component と build の item が指す先。path は p:path（別のモデルファイル）で、同じファイルなら null
+type ObjectReference = {
+  objectid: string;
+  path: string | null;
+  transform: Matrix4x3 | null;
+};
+
 type RawObject = {
   id: string;
   name: string;
   pid: string | null;
   pindex: number | null;
   mesh: Mesh | null;
-  components: { objectid: string; transform: Matrix4x3 | null }[];
+  components: ObjectReference[];
 };
+
+// パッケージ内のモデルファイル1つ分（ルート、または p:path の参照先）
+type ModelPart = {
+  key: string;
+  declaredUnit: string | null;
+  // Production 拡張の path 属性の名前（"p:path" など）。名前空間の宣言がなければ null
+  pathAttr: string | null;
+  objects: Map<string, RawObject>;
+};
+
+// モデルファイルをまたいで数える上限と、色定義の置き場所
+type ParseState = {
+  buf: Buffer;
+  entries: ZipEntry[];
+  budget: AnalysisBudget;
+  xmlBytesLeft: number;
+  counts: { vertices: number; triangles: number };
+  objectCount: number;
+  componentCount: number;
+  materials: ThreeMfMaterial[];
+  // `${ファイル}|${groupId}:${index}` -> materials の添字
+  materialKey: Map<string, number>;
+};
+
+// ZIP のエントリ名は先頭の / を持たず、大文字小文字は区別しない
+const partKey = (path: string) => path.replace(/^\/+/, "").toLowerCase();
 
 function parseMeshBlock(
   xml: string,
@@ -190,30 +229,25 @@ function parseMeshBlock(
   };
 }
 
-export function parseThreeMf(
-  buf: Buffer,
-  budget = new AnalysisBudget(),
-): ThreeMfDocument {
-  checkModelFileSize(buf.length);
-  const modelBuf = extractZipFile(buf, "3D/3dmodel.model");
-  if (!modelBuf) {
-    throw new ThreeMfParseError("3MF の中に 3D/3dmodel.model がありません");
+// Production 拡張の名前空間に付けた接頭辞から、path 属性の名前を決める
+function productionPathAttr(modelTag: string): string | null {
+  for (const match of modelTag.matchAll(/xmlns:([\w.-]+)\s*=\s*(["'])(.*?)\2/g)) {
+    if (match[3] === PRODUCTION_NAMESPACE) return `${match[1]}:path`;
   }
-  const xml = modelBuf.toString("utf8");
+  return null;
+}
 
-  // <model> の unit
-  const modelAt = xml.indexOf("<model");
-  if (modelAt === -1)
-    throw new ThreeMfParseError("<model> 要素が見つかりません");
-  const modelTag = readTag(xml, modelAt + 6);
-  const declaredUnit = modelTag ? (attr(modelTag.body, "unit") ?? null) : null;
-  const unitScale = declaredUnit ? UNIT_TO_MM[declaredUnit] : 1;
-  if (!unitScale) throw new ThreeMfParseError("3MFの単位に対応していません");
+/** パッケージ内のモデルファイルを読む。展開後の大きさはファイルをまたいで上限を数える */
+function readModelXml(state: ParseState, path: string): string | null {
+  const entry = findZipEntry(state.entries, partKey(path));
+  if (!entry) return null;
+  const data = readZipEntry(state.buf, entry, state.xmlBytesLeft);
+  state.xmlBytesLeft -= data.length;
+  return data.toString("utf8");
+}
 
-  // 色定義：basematerials（コア）と colorgroup（materials 拡張）の両方を見る
-  const materials: ThreeMfMaterial[] = [];
-  const materialKey = new Map<string, number>(); // `${groupId}:${index}` -> materials の添字
-
+// 色定義：basematerials（コア）と colorgroup（materials 拡張）の両方を見る
+function collectMaterials(xml: string, fileKey: string, state: ParseState) {
   const collectGroup = (
     openTag: string,
     childTag: string,
@@ -231,12 +265,15 @@ export function parseThreeMf(
       eachTag(xml, childTag, head.end, stop, (hit) => {
         const raw = attr(hit.body, colorAttr) ?? "#CCCCCC";
         const hex = ("#" + raw.replace("#", "").slice(0, 6)).toUpperCase();
-        if (materials.length >= MODEL_LIMITS.materials)
+        if (state.materials.length >= MODEL_LIMITS.materials)
           throw new ModelLimitError("3MFの色定義が多すぎます");
-        materialKey.set(`${groupId}:${localIndex}`, materials.length);
-        materials.push({
-          index: materials.length,
-          name: attr(hit.body, "name") ?? `色 ${materials.length + 1}`,
+        state.materialKey.set(
+          `${fileKey}|${groupId}:${localIndex}`,
+          state.materials.length,
+        );
+        state.materials.push({
+          index: state.materials.length,
+          name: attr(hit.body, "name") ?? `色 ${state.materials.length + 1}`,
           hex,
           faceCount: 0,
         });
@@ -249,17 +286,35 @@ export function parseThreeMf(
   collectGroup("<basematerials", "base", "</basematerials>", "displaycolor");
   collectGroup("<m:colorgroup", "m:color", "</m:colorgroup>", "color");
   collectGroup("<colorgroup", "color", "</colorgroup>", "color");
+}
+
+function parseModelPart(
+  xml: string,
+  path: string,
+  isRoot: boolean,
+  state: ParseState,
+): ModelPart {
+  // <model> の unit
+  const modelAt = xml.indexOf("<model");
+  if (modelAt === -1)
+    throw new ThreeMfParseError("<model> 要素が見つかりません");
+  const modelTag = readTag(xml, modelAt + 6);
+  const declaredUnit = modelTag ? (attr(modelTag.body, "unit") ?? null) : null;
+  const unitScale = declaredUnit ? UNIT_TO_MM[declaredUnit] : 1;
+  if (!unitScale) throw new ThreeMfParseError("3MFの単位に対応していません");
+  const pathAttr = modelTag ? productionPathAttr(modelTag.body) : null;
+  const key = partKey(path);
+
+  collectMaterials(xml, key, state);
 
   // オブジェクト
   const objects = new Map<string, RawObject>();
-  const counts = { vertices: 0, triangles: 0 };
-  let componentCount = 0;
   let oAt = xml.indexOf("<object");
   while (oAt !== -1) {
     const head = readTag(xml, oAt + 7);
     if (!head) break;
-    budget.check();
-    if (objects.size >= MODEL_LIMITS.resources)
+    state.budget.check();
+    if (state.objectCount >= MODEL_LIMITS.resources)
       throw new ModelLimitError("3MFのオブジェクト定義が多すぎます");
     const id = attr(head.body, "id") ?? "";
     if (!id || objects.has(id))
@@ -280,13 +335,19 @@ export function parseThreeMf(
       if (oEnd === -1)
         throw new ThreeMfParseError("3MFのobject要素が閉じられていません");
       const stop = oEnd;
-      raw.mesh = parseMeshBlock(xml, head.end, stop, unitScale, counts, budget);
+      raw.mesh = parseMeshBlock(xml, head.end, stop, unitScale, state.counts, state.budget);
       if (raw.mesh) validateMesh(raw.mesh);
       eachTag(xml, "component", head.end, stop, (hit) => {
-        if (++componentCount > MODEL_LIMITS.components)
+        if (++state.componentCount > MODEL_LIMITS.components)
           throw new ModelLimitError("3MFの部品参照が多すぎます");
+        const target = pathAttr ? (attr(hit.body, pathAttr) ?? null) : null;
+        if (target !== null && !isRoot)
+          throw new ThreeMfParseError(
+            "3MFの参照先のモデルから、さらに別のファイルは参照できません",
+          );
         raw.components.push({
           objectid: attr(hit.body, "objectid") ?? "",
+          path: target,
           transform: parseTransform(attr(hit.body, "transform")),
         });
       });
@@ -295,26 +356,91 @@ export function parseThreeMf(
       oAt = xml.indexOf("<object", head.end);
     }
 
-    if (id) objects.set(id, raw);
+    objects.set(id, raw);
+    state.objectCount++;
   }
 
-  if (objects.size === 0)
+  return { key, declaredUnit, pathAttr, objects };
+}
+
+function parseBuildItems(xml: string, pathAttr: string | null): ObjectReference[] {
+  const items: ObjectReference[] = [];
+  const bStart = xml.indexOf("<build");
+  if (bStart === -1) return items;
+  const bEnd = xml.indexOf("</build>", bStart);
+  eachTag(xml, "item", bStart, bEnd === -1 ? xml.length : bEnd, (hit) => {
+    const objectid = attr(hit.body, "objectid");
+    if (!objectid)
+      throw new ThreeMfParseError("3MFのbuildにオブジェクトIDがありません");
+    items.push({
+      objectid,
+      path: pathAttr ? (attr(hit.body, pathAttr) ?? null) : null,
+      transform: parseTransform(attr(hit.body, "transform")),
+    });
+  });
+  return items;
+}
+
+export function parseThreeMf(
+  buf: Buffer,
+  budget = new AnalysisBudget(),
+): ThreeMfDocument {
+  checkModelFileSize(buf.length);
+  const state: ParseState = {
+    buf,
+    entries: listZipEntries(buf),
+    budget,
+    xmlBytesLeft: MODEL_LIMITS.xmlBytes,
+    counts: { vertices: 0, triangles: 0 },
+    objectCount: 0,
+    componentCount: 0,
+    materials: [],
+    materialKey: new Map(),
+  };
+
+  const rootXml = readModelXml(state, ROOT_MODEL_PATH);
+  if (rootXml === null) {
+    throw new ThreeMfParseError("3MF の中に 3D/3dmodel.model がありません");
+  }
+  const root = parseModelPart(rootXml, ROOT_MODEL_PATH, true, state);
+  const items = parseBuildItems(rootXml, root.pathAttr);
+
+  // p:path で参照されたモデルファイルを、展開の前にすべて読む
+  const parts = new Map<string, ModelPart>([[root.key, root]]);
+  const references = [
+    ...items,
+    ...[...root.objects.values()].flatMap((o) => o.components),
+  ];
+  for (const { path } of references) {
+    if (path === null || parts.has(partKey(path))) continue;
+    const xml = readModelXml(state, path);
+    if (xml === null)
+      throw new ThreeMfParseError(`3MFが参照しているモデル（${path}）がありません`);
+    parts.set(partKey(path), parseModelPart(xml, path, false, state));
+  }
+  // ルートの resources が空でも、build の item が別のファイルのオブジェクトを指していればよい
+  if (state.objectCount === 0)
     throw new ThreeMfParseError("3MF にオブジェクトが含まれていません");
+  const partOf = (from: ModelPart, path: string | null) =>
+    path === null ? from : parts.get(partKey(path))!;
 
   // 色スロットごとの面数を数える（どの色が主役かを出すため）
-  for (const o of objects.values()) {
-    if (!o.mesh) continue;
-    const groupId = o.pid ?? "";
-    if (o.mesh.materialIndices) {
-      for (const p of o.mesh.materialIndices) {
-        if (p < 0) continue;
-        const hit = materialKey.get(`${groupId}:${p}`);
-        if (hit !== undefined) materials[hit].faceCount++;
+  const { materials, materialKey } = state;
+  for (const part of parts.values()) {
+    for (const o of part.objects.values()) {
+      if (!o.mesh) continue;
+      const groupId = `${part.key}|${o.pid ?? ""}`;
+      if (o.mesh.materialIndices) {
+        for (const p of o.mesh.materialIndices) {
+          if (p < 0) continue;
+          const hit = materialKey.get(`${groupId}:${p}`);
+          if (hit !== undefined) materials[hit].faceCount++;
+        }
+      } else if (o.pindex !== null) {
+        const hit = materialKey.get(`${groupId}:${o.pindex}`);
+        if (hit !== undefined)
+          materials[hit].faceCount += o.mesh.indices.length / 3;
       }
-    } else if (o.pindex !== null) {
-      const hit = materialKey.get(`${groupId}:${o.pindex}`);
-      if (hit !== undefined)
-        materials[hit].faceCount += o.mesh.indices.length / 3;
     }
   }
 
@@ -339,6 +465,7 @@ export function parseThreeMf(
   };
 
   const expand = (
+    part: ModelPart,
     objectId: string,
     transform: Matrix4x3 | null,
     depth: number,
@@ -349,9 +476,10 @@ export function parseThreeMf(
       ++expansions > MODEL_LIMITS.components
     )
       throw new ModelLimitError("3MFの部品階層が複雑すぎます");
-    if (active.has(objectId))
+    const activeKey = `${part.key}#${objectId}`;
+    if (active.has(activeKey))
       throw new ThreeMfParseError("3MFの部品参照が循環しています");
-    const o = objects.get(objectId);
+    const o = part.objects.get(objectId);
     if (!o)
       throw new ThreeMfParseError(
         "3MFに存在しないオブジェクトが参照されています",
@@ -362,32 +490,27 @@ export function parseThreeMf(
     }
     if (o.components.length === 0)
       throw new ThreeMfParseError("3MFに空のオブジェクトが参照されています");
-    active.add(objectId);
+    active.add(activeKey);
     for (const c of o.components) {
       const next =
         transform && c.transform
           ? multiplyTransform(c.transform, transform)
           : (c.transform ?? transform);
-      expand(c.objectid, next, depth + 1);
+      expand(partOf(part, c.path), c.objectid, next, depth + 1);
     }
-    active.delete(objectId);
+    active.delete(activeKey);
   };
 
-  const bStart = xml.indexOf("<build");
-  if (bStart !== -1) {
-    const bEnd = xml.indexOf("</build>", bStart);
-    eachTag(xml, "item", bStart, bEnd === -1 ? xml.length : bEnd, (hit) => {
-      const objectid = attr(hit.body, "objectid");
-      if (!objectid)
-        throw new ThreeMfParseError("3MFのbuildにオブジェクトIDがありません");
-      expand(objectid, parseTransform(attr(hit.body, "transform")), 0);
-    });
+  for (const item of items) {
+    expand(partOf(root, item.path), item.objectid, item.transform, 0);
   }
 
   // build に載っていないメッシュも取りこぼさない（エクスポータによっては省略される）
   if (built.length === 0) {
-    for (const o of objects.values()) {
-      if (o.mesh) append(o, null);
+    for (const part of parts.values()) {
+      for (const o of part.objects.values()) {
+        if (o.mesh) append(o, null);
+      }
     }
   }
 
@@ -397,8 +520,8 @@ export function parseThreeMf(
   return {
     format: "3mf",
     unit: "mm",
-    unitDeclared: declaredUnit !== null,
-    declaredUnit,
+    unitDeclared: root.declaredUnit !== null,
+    declaredUnit: root.declaredUnit,
     objects: built,
     materials: materials.filter(
       (m) => m.faceCount > 0 || materials.length <= 8,

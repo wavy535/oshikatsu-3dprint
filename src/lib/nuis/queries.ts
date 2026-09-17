@@ -12,6 +12,7 @@ export async function listMyNuis() {
         "nui_profiles.id",
         "nui_profiles.name",
         "nui_profiles.kind",
+        "nui_profiles.height_mm",
         "nui_profiles.sit_height_mm",
         "nui_profiles.shoulder_width_mm",
         "nui_profiles.hug_width_mm",

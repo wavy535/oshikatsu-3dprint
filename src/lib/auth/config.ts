@@ -6,6 +6,7 @@ import { emailOTP, phoneNumber } from "better-auth/plugins";
 import { getPool } from "@/lib/db/pool";
 import { sendMail } from "@/lib/mail/send";
 import { siteUrl } from "@/lib/site";
+import { developmentTrustedOrigins } from "./dev-origins";
 import { sendPhoneOtp } from "./sms";
 
 const timestamps = { createdAt: "created_at", updatedAt: "updated_at" };
@@ -17,6 +18,8 @@ function createAuth() {
   return betterAuth({
     appName: "OshiNest",
     baseURL: siteUrl(),
+    // 開発中は、同じ LAN の端末（QR コードから開いたスマホなど）からのログインも受け付ける
+    trustedOrigins: developmentTrustedOrigins,
     secret,
     database: getPool("auth"),
     advanced: {

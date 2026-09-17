@@ -10,15 +10,16 @@ import { getOptionalUser } from "@/lib/auth/guards";
 export type NuiActionState = { error: string | null };
 
 /**
- * 採寸値。相性判定（nui_fit_axes）はこの3つだけを見るので、
- * 座高は必須、肩幅と抱き幅は任意にしてある（未入力の軸は unknown 判定になる）。
- * サイズ区分（nui_size_cm）は座高からトリガーが埋めるので入力させない。
+ * 採寸値。必須は身長だけで、座高・肩幅・抱き幅は任意にしてある。
+ * 相性判定（nui_fit_axes）と AR は、入力がない値を身長から推定する（nui_sit_height_mm / nui_width_mm）。
+ * サイズ区分（nui_size_cm）は身長からトリガーが埋めるので入力させない。
  */
 const nuiSchema = z.object({
   id: z.uuid().optional(),
   name: z.string().min(1, "名前を入力してください").max(40),
   kind: z.enum(["plush", "acrylic_stand", "figure", "other"]),
-  sitHeightMm: z.coerce.number().positive("座高を入力してください").max(1000),
+  heightMm: z.coerce.number().positive("身長を入力してください").max(1000),
+  sitHeightMm: z.coerce.number().positive().max(1000).optional(),
   shoulderWidthMm: z.coerce.number().positive().max(1000).optional(),
   hugWidthMm: z.coerce.number().positive().max(1000).optional(),
 });
@@ -32,6 +33,7 @@ function parse(formData: FormData) {
     id: formData.get("id") || undefined,
     name: formData.get("name"),
     kind: formData.get("kind"),
+    heightMm: num("heightMm"),
     sitHeightMm: num("sitHeightMm"),
     shoulderWidthMm: num("shoulderWidthMm"),
     hugWidthMm: num("hugWidthMm"),
@@ -55,7 +57,8 @@ export async function saveNuiAction(
   const values = {
     name: parsed.data.name,
     kind: parsed.data.kind,
-    sit_height_mm: parsed.data.sitHeightMm,
+    height_mm: parsed.data.heightMm,
+    sit_height_mm: parsed.data.sitHeightMm ?? null,
     shoulder_width_mm: parsed.data.shoulderWidthMm ?? null,
     hug_width_mm: parsed.data.hugWidthMm ?? null,
   };

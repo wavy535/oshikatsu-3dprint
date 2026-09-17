@@ -1,0 +1,73 @@
+import { nuiSearchParams, parseNuiQuery, roomModelPath, workModelPath } from "./params.ts";
+import { modelRevision } from "./revision.ts";
+import { ROOM_LAYOUTS, roomInteriorMm, type NuiDimensions, type RoomLayout } from "./room.ts";
+
+/** nui_profiles の行を採寸値にする（numeric 列が文字列で届いても数値にそろえる） */
+export function nuiDimensionsOf(profile: {
+  height_mm: number | string;
+  sit_height_mm: number | string | null;
+  shoulder_width_mm: number | string | null;
+  hug_width_mm: number | string | null;
+}): NuiDimensions {
+  const optional = (value: number | string | null) => (value === null ? null : Number(value));
+  return {
+    heightMm: Number(profile.height_mm),
+    sitHeightMm: optional(profile.sit_height_mm),
+    shoulderWidthMm: optional(profile.shoulder_width_mm),
+    hugWidthMm: optional(profile.hug_width_mm),
+  };
+}
+
+export type ArModelKind = "work" | RoomLayout;
+export type ArModelOption = { kind: ArModelKind; src: string };
+export type RoomUnavailableReason = "signed_out" | "no_nui" | "out_of_range";
+
+/** ぬいのサイズ区分（nui_size_cm）に合う作品のサイズ。同じ区分がなければ null */
+export function variantForNui<T extends { nui_size_cm: number | string | null }>(
+  variants: readonly T[],
+  nui: { nui_size_cm: number | string | null },
+): T | null {
+  if (nui.nui_size_cm === null) return null;
+  const size = Number(nui.nui_size_cm);
+  return variants.find((variant) => variant.nui_size_cm !== null && Number(variant.nui_size_cm) === size) ?? null;
+}
+
+/**
+ * 作品詳細で AR に出せるモデルの一覧。
+ * 作品の3Dデータがあれば作品を、メインのぬいの採寸値があれば仮の部屋2種を並べる。
+ */
+export function buildArModelOptions(input: {
+  workId: string;
+  variantId: string | null;
+  assetVersion: string | null;
+  signedIn: boolean;
+  nui: NuiDimensions | null;
+}) {
+  const options: ArModelOption[] = [];
+  const revision = modelRevision();
+  if (input.variantId && input.assetVersion) {
+    options.push({
+      kind: "work",
+      src: workModelPath(input.workId, input.variantId, input.assetVersion, revision),
+    });
+  }
+
+  const roomUnavailable = roomUnavailableReason(input.signedIn, input.nui);
+  if (roomUnavailable === null && input.nui) {
+    for (const layout of ROOM_LAYOUTS) {
+      options.push({ kind: layout, src: roomModelPath(layout, input.nui, revision) });
+    }
+  }
+  return {
+    options,
+    roomUnavailable,
+    interiorMm: roomUnavailable === null && input.nui ? roomInteriorMm(input.nui) : null,
+  };
+}
+
+function roomUnavailableReason(signedIn: boolean, nui: NuiDimensions | null): RoomUnavailableReason | null {
+  if (!signedIn) return "signed_out";
+  if (!nui) return "no_nui";
+  // URL で受け取れない値（範囲外）の部屋は、表示しても読み込めないので出さない
+  return parseNuiQuery(nuiSearchParams(nui)) ? null : "out_of_range";
+}

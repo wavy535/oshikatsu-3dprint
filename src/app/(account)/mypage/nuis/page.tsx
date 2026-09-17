@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "マイぬい" };
 
-/** Figma ④マイページ「マイぬい」。採寸値が作品との相性判定の基準になる。 */
+/** Figma ④マイページ「マイぬい」。採寸値（必須は身長だけ）が作品との相性判定の基準になる。 */
 export default async function NuisPage() {
   const nuis = await listMyNuis();
 

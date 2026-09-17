@@ -313,7 +313,7 @@ export interface Database {
     user_id: string;
     name: string;
     kind: Generated<DbEnums["nui_kind"]>;
-    sit_height_mm: number;
+    sit_height_mm: Generated<number | null>;
     shoulder_width_mm: Generated<number | null>;
     hug_width_mm: Generated<number | null>;
     nui_size_cm: Generated<number | null>;
@@ -321,6 +321,7 @@ export interface Database {
     has_scan: Generated<boolean>;
     created_at: Generated<string>;
     updated_at: Generated<string>;
+    height_mm: number;
   };
   nui_scans: {
     id: Generated<string>;
@@ -910,6 +911,10 @@ export interface DbFunctions {
   nui_fit_axes: { Args: { p_variant_id : string; p_nui_id : string }; Returns: { axis: string; slot_mm: number; nui_mm: number; margin_mm: number; verdict: DbEnums["fit_verdict"] }[] };
   nui_fit_for_work: { Args: { p_work_id : string; p_nui_id : string }; Returns: { variant_id: string; size_label: string; nui_size_cm: number; price_jpy: number; is_listed: boolean; verdict: DbEnums["fit_verdict"]; note: string }[] };
   nui_fit_verdict: { Args: { p_variant_id : string; p_nui_id : string }; Returns: DbEnums["fit_verdict"] };
+  nui_sit_height_mm: { Args: { n : Selectable<Database["nui_profiles"]> }; Returns: number };
+  nui_sit_height_ratio: { Args: Record<string, never>; Returns: number };
+  nui_width_mm: { Args: { n : Selectable<Database["nui_profiles"]> }; Returns: number };
+  nui_width_ratio: { Args: Record<string, never>; Returns: number };
   order_actual_print_cost: { Args: { p_order_id : string }; Returns: number };
   order_has_creator_items: { Args: { p_order_id : string; p_creator_id : string }; Returns: boolean };
   order_item_settlement_amounts: { Args: { p_order_id : string }; Returns: { item_id: string; fee_amount: number; payout_amount: number }[] };
