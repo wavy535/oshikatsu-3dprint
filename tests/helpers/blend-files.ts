@@ -28,6 +28,18 @@ const COMMON_STRUCTS: Record<string, MemberDef[]> = {
   Attribute: [["char", "*name"], ["short", "data_type"], ["int8_t", "domain"], ["int8_t", "storage_type"], ["int", "_pad"], ["void", "*data"]],
   AttributeArray: [["void", "*data"], ["void", "*sharing_info"], ["int64_t", "size"]],
   AttributeStorage: [["Attribute", "*dna_attributes"], ["int", "dna_attributes_num"], ["int", "_pad"]],
+  Material: [["ID", "id"], ["float", "r"], ["float", "g"], ["float", "b"], ["float", "a"], ["bNodeTree", "*nodetree"]],
+  bNodeTree: [["ID", "id"], ["ListBase", "nodes"]],
+  bNode: [
+    ["bNode", "*next"], ["bNode", "*prev"], ["char", "name[64]"], ["char", "idname[64]"],
+    ["ListBase", "inputs"], ["ListBase", "outputs"],
+  ],
+  bNodeSocket: [
+    ["bNodeSocket", "*next"], ["bNodeSocket", "*prev"], ["char", "name[64]"], ["char", "identifier[64]"],
+    ["bNodeLink", "*link"], ["void", "*default_value"],
+  ],
+  bNodeSocketValueRGBA: [["float", "value[4]"]],
+  bNodeLink: [["bNodeLink", "*next"]],
   ModifierData: [["ModifierData", "*next"], ["ModifierData", "*prev"], ["int", "type"], ["int", "mode"], ["char", "name[64]"]],
   SubsurfModifierData: [
     ["ModifierData", "modifier"], ["short", "subdivType"], ["short", "levels"], ["short", "renderLevels"],
@@ -37,13 +49,17 @@ const COMMON_STRUCTS: Record<string, MemberDef[]> = {
   BevelModifierData: [["ModifierData", "modifier"]],
 };
 
+const MESH_HEAD: MemberDef[] = [
+  ["ID", "id"], ["int", "totvert"], ["int", "totpoly"], ["int", "totloop"], ["short", "totcol"], ["short", "_pad"],
+  ["Material", "**mat"], ["int", "*poly_offset_indices"],
+];
 const LEGACY_MESH: MemberDef[] = [
-  ["ID", "id"], ["int", "totvert"], ["int", "totpoly"], ["int", "totloop"], ["int", "_pad"],
-  ["int", "*poly_offset_indices"], ["CustomData", "vdata"], ["CustomData", "ldata"],
+  ...MESH_HEAD,
+  ["CustomData", "vdata"], ["CustomData", "ldata"], ["CustomData", "pdata"],
 ];
 const ATTRIBUTE_MESH: MemberDef[] = [
-  ["ID", "id"], ["int", "totvert"], ["int", "totpoly"], ["int", "totloop"], ["int", "_pad"],
-  ["int", "*poly_offset_indices"], ["AttributeStorage", "attribute_storage"], ["CustomData", "vdata"], ["CustomData", "ldata"],
+  ...MESH_HEAD,
+  ["AttributeStorage", "attribute_storage"], ["CustomData", "vdata"], ["CustomData", "ldata"],
 ];
 
 const parseName = (raw: string) => ({
@@ -198,8 +214,29 @@ const intArray = (values: readonly number[]) => {
   values.forEach((value, i) => b.writeInt32LE(value, i * 4));
   return b;
 };
+const pointerArray = (addresses: readonly bigint[]) => {
+  const b = Buffer.alloc(addresses.length * POINTER_BYTES);
+  addresses.forEach((address, i) => b.writeBigUInt64LE(address, i * POINTER_BYTES));
+  return b;
+};
 
-export type TestMesh = { name: string; positions: readonly number[]; faces: readonly (readonly number[])[] };
+/** マテリアル。baseColor はノード（Principled BSDF）の基本色、viewportColor は表示色（リニア） */
+export type TestMaterial = {
+  name: string;
+  baseColor?: readonly number[];
+  viewportColor?: readonly number[];
+  // 基本色にテクスチャなどをつないだ状態（単色では取れない）
+  baseColorLinked?: boolean;
+};
+
+export type TestMesh = {
+  name: string;
+  positions: readonly number[];
+  faces: readonly (readonly number[])[];
+  // 材質スロット（null は空のスロット）と、面ごとのスロット番号
+  materials?: readonly (TestMaterial | null)[];
+  faceMaterials?: readonly number[];
+};
 export type TestModifier = {
   kind: "subsurf" | "collision" | "bevel";
   render?: boolean;
@@ -229,6 +266,9 @@ export type TestObject = {
 const OB_MESH = 1;
 const OB_HIDE_RENDER = 1 << 2;
 const BASE_ENABLED_RENDER = 1 << 7;
+const PRINCIPLED_NODE = "ShaderNodeBsdfPrincipled";
+const BASE_COLOR_SOCKET = "Base Color";
+const DEFAULT_VIEWPORT_COLOR = [0.8, 0.8, 0.8];
 const MODE_REALTIME_RENDER = 3;
 const MODE_REALTIME_ONLY = 1;
 const IDENTITY_4X4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -258,8 +298,14 @@ export function buildTestBlend(format: "legacy" | "current", objects: readonly T
 
   const meshAddress = new Map<TestMesh, bigint>();
   const objectAddress = new Map<string, bigint>();
+  const materialAddress = new Map<TestMaterial, bigint>();
   for (const object of objects) objectAddress.set(object.name, idAddress());
   for (const object of objects) if (!meshAddress.has(object.mesh)) meshAddress.set(object.mesh, idAddress());
+  for (const object of objects) {
+    for (const material of object.mesh.materials ?? []) {
+      if (material && !materialAddress.has(material)) materialAddress.set(material, idAddress());
+    }
+  }
   const sceneAddress = idAddress();
 
   // scene with one view layer and a base per object
@@ -317,6 +363,57 @@ export function buildTestBlend(format: "legacy" | "current", objects: readonly T
     });
   }
 
+  // マテリアル。色はノード（プリンシプルBSDF）の Base Color に入れ、表示色は Material 自身に書く
+  for (const [material, address] of materialAddress) {
+    startId();
+    const viewport = material.viewportColor ?? DEFAULT_VIEWPORT_COLOR;
+    const writer = new StructWriter(dna, "Material")
+      .string("id.name", `MA${material.name}`)
+      .floats("r", [viewport[0]])
+      .floats("g", [viewport[1]])
+      .floats("b", [viewport[2]])
+      .floats("a", [1]);
+    const nodes: [bigint, string, Buffer][] = [];
+    if (material.baseColor || material.baseColorLinked) {
+      const treeAddress = dataAddress();
+      const nodeAddress = dataAddress();
+      const socketAddress = dataAddress();
+      const valueAddress = dataAddress();
+      const linkAddress = material.baseColorLinked ? dataAddress() : BigInt(0);
+      writer.pointer("nodetree", treeAddress);
+      nodes.push([
+        treeAddress,
+        "bNodeTree",
+        new StructWriter(dna, "bNodeTree").string("id.name", "NTShader").pointer("nodes.first", nodeAddress).data,
+      ]);
+      nodes.push([
+        nodeAddress,
+        "bNode",
+        new StructWriter(dna, "bNode")
+          .string("name", "プリンシプルBSDF")
+          .string("idname", PRINCIPLED_NODE)
+          .pointer("inputs.first", socketAddress).data,
+      ]);
+      nodes.push([
+        socketAddress,
+        "bNodeSocket",
+        new StructWriter(dna, "bNodeSocket")
+          .string("name", BASE_COLOR_SOCKET)
+          .string("identifier", BASE_COLOR_SOCKET)
+          .pointer("link", linkAddress)
+          .pointer("default_value", valueAddress).data,
+      ]);
+      nodes.push([
+        valueAddress,
+        "bNodeSocketValueRGBA",
+        new StructWriter(dna, "bNodeSocketValueRGBA").floats("value", [...(material.baseColor ?? [0, 0, 0]), 1]).data,
+      ]);
+      if (material.baseColorLinked) nodes.push([linkAddress, "bNodeLink", new StructWriter(dna, "bNodeLink").data]);
+    }
+    push("MA", address, "Material", writer.data);
+    for (const [nodeAddress, struct, payload] of nodes) push("DATA", nodeAddress, struct, payload);
+  }
+
   for (const [mesh, address] of meshAddress) {
     startId();
     const offsets = [0];
@@ -330,11 +427,27 @@ export function buildTestBlend(format: "legacy" | "current", objects: readonly T
       .int32("totloop", cornerVerts.length)
       .pointer("poly_offset_indices", offsetsAddress);
     const data: [bigint, string | null, Buffer, number][] = [[offsetsAddress, null, intArray(offsets), 1]];
+
+    // 材質スロット（Material **mat）と、面ごとのスロット番号
+    if (mesh.materials?.length) {
+      const slots = dataAddress();
+      writer.pointer("mat", slots).int16("totcol", mesh.materials.length);
+      data.push([
+        slots,
+        null,
+        pointerArray(mesh.materials.map((material) => (material ? materialAddress.get(material)! : BigInt(0)))),
+        1,
+      ]);
+    }
+    const faceMaterials = mesh.faceMaterials ? intArray(mesh.faceMaterials) : null;
+
     if (format === "legacy") {
-      for (const [custom, name, payload] of [
+      const layerSets: [custom: string, name: string, payload: Buffer][] = [
         ["vdata", "position", floatArray(mesh.positions)],
         ["ldata", ".corner_vert", intArray(cornerVerts)],
-      ] as const) {
+      ];
+      if (faceMaterials) layerSets.push(["pdata", "material_index", faceMaterials]);
+      for (const [custom, name, payload] of layerSets) {
         const layers = dataAddress();
         const payloadAddress = dataAddress();
         writer.pointer(`${custom}.layers`, layers).int32(`${custom}.totlayer`, 1);
@@ -342,13 +455,14 @@ export function buildTestBlend(format: "legacy" | "current", objects: readonly T
         data.push([payloadAddress, null, payload, 1]);
       }
     } else {
-      const attributes = dataAddress();
-      const array = new StructWriter(dna, "Attribute", 2);
-      writer.pointer("attribute_storage.dna_attributes", attributes).int32("attribute_storage.dna_attributes_num", 2);
-      const entries = [
+      const entries: [name: string, payload: Buffer, size: number][] = [
         ["position", floatArray(mesh.positions), mesh.positions.length / 3],
         [".corner_vert", intArray(cornerVerts), cornerVerts.length],
-      ] as const;
+      ];
+      if (faceMaterials) entries.push(["material_index", faceMaterials, mesh.faces.length]);
+      const attributes = dataAddress();
+      const array = new StructWriter(dna, "Attribute", entries.length);
+      writer.pointer("attribute_storage.dna_attributes", attributes).int32("attribute_storage.dna_attributes_num", entries.length);
       entries.forEach(([name, payload, size], i) => {
         const nameAddress = dataAddress();
         const holder = dataAddress();
@@ -358,7 +472,7 @@ export function buildTestBlend(format: "legacy" | "current", objects: readonly T
         data.push([holder, "AttributeArray", new StructWriter(dna, "AttributeArray").pointer("data", payloadAddress).int64("size", size).data, 1]);
         data.push([payloadAddress, null, payload, 1]);
       });
-      data.unshift([attributes, "Attribute", array.data, 2]);
+      data.unshift([attributes, "Attribute", array.data, entries.length]);
     }
     push("ME", address, "Mesh", writer.data);
     for (const [dataAddr, struct, payload, count] of data) push("DATA", dataAddr, struct, payload, count);
