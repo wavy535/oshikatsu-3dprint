@@ -12,8 +12,9 @@ import type { ArMaterial, ArMesh } from "./mesh.ts";
 
 const MM_PER_M = 1000;
 const UP: [number, number, number] = [0, 1, 0];
-// 色を持たないデータのメッシュ・マテリアルの名前
-const WORK_MATERIAL_NAME = "work";
+// メッシュの名前（色ごとに分けるときは "work-1" のように番号を付ける）と、色がないときのマテリアル名
+const WORK_MESH_NAME = "work";
+// 色の不透明度。形だけを見るので、読み取った色は必ず不透明で出す
 const OPAQUE = 1;
 
 /** AR 用に変換できる3Dデータの拡張子 */
@@ -67,8 +68,8 @@ export function readModelObjects(
 ): WorkModel {
   const extension = workModelExtension(fileName);
   if (extension === "3mf") {
-    const document = parseThreeMf(buf, budget);
-    return { objects: document.objects, materials: document.materials };
+    const parsed = parseThreeMf(buf, budget);
+    return { objects: parsed.objects, materials: parsed.materials };
   }
   if (extension === "stl") {
     // STL は色を持たない
@@ -167,17 +168,21 @@ function materialOf(color: number, materials: readonly MeshMaterial[]): ArMateri
   const found = color >= 0 ? materials[color] : undefined;
   const linear = found ? srgbHexToLinear(found.hex) : null;
   return {
-    name: found?.name ?? WORK_MATERIAL_NAME,
+    name: found?.name ?? WORK_MESH_NAME,
     color: linear ? [linear[0], linear[1], linear[2], OPAQUE] : AR_MATERIALS.work,
     roughness: AR_MATERIALS.roughness,
     doubleSided: true,
   };
 }
 
-// 印刷データの (x, y, z) を glTF の (x, z, -y) に回し、三角形ごとに頂点を分けて並べる。
-// 回転なので面の向き（巻き順）は変わらない
-function orient(mesh: TriangleMesh, scale: number, min: number[], max: number[]) {
+/**
+ * 印刷データの (x, y, z) を glTF の (x, z, -y) に回し、三角形ごとに頂点を分けて並べる。
+ * 回転なので面の向き（巻き順）は変わらない。外形（min・max）もついでに返す
+ */
+function orient(mesh: TriangleMesh, scale: number) {
   const corners = new Float64Array(mesh.indices.length * 3);
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
   for (let i = 0; i < mesh.indices.length; i++) {
     const source = mesh.indices[i] * 3;
     const target = i * 3;
@@ -189,7 +194,20 @@ function orient(mesh: TriangleMesh, scale: number, min: number[], max: number[])
       if (corners[target + k] > max[k]) max[k] = corners[target + k];
     }
   }
-  return corners;
+  return { corners, min, max };
+}
+
+/** 色ごとのまとまりの外形を1つにまとめる（原点は全体の外形から決めるため） */
+function wholeBounds(groups: readonly { min: number[]; max: number[] }[]) {
+  const min = [Infinity, Infinity, Infinity];
+  const max = [-Infinity, -Infinity, -Infinity];
+  for (const group of groups) {
+    for (let k = 0; k < 3; k++) {
+      min[k] = Math.min(min[k], group.min[k]);
+      max[k] = Math.max(max[k], group.max[k]);
+    }
+  }
+  return { min, max };
 }
 
 // 面ごとに頂点を分けているので、法線は面の向きをそのまま使う（角がぼやけない）
@@ -227,18 +245,17 @@ export function buildWorkMeshes(
   // 間引きは色で分ける前に全体へ1回かける（色ごとにかけると外形が丸まってしまう）
   const reduced = decimateToBudget(merged, AR_LIMITS.workTriangleBudget, budget);
   const scale = scaleRatio / MM_PER_M;
-  const min = [Infinity, Infinity, Infinity];
-  const max = [-Infinity, -Infinity, -Infinity];
 
-  // 色ごとに分けて向きをそろえる。原点は全体の外形から決めるので後回し
+  // 色ごとに分けて向きをそろえる
   const oriented = splitByColor(reduced, model.materials).flatMap(({ color, mesh }) =>
-    mesh.indices.length === 0 ? [] : [{ color, corners: orient(mesh, scale, min, max) }],
+    mesh.indices.length === 0 ? [] : [{ color, ...orient(mesh, scale) }],
   );
   const outputTriangles = oriented.reduce((sum, group) => sum + group.corners.length / 9, 0);
   if (outputTriangles === 0) throw new ArInputError("AR 用の形状を作れませんでした");
 
   // 底面はどちらの基準点でも y=0。角を基準にするときは、奥（-Z）の左（-X）の端を原点に持ってくる。
-  // 色ごとに分けても位置がずれないよう、同じずらし量を全部に使う
+  // 色ごとに分けても位置がずれないよう、全体の外形から決めた同じずらし量を全部に使う
+  const { min, max } = wholeBounds(oriented);
   const shift =
     anchor === "back-left-bottom"
       ? [-min[0], -min[1], -min[2]]
@@ -248,7 +265,7 @@ export function buildWorkMeshes(
     const positions = new Float32Array(corners.length);
     for (let i = 0; i < corners.length; i++) positions[i] = corners[i] + shift[i % 3];
     return {
-      name: oriented.length === 1 ? WORK_MATERIAL_NAME : `${WORK_MATERIAL_NAME}-${index + 1}`,
+      name: oriented.length === 1 ? WORK_MESH_NAME : `${WORK_MESH_NAME}-${index + 1}`,
       positions,
       normals: flatNormals(corners),
       indices: null,
