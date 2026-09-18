@@ -4,7 +4,7 @@ import { ShoppingCart } from "lucide-react";
 import { requireUser } from "@/lib/auth/guards";
 import { getCart } from "@/lib/cart/queries";
 import { CartLineRow } from "@/components/cart/cart-line-row";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "カート" };
@@ -18,7 +18,7 @@ export default async function CartPage() {
   const buyable = lines.filter((l) => l.isListed && (l.stock === null || l.stock > 0));
 
   return (
-    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-6 py-6 lg:flex-row">
+    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6 lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col gap-3">
         <h1 className="text-base font-bold text-ink">
           カート <span className="num text-[12px] text-muted-foreground">{lines.length}件</span>

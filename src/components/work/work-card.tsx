@@ -1,11 +1,9 @@
+import { yen } from "@/lib/format";
 import Link from "next/link";
 import { Heart, ImageIcon, Star } from "lucide-react";
 import type { WorkCardItem } from "@/lib/works/list-options";
 import { workImageUrl } from "@/lib/storage";
 
-export function yen(n: number | null | undefined) {
-  return n === null || n === undefined ? "—" : `¥${n.toLocaleString("ja-JP")}`;
-}
 
 /**
  * 作品カード。Figma ⓪共通 / 検索結果の WorkCard。

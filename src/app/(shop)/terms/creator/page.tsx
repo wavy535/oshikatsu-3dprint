@@ -11,7 +11,7 @@ export const metadata = { title: CREATOR_TERMS_TITLE };
 /** クリエイター利用規約の全文。申請フォームの同意欄と同じ内容（src/lib/creator/terms.ts）。 */
 export default function CreatorTermsPage() {
   return (
-    <div className="mx-auto w-full max-w-[760px] px-6 py-10">
+    <div className="mx-auto w-full max-w-[760px] px-4 sm:px-6 py-10">
       <h1 className="text-xl font-bold text-ink">{CREATOR_TERMS_TITLE}</h1>
       <p className="num mt-1 text-[12px] text-muted-foreground">{CREATOR_TERMS_VERSION} 版</p>
 

@@ -36,7 +36,7 @@ export default async function WorksPage({
   const usingNuiDefault = sp.nuiSize === undefined && shell.mainNui?.nui_size_cm;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-6 py-6 lg:flex-row">
+    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6 lg:flex-row">
       <WorkFilterSidebar
         sp={sp}
         filters={filters}

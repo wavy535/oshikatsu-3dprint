@@ -55,3 +55,13 @@ test("only listed files are read, so names cannot reach outside the folders", as
   expect(await readLocalModel("test_3mf/nested.3mf", root)).toBeNull();
   expect(await readLocalModel("test_3mf/2_Chair.gcode.3mf", join(base, "missing"))).toBeNull();
 });
+
+test("the default local model root cannot be used in production", async () => {
+  const { localModelRoot } = await import("@/lib/ar/local-models");
+  vi.stubEnv("NODE_ENV", "production");
+  try {
+    expect(() => localModelRoot()).toThrow("only in development");
+  } finally {
+    vi.unstubAllEnvs();
+  }
+});

@@ -7,6 +7,7 @@ import {
 } from "./limits.ts";
 import { findZipEntry, listZipEntries, readZipEntry, type ZipEntry } from "./zip.ts";
 import {
+  NO_MATERIAL,
   applyTransform,
   validateMesh,
   multiplyTransform,
@@ -446,11 +447,13 @@ export function parseThreeMf(
 
   // build の item を展開する。transform があれば頂点に適用してから並べる。
   const built: NamedMesh[] = [];
+  // 色を引き当てるための、並べたパーツごとの出どころ（どのファイルのどの色グループか）
+  const builtSources: { groupId: string; pindex: number | null }[] = [];
   const active = new Set<string>();
   let expandedVertices = 0,
     expandedTriangles = 0,
     expansions = 0;
-  const append = (o: RawObject, transform: Matrix4x3 | null) => {
+  const append = (part: ModelPart, o: RawObject, transform: Matrix4x3 | null) => {
     if (built.length >= MODEL_LIMITS.objects)
       throw new ModelLimitError(
         "3Dデータは128パーツまでです。パーツごとに分けてください",
@@ -462,6 +465,7 @@ export function parseThreeMf(
       name: o.name,
       mesh: transform ? applyTransform(o.mesh!, transform) : o.mesh!,
     });
+    builtSources.push({ groupId: `${part.key}|${o.pid ?? ""}`, pindex: o.pindex });
   };
 
   const expand = (
@@ -485,7 +489,7 @@ export function parseThreeMf(
         "3MFに存在しないオブジェクトが参照されています",
       );
     if (o.mesh) {
-      append(o, transform);
+      append(part, o, transform);
       return;
     }
     if (o.components.length === 0)
@@ -509,7 +513,7 @@ export function parseThreeMf(
   if (built.length === 0) {
     for (const part of parts.values()) {
       for (const o of part.objects.values()) {
-        if (o.mesh) append(o, null);
+        if (o.mesh) append(part, o, null);
       }
     }
   }
@@ -517,14 +521,33 @@ export function parseThreeMf(
   if (built.length === 0)
     throw new ThreeMfParseError("3MF に三角形メッシュが含まれていません");
 
+  // 使われていない色を落としたうえで、三角形ごとの色番号を返す一覧の添字に付け替える
+  const kept = materials.filter((m) => m.faceCount > 0 || materials.length <= 8);
+  const keptIndex = new Map(kept.map((m, i) => [m.index, i]));
+  const objects = built.map((object, i) => {
+    const { groupId, pindex } = builtSources[i];
+    const colorAt = (p: number) => {
+      const hit = p < 0 ? undefined : materialKey.get(`${groupId}:${p}`);
+      return hit === undefined ? NO_MATERIAL : (keptIndex.get(hit) ?? NO_MATERIAL);
+    };
+    const raw = object.mesh.materialIndices;
+    const triangles = object.mesh.indices.length / 3;
+    let colors: Int32Array | null = null;
+    if (raw) {
+      colors = new Int32Array(triangles);
+      for (let t = 0; t < triangles; t++) colors[t] = colorAt(raw[t]);
+    } else if (pindex !== null && colorAt(pindex) !== NO_MATERIAL) {
+      colors = new Int32Array(triangles).fill(colorAt(pindex));
+    }
+    return { name: object.name, mesh: { ...object.mesh, materialIndices: colors } };
+  });
+
   return {
     format: "3mf",
     unit: "mm",
     unitDeclared: root.declaredUnit !== null,
     declaredUnit: root.declaredUnit,
-    objects: built,
-    materials: materials.filter(
-      (m) => m.faceCount > 0 || materials.length <= 8,
-    ),
+    objects,
+    materials: kept,
   };
 }

@@ -55,6 +55,7 @@ export interface Database {
     phone_confirmed_at: Generated<string | null>;
     created_at: Generated<string>;
     updated_at: Generated<string>;
+    is_anonymous: Generated<boolean>;
   };
   auth_accounts: {
     id: Generated<string>;
@@ -367,6 +368,7 @@ export interface Database {
     print_fee_snapshot: Generated<number | null>;
     color_slots_snapshot: Generated<Json>;
     part_instructions_snapshot: Generated<Json>;
+    print_assets_snapshot: Generated<Json>;
   };
   order_settlements: {
     order_id: ColumnType<string | null, never, never>;
@@ -663,6 +665,15 @@ export interface Database {
     size_label: ColumnType<string | null, never, never>;
     is_listed: ColumnType<boolean | null, never, never>;
   };
+  work_ar_assets: {
+    work_id: string;
+    storage_path: string;
+    file_name: string;
+    file_format: string;
+    file_size_bytes: number;
+    created_at: Generated<string>;
+    updated_at: Generated<string>;
+  };
   work_assembly: {
     work_id: string;
     diagram_storage_path: Generated<string | null>;
@@ -930,6 +941,7 @@ export interface DbFunctions {
   set_first_nui_as_main: { Args: Record<string, never>; Returns: unknown };
   set_updated_at: { Args: Record<string, never>; Returns: unknown };
   snapshot_order_fee_rate: { Args: Record<string, never>; Returns: unknown };
+  snapshot_order_print_files: { Args: Record<string, never>; Returns: unknown };
   sync_nui_size: { Args: Record<string, never>; Returns: unknown };
   sync_order_from_jobs: { Args: Record<string, never>; Returns: unknown };
   sync_work_favorite_count: { Args: Record<string, never>; Returns: unknown };

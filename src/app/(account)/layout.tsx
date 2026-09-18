@@ -63,8 +63,8 @@ export default async function AccountLayout({
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-6 py-6 lg:flex-row">
-        <div className="flex flex-col gap-3 lg:w-56">
+      <main className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6 lg:flex-row">
+        <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:w-56">
           <SideNav groups={groups} />
           <form action={signOutAction}>
             <Button type="submit" variant="ghost" size="sm" className="w-full">

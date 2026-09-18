@@ -4,8 +4,16 @@ import { AnalysisBudget, checkMeshSize } from "./limits.ts";
 // 境界の辺と、3つ以上の面が接する辺は鋭い辺として扱う（Blender が使う OpenSubdiv の既定と同じ）。
 // クリース（辺の折り目の強さ）は再現しない。
 
-/** 多角形のメッシュ。faceOffsets は面ごとの cornerVerts の開始位置（面の数 + 1 個） */
-export type PolyMesh = { positions: Float64Array; faceOffsets: Int32Array; cornerVerts: Int32Array };
+/**
+ * 多角形のメッシュ。faceOffsets は面ごとの cornerVerts の開始位置（面の数 + 1 個）。
+ * faceMaterials は面ごとの材質の番号で、分割しても元の面の値を引き継ぐ（色を保つため）。
+ */
+export type PolyMesh = {
+  positions: Float64Array;
+  faceOffsets: Int32Array;
+  cornerVerts: Int32Array;
+  faceMaterials?: Int32Array | null;
+};
 
 export type CatmullClarkOptions = {
   levels: number;
@@ -188,6 +196,7 @@ function subdivideOnce(mesh: PolyMesh, options: CatmullClarkOptions): PolyMesh {
   // 面ごとに、角の数だけ四角形を作る：(頂点, 次への辺の点, 面の点, 前からの辺の点)
   const faceOffsets = new Int32Array(corners + 1);
   const cornerVerts = new Int32Array(corners * QUAD_CORNERS);
+  const faceMaterials = mesh.faceMaterials ? new Int32Array(corners) : null;
   let quad = 0;
   for (let f = 0; f < faceCount; f++) {
     if (f % BUDGET_CHECK_INTERVAL === 0) budget.check();
@@ -200,11 +209,12 @@ function subdivideOnce(mesh: PolyMesh, options: CatmullClarkOptions): PolyMesh {
       cornerVerts[out + 1] = vertexCount + edges.cornerEdge[c];
       cornerVerts[out + 2] = vertexCount + edges.count + f;
       cornerVerts[out + 3] = vertexCount + edges.cornerEdge[previous];
+      if (faceMaterials && mesh.faceMaterials) faceMaterials[quad] = mesh.faceMaterials[f];
       quad++;
       faceOffsets[quad] = quad * QUAD_CORNERS;
     }
   }
-  return { positions, faceOffsets, cornerVerts };
+  return { positions, faceOffsets, cornerVerts, faceMaterials };
 }
 
 // 四角形だけのメッシュの頂点を、リミットサーフェス上の位置に移す
@@ -245,7 +255,12 @@ function projectToLimit(mesh: PolyMesh, options: CatmullClarkOptions): PolyMesh 
       positions[v * 3 + k] = value;
     }
   }
-  return { positions, faceOffsets: mesh.faceOffsets, cornerVerts: mesh.cornerVerts };
+  return {
+    positions,
+    faceOffsets: mesh.faceOffsets,
+    cornerVerts: mesh.cornerVerts,
+    faceMaterials: mesh.faceMaterials ?? null,
+  };
 }
 
 /** Catmull-Clark 分割を levels 回かける。levels が 0 以下なら元のメッシュを返す */

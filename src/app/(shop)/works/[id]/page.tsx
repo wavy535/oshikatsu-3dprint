@@ -1,26 +1,17 @@
-import { networkInterfaces } from "node:os";
+import { Suspense } from "react";
 import Link from "next/link";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
-import QRCode from "qrcode";
 import { ImageIcon, MessageSquare, Package, Star, Truck } from "lucide-react";
 
 import { getNuiFit, getWork, getWorkReviewSummary, isFavorited } from "@/lib/works/queries";
 import { getShellContext } from "@/lib/layout/queries";
 import { listMyNuis } from "@/lib/nuis/queries";
-import { AR_DISPLAY } from "@/lib/ar/config";
-import { buildArModelOptions, nuiDimensionsOf, variantForNui } from "@/lib/ar/options";
-import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/origin";
-import { quickLookUrl, workModelPath } from "@/lib/ar/params";
-import { getArWorkSource } from "@/lib/ar/queries";
-import { modelRevision } from "@/lib/ar/revision";
-import { assetVersion } from "@/lib/ar/version";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Avatar } from "@/components/ui/avatar";
 import { FavoriteButton } from "@/components/work/favorite-button";
 import { AddToCartForm } from "@/components/work/add-to-cart-form";
-import { ArPreview } from "@/components/work/ar-preview";
+import { WorkArPanel, WorkArPanelFallback } from "@/components/work/work-ar-panel";
 import { NuiFitCard } from "@/components/work/nui-fit-card";
 import { cn } from "@/lib/utils";
 
@@ -28,36 +19,6 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const { id } = await params;
   const work = await getWork(id);
   return { title: work?.title ?? "作品" };
-}
-
-/**
- * 選んだサイズの作品を、スマホの AR で開く QR コード。
- * 3Dデータがない場合と、スマホから届く URL を作れない場合は null。
- */
-async function workArQrCode(
-  workId: string,
-  variant: { id: string } | null,
-  source: { storagePath: string } | null,
-) {
-  if (!variant || !source) return null;
-  const requestHeaders = await headers();
-  const phone = phoneReachableOrigin({
-    host: requestHeaders.get("host"),
-    forwardedProto: requestHeaders.get("x-forwarded-proto"),
-    lanAddresses: lanIPv4Addresses(networkInterfaces()),
-  });
-  if (!phone) return null;
-  const url = quickLookUrl(
-    phone.origin,
-    workModelPath(workId, variant.id, assetVersion(source.storagePath), modelRevision(), "usdz"),
-  );
-  return {
-    url,
-    imageDataUrl: await QRCode.toDataURL(url, {
-      width: AR_DISPLAY.qrCodeWidthPx,
-      margin: AR_DISPLAY.qrCodeMargin,
-    }),
-  };
 }
 
 /**
@@ -90,32 +51,11 @@ export default async function WorkDetailPage({
     shell.user ? listMyNuis() : Promise.resolve([]),
   ]);
 
-  // AR（実寸表示）。ぬいを選んでいればそのぬいに合うサイズの作品を出し、選んでいなければ選択中のサイズ
-  const arNui = myNuis.find((candidate) => candidate.id === nuiId) ?? null;
-  const arVariant = arNui ? variantForNui(variants, arNui) : selected;
-  const arSource = arVariant ? await getArWorkSource(work.id, arVariant.id) : null;
-  const roomNui = arNui ?? myNuis.find((candidate) => candidate.is_main) ?? null;
-  const ar = buildArModelOptions({
-    workId: work.id,
-    variantId: arVariant?.id ?? null,
-    assetVersion: arSource ? assetVersion(arSource.storagePath) : null,
-    signedIn: Boolean(shell.user),
-    nui: roomNui ? nuiDimensionsOf(roomNui) : null,
-  });
-  // 選んだぬいのサイズの作品を、スマホの AR で開く QR コード（iPhone は読むだけで Quick Look が起動する）
-  const arQr = arNui ? await workArQrCode(work.id, arVariant, arSource) : null;
-  const detailQuery = new URLSearchParams(selected ? { size: selected.id } : {});
-  const nuiChoices = myNuis.map((candidate) => ({
-    id: candidate.id,
-    label:
-      candidate.nui_size_cm === null
-        ? candidate.name
-        : `${candidate.name}（${Number(candidate.nui_size_cm)}cm）`,
-  }));
+  const selectedNuiId = myNuis.find((nui) => nui.id === nuiId)?.id;
   // サイズを選び直しても、AR に出すぬいは持ち回る
   const sizeHref = (variantId: string) => {
     const query = new URLSearchParams({ size: variantId });
-    if (arNui) query.set("nui", arNui.id);
+    if (selectedNuiId) query.set("nui", selectedNuiId);
     return `/works/${work.id}?${query}`;
   };
 
@@ -125,13 +65,13 @@ export default async function WorkDetailPage({
   const tags = (work.work_tags ?? []).map((t) => t.tags).filter(Boolean);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-6 px-6 py-6 lg:flex-row">
+    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-6 px-4 sm:px-6 py-6 lg:flex-row">
       {/* 左: 画像と説明 */}
       <div className="flex min-w-0 flex-1 flex-col gap-4">
         <div className="flex aspect-[4/3] items-center justify-center overflow-hidden rounded-xl border border-line bg-white">
           {mainImage ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={mainImage} alt="" className="size-full object-cover" />
+            <img src={mainImage} alt="" fetchPriority="high" className="size-full object-cover" />
           ) : (
             <ImageIcon className="size-8 text-line" aria-hidden />
           )}
@@ -235,19 +175,16 @@ export default async function WorkDetailPage({
           </div>
 
           {/* AR で実寸を見る（ぬいを選べばそのぬいに合うサイズ、選ばなければ選択中のサイズ） */}
-          <ArPreview
-            options={ar.options}
-            sizeLabel={arVariant?.size_label ?? null}
-            interiorMm={ar.interiorMm}
-            roomUnavailable={ar.roomUnavailable}
-            signedIn={Boolean(shell.user)}
-            nuis={nuiChoices}
-            selectedNuiId={arNui?.id ?? null}
-            basePath={`/works/${work.id}`}
-            baseQuery={detailQuery.toString()}
-            qr={arQr}
-            qrUnavailable={arNui ? (arVariant ? (arSource ? null : "no_model") : "no_size") : null}
-          />
+          <Suspense fallback={<WorkArPanelFallback />}>
+            <WorkArPanel
+              workId={work.id}
+              variants={variants}
+              selected={selected}
+              signedIn={Boolean(shell.user)}
+              nuis={myNuis}
+              nuiId={nuiId}
+            />
+          </Suspense>
 
           {/* マイぬいとの相性 */}
           <NuiFitCard

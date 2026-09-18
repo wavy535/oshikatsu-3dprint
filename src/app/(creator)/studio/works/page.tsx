@@ -5,7 +5,7 @@ import { ImageIcon, Package, Plus } from "lucide-react";
 import { listMyWorks } from "@/lib/works/studio-queries";
 import { createDraftWorkAction } from "@/lib/works/step-actions";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 

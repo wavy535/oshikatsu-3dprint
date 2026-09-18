@@ -2,6 +2,7 @@ import { zstdCompressSync } from "node:zlib";
 import { expect, test } from "vitest";
 import { BlendParseError, parseBlend, type BlendReadOptions } from "@/lib/print/blend";
 import { BlendFile } from "@/lib/print/blend-file";
+import { linearToSrgbHex } from "@/lib/print/color";
 import { AnalysisBudget, MODEL_LIMITS, ModelLimitError } from "@/lib/print/limits";
 import { boundsOf, type NamedMesh } from "@/lib/print/mesh";
 import { buildTestBlend, cubeMesh, gzipBlend, seekableZstd } from "./helpers/blend-files";
@@ -140,6 +141,66 @@ test("Subdivision Surface uses its render levels, capped, on the limit surface u
   expect(boundsOf(byName(objects, "Limit").mesh).max[2]).toBeCloseTo((100 * 68) / 81, 9);
   expect(boundsOf(byName(objects, "Recursive").mesh).max[2]).toBeCloseTo(100, 9);
   expect(report.modifierNotes).toEqual([{ object: "Capped", modifier: "Subsurf", note: "levels_limited" }]);
+});
+
+test("material colours come from the Principled BSDF base colour, per face", () => {
+  const wood = { name: "Wood_Top", baseColor: [0.7, 0.545, 0.35] };
+  const black = { name: "Trim_Black", baseColor: [0.055, 0.052, 0.06] };
+  // 上面が木、それ以外が黒。スロット2は使わない
+  const cube = { ...cubeMesh("Table"), materials: [wood, black, null], faceMaterials: [1, 0, 1, 1, 1, 1] };
+  const { objects, materials } = read(buildTestBlend("current", [{ name: "Table", mesh: cube }]));
+  // 色の一覧は、材質スロットの順に最初に出てきたものから並ぶ
+  expect(materials).toEqual([
+    { name: "Wood_Top", hex: "#DAC3A0" },
+    { name: "Trim_Black", hex: "#424045" },
+  ]);
+  // 立方体の面はどれも四角形なので、1面あたり三角形2つに同じ色が付く
+  expect([...objects[0].mesh.materialIndices!]).toEqual([1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]);
+});
+
+test.each(FORMATS)("colours survive both storage formats, and unreadable ones fall back (%s file)", (format) => {
+  const textured = { name: "Textured", baseColor: [1, 0, 0], baseColorLinked: true, viewportColor: [0.25, 0.5, 0.75] };
+  const plain = { name: "Plain", viewportColor: [1, 1, 1] };
+  const cube = { ...cubeMesh("Mixed"), materials: [textured, plain], faceMaterials: [0, 1, 0, 1, 0, 1] };
+  const { objects, materials } = read(buildTestBlend(format, [{ name: "Mixed", mesh: cube }]));
+  // 基本色にテクスチャがつながっているマテリアルは、ビューポートの表示色に落とす
+  expect(materials).toEqual([
+    { name: "Textured", hex: linearToSrgbHex([0.25, 0.5, 0.75]) },
+    { name: "Plain", hex: "#FFFFFF" },
+  ]);
+  expect([...objects[0].mesh.materialIndices!]).toEqual([0, 0, 1, 1, 0, 0, 1, 1, 0, 0, 1, 1]);
+});
+
+test("materials shared between objects are listed once, and objects without one have no colour", () => {
+  const paint = { name: "Paint", baseColor: [1, 1, 1] };
+  const painted = { ...cubeMesh("Painted"), materials: [paint] };
+  const bare = cubeMesh("Bare");
+  const { objects, materials } = read(
+    buildTestBlend("current", [
+      { name: "A", mesh: painted },
+      { name: "B", mesh: painted, loc: [5, 0, 0] },
+      { name: "C", mesh: bare, loc: [10, 0, 0] },
+    ]),
+  );
+  expect(materials).toEqual([{ name: "Paint", hex: "#FFFFFF" }]);
+  expect(byName(objects, "A").mesh.materialIndices).not.toBeNull();
+  expect(byName(objects, "B").mesh.materialIndices).not.toBeNull();
+  expect(byName(objects, "C").mesh.materialIndices).toBeNull();
+});
+
+test("subdivision keeps the colour of the face it came from", () => {
+  const two = { name: "Two", baseColor: [0, 0, 0] };
+  const one = { name: "One", baseColor: [1, 1, 1] };
+  const cube = { ...cubeMesh("Smooth"), materials: [one, two], faceMaterials: [0, 1, 1, 1, 1, 1] };
+  const { objects } = read(
+    buildTestBlend("current", [{ name: "Smooth", mesh: cube, modifiers: [{ kind: "subsurf", renderLevels: 1 }] }]),
+  );
+  const colors = [...objects[0].mesh.materialIndices!];
+  // 1段の分割で1面が4つの四角形（=8三角形）になるので、色の数もその倍
+  expect(colors).toHaveLength(6 * 4 * 2);
+  // 1面だけスロット0（One）、残り5面はスロット1（Two）
+  expect(colors.filter((color) => color === 0)).toHaveLength(4 * 2);
+  expect(colors.filter((color) => color === 1)).toHaveLength(5 * 4 * 2);
 });
 
 test("objects sharing a mesh are placed separately, and a modifier on one leaves the other as it is", () => {

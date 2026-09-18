@@ -1,7 +1,7 @@
 import { Pagination } from "@/components/ui/pagination";
 import { getPayoutContext } from "@/lib/sales/queries";
 import { PAYOUT_STATUS_LABEL, shortDateTime } from "@/lib/ops/labels";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { PayoutAccountForm, RequestPayoutButton } from "@/components/sales/payout-forms";
 
 export const metadata = { title: "売上の受け取り" };

@@ -11,7 +11,7 @@ import {
 } from "@/lib/cart/actions";
 import type { CartLine } from "@/lib/cart/queries";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 
 const initialState: CartActionState = { error: null };
 
@@ -58,7 +58,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
           </p>
         )}
 
-        <div className="mt-1 flex items-center gap-3">
+        <div className="mt-1 flex flex-wrap items-center gap-2 sm:gap-3">
           <form action={updateQuantity} className="flex items-center gap-1 rounded-lg border border-line">
             <input type="hidden" name="itemId" value={line.id} />
             <button
@@ -67,7 +67,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
               value={line.quantity - 1}
               aria-label="数量を減らす"
               disabled={updating || line.quantity <= 1}
-              className="px-2 py-1.5 text-muted-foreground disabled:opacity-40"
+              className="min-h-11 min-w-11 px-2 py-1.5 text-muted-foreground disabled:opacity-40"
             >
               <Minus className="size-3.5" aria-hidden />
             </button>
@@ -78,7 +78,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
               value={line.quantity + 1}
               aria-label="数量を増やす"
               disabled={updating || line.quantity >= max}
-              className="px-2 py-1.5 text-muted-foreground disabled:opacity-40"
+              className="min-h-11 min-w-11 px-2 py-1.5 text-muted-foreground disabled:opacity-40"
             >
               <Plus className="size-3.5" aria-hidden />
             </button>
@@ -93,7 +93,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
             <button
               type="submit"
               disabled={removing}
-              className="flex items-center gap-1 rounded-lg px-2 py-1.5 text-[11.5px] text-muted-foreground hover:text-danger"
+              className="flex min-h-11 items-center gap-1 rounded-lg px-2 py-1.5 text-[11.5px] text-muted-foreground hover:text-danger"
             >
               <Trash2 className="size-3.5" aria-hidden />
               削除

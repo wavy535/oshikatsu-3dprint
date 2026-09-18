@@ -5,7 +5,7 @@ import { CheckCircle2, ChevronLeft, Clock } from "lucide-react";
 import { getMyCustomRequest } from "@/lib/custom-orders/queries";
 import { QUOTE_STATUS_LABEL, REQUEST_STATUS_LABEL, type QuoteSpecRow } from "@/lib/custom-orders/labels";
 import { shortDateTime } from "@/lib/ops/labels";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Avatar } from "@/components/ui/avatar";
 import { QuoteActions } from "@/components/custom-orders/quote-actions";
 import { cn } from "@/lib/utils";

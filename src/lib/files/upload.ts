@@ -2,7 +2,7 @@
 import { prepareUpload } from "./actions";
 
 export async function uploadFile(
-  group: "work-stl" | "work-images" | "qc-photos",
+  group: "work-stl" | "work-ar" | "work-images" | "qc-photos",
   file: File,
   workId: string,
   jobId?: string,

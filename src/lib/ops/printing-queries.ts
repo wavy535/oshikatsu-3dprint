@@ -3,6 +3,7 @@ import { queryResult, readPage } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
+import { printFilesFromSnapshot } from "./print-files";
 import { QUEUE_STATUS_FILTERS } from "@/lib/ops/labels";
 import type { FilamentMaterial, PrintJobStatus } from "@/types/db";
 
@@ -141,7 +142,9 @@ export async function getPrintJob(jobId: string) {
     queryResult(
       db
         .selectFrom("print_jobs")
+        .innerJoin("order_items", "order_items.id", "print_jobs.order_item_id")
         .select([
+          "order_items.print_assets_snapshot",
           "print_jobs.print_fee_snapshot",
           "print_jobs.started_at",
           "print_jobs.finished_at",
@@ -267,6 +270,7 @@ export async function getPrintJob(jobId: string) {
             .select((eb) => [
               "work_part_instructions.id",
               "work_part_instructions.variant_id",
+              "work_part_instructions.object_id",
               "work_part_instructions.orientation",
               "work_part_instructions.support",
               "work_part_instructions.support_note",
@@ -302,12 +306,13 @@ export async function getPrintJob(jobId: string) {
   const overridden = new Set(
     parts
       .filter((p) => p.variant_id !== null)
-      .map((p) => p.work_asset_objects?.name),
+      .map((p) => p.object_id),
   );
 
   return {
     job,
     detail,
+    printFiles: printFilesFromSnapshot(detail?.print_assets_snapshot),
     events: events ?? [],
     printers: printers ?? [],
     filaments: filaments ?? [],
@@ -316,7 +321,7 @@ export async function getPrintJob(jobId: string) {
     slots: slots ?? [],
     parts: parts.filter(
       (p) =>
-        p.variant_id !== null || !overridden.has(p.work_asset_objects?.name),
+        p.variant_id !== null || !overridden.has(p.object_id),
     ),
   };
 }

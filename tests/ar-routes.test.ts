@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ar/queries", () => ({ getArWorkSource: vi.fn() }));
-vi.mock("@/lib/files/s3", () => ({ readModel: vi.fn() }));
+vi.mock("@/lib/files/s3", () => ({ readModel: vi.fn(), storeArModel: vi.fn(), findArModel: vi.fn() }));
 vi.mock("@/lib/ar/local-models", () => ({ readLocalModel: vi.fn() }));
 import { GET as getCalibration } from "@/app/api/ar/calibration/[file]/route";
 import { GET as getLocalModel } from "@/app/api/ar/dev/local-models/[file]/route";
@@ -10,13 +10,14 @@ import { GET as getRoom } from "@/app/api/ar/rooms/[file]/route";
 import { GET as getWork } from "@/app/api/ar/works/[workId]/[file]/route";
 import { AR_BLEND } from "@/lib/ar/config";
 import { readLocalModel } from "@/lib/ar/local-models";
+import { previewLocalModel } from "@/lib/ar/local-preview";
 import { localModelPath } from "@/lib/ar/params";
 import { getArWorkSource } from "@/lib/ar/queries";
 import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
-import { readModel } from "@/lib/files/s3";
+import { readModel, storeArModel, findArModel } from "@/lib/files/s3";
 import { buildTestBlend, cubeMesh } from "./helpers/blend-files";
-import { bambuStylePackage } from "./helpers/model-files";
+import { bambuStylePackage, basematerialsXml, modelXml, modelZip, tetrahedronMeshWith } from "./helpers/model-files";
 
 const workId = "22222222-2222-2222-2222-222222222222";
 const variantId = "33333333-3333-3333-3333-333333333333";
@@ -142,7 +143,13 @@ test("the dev route converts a local .blend and leaves out the objects named in 
 
   const trimmed = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "glb", ["平面.001"]));
   expect(trimmed.status).toBe(200);
-  expect((await glbBoundsOf(trimmed)).widthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 1);
+  const trimmedBounds = await glbBoundsOf(trimmed);
+  expect(trimmedBounds.widthMm).toBeCloseTo(2 * AR_BLEND.mmPerUnit, 1);
+  const preview = await previewLocalModel(name, ["平面.001"]);
+  expect(preview.ok).toBe(true);
+  if (!preview.ok) throw new Error(preview.message);
+  expect(preview.sizeMm.widthMm).toBeCloseTo(trimmedBounds.widthMm, 3);
+  expect(preview.blend?.objects.find((object) => object.name === "平面.001")?.excluded).toBe(true);
   expect(readLocalModel).toHaveBeenCalledWith(name);
 
   const usdz = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "usdz", ["平面.001"]));
@@ -151,6 +158,8 @@ test("the dev route converts a local .blend and leaves out the objects named in 
 
   const nothingLeft = await localModelRequest(localModelPath(name, "f00d", modelRevision(), "glb", ["Room", "平面.001"]));
   expect(nothingLeft.status).toBe(422);
+  const emptyPreview = await previewLocalModel(name, ["Room", "平面.001"]);
+  expect(emptyPreview).toEqual({ ok: false, message: await nothingLeft.text() });
 });
 
 test("the dev route answers 404 for unknown files and in production, and 422 with the reason for broken data", async () => {
@@ -189,7 +198,7 @@ test("the work route converts the stored model of a published work", async () =>
   expect(glb.min[2]).toBeCloseTo(-glb.max[2], 6);
   expect(glb.min[1]).toBeCloseTo(0, 6);
   expect(getArWorkSource).toHaveBeenCalledWith(workId, variantId);
-  expect(readModel).toHaveBeenCalledWith(source.storagePath);
+  expect(readModel).toHaveBeenCalledWith(source.storagePath, "work-ar");
 
   const withoutRevision = await getWork(
     workRequest(assetVersion(source.storagePath)),
@@ -241,4 +250,96 @@ test("the work route answers 422 when the stored model cannot be converted", asy
     context({ workId, file: `${variantId}.glb` }),
   );
   expect(response.status).toBe(422);
+});
+
+
+test("deployed AR redirects generated models to S3 without a large Lambda response", async () => {
+  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  vi.mocked(storeArModel).mockResolvedValue("https://storage.example/converted.usdz?signed=1");
+  try {
+    const response = await calibrationRequest("a4-plate.usdz");
+    expect(response.status).toBe(307);
+    expect(response.headers.get("Location")).toBe("https://storage.example/converted.usdz?signed=1");
+    expect(await response.text()).toBe("");
+    expect(storeArModel).toHaveBeenCalledWith(expect.any(Uint8Array), "usdz", "model/vnd.usdz+zip");
+  } finally { vi.unstubAllEnvs(); }
+});
+
+
+test("cached work models skip reading and conversion, but still require publication", async () => {
+  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  vi.mocked(getArWorkSource).mockResolvedValue(source);
+  vi.mocked(findArModel).mockResolvedValue("https://storage.example/cached.glb");
+  try {
+    const response = await getWork(workRequest(assetVersion(source.storagePath), modelRevision()), context({ workId, file: `${variantId}.glb` }));
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("https://storage.example/cached.glb");
+    expect(readModel).not.toHaveBeenCalled();
+    expect(storeArModel).not.toHaveBeenCalled();
+    vi.mocked(findArModel).mockClear();
+    vi.mocked(getArWorkSource).mockResolvedValue(null);
+    expect((await getWork(workRequest(assetVersion(source.storagePath)), context({ workId, file: `${variantId}.glb` }))).status).toBe(404);
+    expect(findArModel).not.toHaveBeenCalled();
+  } finally { vi.unstubAllEnvs(); }
+});
+
+test("a missing converted model is regenerated and keyed by source, scale, format and revision", async () => {
+  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  vi.mocked(getArWorkSource).mockResolvedValue(source);
+  vi.mocked(findArModel).mockResolvedValue(null);
+  vi.mocked(readModel).mockResolvedValue(stl);
+  vi.mocked(storeArModel).mockResolvedValue("https://storage.example/new.glb");
+  try {
+    await getWork(workRequest(assetVersion(source.storagePath)), context({ workId, file: `${variantId}.glb` }));
+    const key = vi.mocked(findArModel).mock.calls[0][0];
+    expect(storeArModel).toHaveBeenCalledWith(expect.any(Uint8Array), "glb", "model/gltf-binary", key);
+    vi.mocked(getArWorkSource).mockResolvedValue({ ...source, scaleRatio: 2 });
+    await getWork(workRequest(assetVersion(source.storagePath)), context({ workId, file: `${variantId}.glb` }));
+    expect(vi.mocked(findArModel).mock.calls[1][0]).not.toBe(key);
+    await getWork(workRequest(assetVersion(source.storagePath)), context({ workId, file: `${variantId}.usdz` }));
+    expect(vi.mocked(findArModel).mock.calls[2][0]).not.toBe(key);
+  } finally { vi.unstubAllEnvs(); }
+});
+
+
+function glbMaterials(bytes: Uint8Array) {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const length = view.getUint32(GLB_JSON_LENGTH_OFFSET, true);
+  return JSON.parse(new TextDecoder().decode(bytes.subarray(GLB_JSON_START, GLB_JSON_START + length))).materials;
+}
+
+test("colored dedicated AR assets preserve materials when converted into the S3 cache", async () => {
+  const colored = { ...source, fileName: "assembled.3mf", storagePath: "owner/work/assembled.3mf" };
+  vi.mocked(getArWorkSource).mockResolvedValue(colored);
+  vi.mocked(readModel).mockResolvedValue(modelZip(modelXml(
+    basematerialsXml(1, [["Red", "#FF0000"], ["Blue", "#0000FF"]]) +
+    `<object id="2" pid="1" pindex="0">${tetrahedronMeshWith([0, 0, 1, 1])}</object>`, '<item objectid="2"/>',
+  )));
+  vi.mocked(findArModel).mockResolvedValue(null);
+  vi.mocked(storeArModel).mockResolvedValue("https://storage.example/colored.glb");
+  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  try {
+    const response = await getWork(workRequest(assetVersion(colored.storagePath), modelRevision()), context({ workId, file: `${variantId}.glb` }));
+    expect(response.status).toBe(307);
+    expect(readModel).toHaveBeenCalledWith(colored.storagePath, "work-ar");
+    const materials = glbMaterials(vi.mocked(storeArModel).mock.calls[0][0]);
+    expect(materials.map((m: { name: string }) => m.name)).toEqual(["Red", "Blue"]);
+    expect(materials.map((m: { pbrMetallicRoughness: { baseColorFactor: number[] } }) => m.pbrMetallicRoughness.baseColorFactor)).toEqual([[1, 0, 0, 1], [0, 0, 1, 1]]);
+  } finally { vi.unstubAllEnvs(); }
+});
+
+test("the extracted local preview and serving route both retain Blender materials", async () => {
+  const name = "roomfile/colored.blend";
+  vi.mocked(readLocalModel).mockResolvedValue(buildTestBlend("current", [{ name: "Painted", mesh: {
+    ...cubeMesh("Painted"), materials: [{ name: "Red", baseColor: [1, 0, 0] }],
+  } }]));
+  const preview = await previewLocalModel(name, []);
+  expect(preview.ok).toBe(true);
+  if (!preview.ok) throw new Error(preview.message);
+  expect(preview.colors).toEqual([{ name: "Red", hex: "#FF0000" }]);
+  const response = await localModelRequest(localModelPath(name, "f00d", modelRevision()));
+  expect(response.status).toBe(200);
+  const materials = glbMaterials(new Uint8Array(await response.arrayBuffer()));
+  expect(materials[0].name).toBe("Red");
+  expect(materials[0].pbrMetallicRoughness.baseColorFactor).toEqual([1, 0, 0, 1]);
 });

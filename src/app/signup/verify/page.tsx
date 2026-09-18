@@ -18,14 +18,14 @@ export default async function VerifySignupPage({
   if (!email) redirect("/login?mode=signup");
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-ground px-6 py-12">
-      <div className="w-full max-w-[400px] rounded-2xl border border-line bg-white p-7">
+    <div className="flex flex-1 items-center justify-center bg-ground px-4 py-8 sm:px-6 sm:py-12">
+      <div className="w-full max-w-[400px] rounded-2xl border border-line bg-white p-4 sm:p-7">
         <Link href="/" className="text-xl font-bold text-brand">
           OshiNest
         </Link>
         <h1 className="mt-4 text-lg font-bold text-ink">確認コードを入力</h1>
         <p className="mt-1 mb-6 text-[12.5px] leading-5 text-muted-foreground">
-          <span className="font-medium text-ink">{email}</span> に6桁のコードを送りました。
+          <span className="break-all font-medium text-ink">{email}</span> に6桁のコードを送りました。
           10分以内に入力してください。
         </p>
 

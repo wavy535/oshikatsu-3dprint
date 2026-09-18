@@ -1,17 +1,13 @@
-import { networkInterfaces } from "node:os";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import QRCode from "qrcode";
 
-import { AR_ANCHOR, AR_BLEND, AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
-import { lanIPv4Addresses, phoneReachableOrigin } from "@/lib/ar/origin";
+import { AR_BLEND, AR_CALIBRATION, AR_DEV_PAGE, AR_LIMITS, AR_ROOM } from "@/lib/ar/config";
+import { requestPhoneOrigin } from "@/lib/ar/request-origin";
 import {
   listLocalModelFolders,
   localModelRoot,
-  readLocalModel,
-  type LocalModel,
 } from "@/lib/ar/local-models";
-import { meshSizeMm } from "@/lib/ar/mesh";
+import { previewLocalModel } from "@/lib/ar/local-preview";
 import {
   LOCAL_MODEL_EXCLUDE_PARAM,
   calibrationModelPath,
@@ -22,15 +18,7 @@ import {
 } from "@/lib/ar/params";
 import { modelRevision } from "@/lib/ar/revision";
 import { ROOM_LAYOUTS, nuiGuideSizeMm, roomInteriorMm, roomOuterMm, type RoomLayout } from "@/lib/ar/room";
-import {
-  buildWorkMeshes,
-  readBlendModel,
-  readModelObjects,
-  workModelExtension,
-} from "@/lib/ar/work-model";
 import type { BlendReport } from "@/lib/print/blend";
-import { AnalysisBudget } from "@/lib/print/limits";
-import type { NamedMesh } from "@/lib/print/mesh";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "AR 実寸テスト（開発用）" };
@@ -84,44 +72,6 @@ const modelHref = (query: Query, name: string) => `?${new URLSearchParams([...ro
 
 function HiddenInputs({ entries }: { entries: [string, string][] }) {
   return entries.map(([name, value]) => <input key={`${name}=${value}`} type="hidden" name={name} value={value} />);
-}
-
-type LocalModelPreview =
-  | {
-      ok: true;
-      sizeMm: ReturnType<typeof meshSizeMm>;
-      sourceTriangles: number;
-      outputTriangles: number;
-      blend: BlendReport | null;
-    }
-  | { ok: false; message: string };
-
-// 選んだファイルを API と同じ処理で変換してみて、AR での大きさと面の数（.blend なら読み取りの報告も）を出す
-async function previewLocalModel(model: LocalModel, excludeObjects: string[]): Promise<LocalModelPreview> {
-  const buffer = await readLocalModel(model.name);
-  if (!buffer) return { ok: false, message: "ファイルを読めませんでした" };
-  const budget = new AnalysisBudget();
-  try {
-    let objects: NamedMesh[];
-    let blend: BlendReport | null = null;
-    if (workModelExtension(model.name) === "blend") {
-      const read = readBlendModel(buffer, budget, { excludeObjects });
-      objects = read.objects;
-      blend = read.report;
-    } else {
-      objects = readModelObjects(buffer, model.name, budget);
-    }
-    const { meshes, sourceTriangles, outputTriangles } = buildWorkMeshes(
-      objects,
-      AR_DEV_PAGE.localModelScale,
-      budget,
-      AR_ANCHOR.room,
-    );
-    return { ok: true, sizeMm: meshSizeMm(meshes), sourceTriangles, outputTriangles, blend };
-  } catch (error) {
-    // 開発用のページなので、変換できない理由をそのまま表示する
-    return { ok: false, message: error instanceof Error ? error.message : String(error) };
-  }
 }
 
 // 「Bevel（Cube、立方体）」のように、モディファイアの種類ごとにオブジェクトの名前をまとめる
@@ -214,12 +164,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
   }
   const nui = parseNuiQuery(input);
 
-  const requestHeaders = await headers();
-  const phone = phoneReachableOrigin({
-    host: requestHeaders.get("host"),
-    forwardedProto: requestHeaders.get("x-forwarded-proto"),
-    lanAddresses: lanIPv4Addresses(networkInterfaces()),
-  });
+  const phone = await requestPhoneOrigin();
   const revision = modelRevision();
 
   const localRoot = localModelRoot();
@@ -227,7 +172,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
   const localModels = localFolders?.flatMap((folder) => folder.models) ?? null;
   const selectedModel = localModels?.find((model) => model.name === query.model) ?? null;
   const excludeObjects = [query.exclude ?? []].flat().filter((name) => name !== "");
-  const modelPreview = selectedModel ? await previewLocalModel(selectedModel, excludeObjects) : null;
+  const modelPreview = selectedModel ? await previewLocalModel(selectedModel.name, excludeObjects) : null;
 
   const roomUrl = nui && phone ? quickLookUrl(phone.origin, roomModelPath(layout, nui, revision, "usdz")) : null;
   const calibrationUrl = phone
@@ -250,7 +195,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
   const outer = nui ? roomOuterMm(nui, layout) : null;
 
   return (
-    <main className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-6 py-8">
+    <main className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-4 sm:px-6 py-8">
       <div className="flex flex-col gap-1">
         <h1 className="text-lg font-bold text-ink">AR 実寸テスト（開発用）</h1>
         <p className="text-[12.5px] text-muted-foreground">
@@ -306,7 +251,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
         <h2 className="text-sm font-bold text-ink">作品の3Dデータ（手元のファイル）</h2>
         <p className="text-[12px] leading-5 text-muted-foreground">
           <span className="num break-all">{localRoot}</span>{" "}
-          の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL / .blend を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。3MF / STL はプレートに置いた（印刷する）向きのまま、.blend は組み立てた配置のままで、色は反映しません。
+          の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL / .blend を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。3MF / STL はプレートに置いた（印刷する）向きのまま、.blend は組み立てた配置のままで表示します。データが色を持っていれば、その色も反映します。
         </p>
         {localFolders === null && (
           <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
@@ -390,6 +335,26 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                       "間引きで細部はつぶれますが、外形の大きさはほぼ保たれます。"}
                     定規を当てて、上の大きさと比べてください。
                   </p>
+                  {modelPreview.colors.length > 0 && (
+                    <div className="flex flex-col gap-1 text-[11.5px] text-muted-foreground">
+                      <p>
+                        AR に反映する色 <span className="num">{modelPreview.colors.length}</span> 色（色ごとにメッシュを分けます）
+                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {modelPreview.colors.map((color) => (
+                          <span key={`${color.name}-${color.hex}`} className="flex items-center gap-1.5">
+                            <span
+                              aria-hidden
+                              className="size-3 rounded-sm border border-line"
+                              style={{ backgroundColor: color.hex }}
+                            />
+                            <span className="break-all text-ink">{color.name}</span>
+                            <span className="num">{color.hex}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {modelPreview.blend && (
                     <BlendSummary
                       report={modelPreview.blend}

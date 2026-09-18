@@ -1,3 +1,6 @@
+import { jsonArrayFrom } from "kysely/helpers/postgres";
+import { combinedEstimates } from "./combined-estimates";
+import { MAX_PRINT_FILES, MAX_PRINT_UPLOAD_BYTES } from "./asset-limits";
 import { readModel } from "@/lib/files/s3";
 import { queryResult } from "@/lib/db/result";
 import "server-only";
@@ -82,7 +85,7 @@ type AnalysisResult =
   | { ok: true; analysis: AssetAnalysis; bytes: number }
   | Extract<ValidateAssetResult, { ok: false }>;
 
-async function analyzeFile(db: Db, asset: AssetFile): Promise<AnalysisResult> {
+async function analyzeFile(rule: PricingRule, asset: AssetFile): Promise<AnalysisResult> {
   const { data: buffer, error: downloadError } = await queryResult(
     readModel(asset.storage_path),
   );
@@ -98,15 +101,6 @@ async function analyzeFile(db: Db, asset: AssetFile): Promise<AnalysisResult> {
       stage: "download",
     };
   }
-  const { data: rule, error: ruleError } = await queryResult(
-    loadPricingRule(db),
-  );
-  if (ruleError || !rule)
-    return {
-      ok: false,
-      error: "印刷料金の設定を取得できませんでした",
-      stage: "pricing",
-    };
   try {
     return {
       ok: true,
@@ -129,9 +123,13 @@ async function analyzeFile(db: Db, asset: AssetFile): Promise<AnalysisResult> {
 export async function replaceAsset(
   workId: string,
   file: AssetFile,
+  assetId: string,
 ): Promise<ValidateAssetResult> {
   const db = serviceDatabase();
-  const result = await analyzeFile(db, file);
+  const pricing = await pricingForAnalysis(db);
+  if (!pricing.ok) return pricing;
+  const rule = pricing.rule;
+  const result = await analyzeFile(rule, file);
   if (!result.ok) return result;
   const { analysis, bytes } = result;
   const { data: variantIds, error } = await queryResult(
@@ -142,36 +140,13 @@ export async function replaceAsset(
         .where("id", "=", workId)
         .forUpdate()
         .executeTakeFirstOrThrow();
-      const previous = await tx
-        .selectFrom("work_assets")
-        .select("id")
-        .where("work_id", "=", workId)
-        .orderBy("is_primary", "desc")
-        .orderBy("created_at", "desc")
-        .orderBy("id", "desc")
-        .limit(1)
-        .executeTakeFirst();
-      const values = {
-        storage_path: file.storage_path,
-        file_name: file.file_name,
-        file_format: analysis.format,
-        file_size_bytes: bytes,
-        is_primary: true,
-      };
-      // Reuse the ID referenced by variants and preserve instructions through persistAnalysis.
-      const asset = previous
-        ? await tx
-            .updateTable("work_assets")
-            .set(values)
-            .where("id", "=", previous.id)
-            .returning("id")
-            .executeTakeFirstOrThrow()
-        : await tx
-            .insertInto("work_assets")
-            .values({ ...values, work_id: workId })
-            .returning("id")
-            .executeTakeFirstOrThrow();
-      return persistAnalysis(tx, asset.id, workId, bytes, analysis);
+      const previous = await tx.selectFrom("work_assets").select("id")
+        .where("work_id", "=", workId).where("id", "=", assetId).executeTakeFirstOrThrow();
+      const asset = await tx.updateTable("work_assets").set({
+        storage_path: file.storage_path, file_name: file.file_name,
+        file_format: analysis.format, file_size_bytes: bytes,
+      }).where("id", "=", previous.id).returning("id").executeTakeFirstOrThrow();
+      return persistAnalysis(tx, asset.id, workId, bytes, analysis, rule);
     }),
   );
   if (error || !variantIds)
@@ -181,6 +156,38 @@ export async function replaceAsset(
       stage: "persist",
     };
   return { ok: true, analysis, variantIds };
+}
+
+/** Add a batch atomically after every file has been read and analyzed successfully. */
+export async function appendAssets(workId: string, files: AssetFile[]): Promise<ValidateAssetResult> {
+  if (!files.length || files.length > MAX_PRINT_FILES || files.reduce((sum, file) => sum + (file.file_size_bytes ?? 0), 0) > MAX_PRINT_UPLOAD_BYTES)
+    return { ok: false, error: "一度に16ファイル・合計80MiBまで選べます", stage: "input" };
+  const db = serviceDatabase();
+  const pricing = await pricingForAnalysis(db);
+  if (!pricing.ok) return pricing;
+  const rule = pricing.rule;
+  const analyzed: { file: AssetFile; analysis: AssetAnalysis; bytes: number }[] = [];
+  for (const file of files) {
+    const result = await analyzeFile(rule, file);
+    if (!result.ok) return { ...result, error: `${file.file_name}: ${result.error}` };
+    analyzed.push({ file, analysis: result.analysis, bytes: result.bytes });
+  }
+  const { data: variantIds, error } = await queryResult(db.transaction().execute(async (tx) => {
+    await tx.selectFrom("works").select("id").where("id", "=", workId).forUpdate().executeTakeFirstOrThrow();
+    const existing = await tx.selectFrom("work_assets").select(["id", "storage_path"]).where("work_id", "=", workId).execute();
+    const additions = analyzed.filter(({ file }) => !existing.some((asset) => asset.storage_path === file.storage_path));
+    if (existing.length + additions.length > MAX_PRINT_FILES) throw new Error("1作品に登録できる印刷用ファイルは16個までです");
+    for (const [index, item] of additions.entries()) {
+      const asset = await tx.insertInto("work_assets").values({
+        work_id: workId, ...item.file, file_size_bytes: item.bytes,
+        file_format: item.analysis.format, is_primary: existing.length === 0 && index === 0,
+      }).returning("id").executeTakeFirstOrThrow();
+      await persistAnalysis(tx, asset.id, workId, item.bytes, item.analysis, rule, false);
+    }
+    return updateWorkEstimates(tx, workId, analyzed.at(-1)!.analysis, rule);
+  }));
+  if (error || !variantIds) return { ok: false, error: error?.message ?? "ファイル一式を保存できませんでした", stage: "persist" };
+  return { ok: true, analysis: analyzed.at(-1)!.analysis, variantIds };
 }
 
 /** Reanalyze the authorized asset; reject results if a replacement completed meanwhile. */
@@ -203,7 +210,10 @@ export async function validateAndPersistAsset(
       error: "対象の3Dデータが見つかりません",
       stage: "load_asset",
     };
-  const result = await analyzeFile(db, asset);
+  const pricing = await pricingForAnalysis(db);
+  if (!pricing.ok) return pricing;
+  const rule = pricing.rule;
+  const result = await analyzeFile(rule, asset);
   if (!result.ok) {
     if (result.stage !== "analyze") return result;
     const { error } = await queryResult(
@@ -242,7 +252,7 @@ export async function validateAndPersistAsset(
   const { data: variantIds, error } = await queryResult(
     db.transaction().execute(async (tx) => {
       await lockAsset(tx, workId, assetId, asset.storage_path);
-      return persistAnalysis(tx, assetId, workId, bytes, analysis);
+      return persistAnalysis(tx, assetId, workId, bytes, analysis, rule);
     }),
   );
   if (error || !variantIds)
@@ -285,6 +295,8 @@ async function persistAnalysis(
   workId: string,
   bytes: number,
   analysis: AssetAnalysis,
+  rule: PricingRule,
+  updateVariants = true,
 ) {
   await db
     .updateTable("work_assets")
@@ -432,6 +444,24 @@ async function persistAnalysis(
       .values(instructions)
       .execute();
 
+  if (!updateVariants) return [];
+  return updateWorkEstimates(db, workId, analysis, rule);
+}
+
+async function updateWorkEstimates(db: Db, workId: string, latest: AssetAnalysis, rule: PricingRule) {
+  const assets = await db.selectFrom("work_assets as a").select((eb) => [
+    "a.id", "a.file_name", "a.total_volume_cm3", "a.total_surface_area_cm2", "a.validation_status",
+    jsonArrayFrom(eb.selectFrom("work_asset_objects as o")
+      .select(["o.name", "o.bbox_x_mm", "o.bbox_y_mm", "o.bbox_z_mm"])
+      .whereRef("o.asset_id", "=", "a.id")).as("objects"),
+  ]).where("a.work_id", "=", workId).orderBy("a.is_primary", "desc").orderBy("a.created_at").execute();
+  if (!assets.length) throw new Error("印刷用ファイルがありません");
+  const assetId = assets[0].id;
+  const sizes = latest.variants;
+  const estimates = assets.length === 1
+    ? latest.variants
+    : combinedEstimates(assets, sizes, rule);
+  const allValid = assets.every((asset) => asset.validation_status === "passed" || asset.validation_status === "warning");
   // Prices, stock and publishing choices belong to the creator; retain them on reanalysis.
   const previousVariants = await db
     .selectFrom("work_variants")
@@ -449,7 +479,7 @@ async function persistAnalysis(
     previousVariants.map((v) => [v.size_label, v]),
   );
   const variantIds: string[] = [];
-  for (const v of analysis.variants) {
+  for (const v of estimates) {
     const previous = variantsBySize.get(v.sizeLabel);
     const row = {
       work_id: workId,
@@ -471,7 +501,7 @@ async function persistAnalysis(
       batch_count_override: previous?.batch_count_override ?? null,
       price_jpy: previous?.price_jpy ?? null,
       stock: previous?.stock ?? null,
-      is_listed: v.isPrintable ? (previous?.is_listed ?? false) : false,
+      is_listed: allValid && v.isPrintable ? (previous?.is_listed ?? false) : false,
     };
     const returning = [
       "id",
@@ -504,4 +534,11 @@ async function persistAnalysis(
 function round(v: number, digits: number): number {
   const f = 10 ** digits;
   return Math.round(v * f) / f;
+}
+
+async function pricingForAnalysis(db: Db): Promise<{ ok: true; rule: PricingRule } | Extract<ValidateAssetResult, { ok: false }>> {
+  const { data: rule, error } = await queryResult(loadPricingRule(db));
+  return error || !rule
+    ? { ok: false, error: "印刷料金の設定を取得できませんでした", stage: "pricing" }
+    : { ok: true, rule };
 }

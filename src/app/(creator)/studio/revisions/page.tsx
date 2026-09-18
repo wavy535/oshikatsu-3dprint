@@ -4,7 +4,8 @@ import { AlertTriangle, ImageIcon, Wrench } from "lucide-react";
 
 import { listMyRevisions } from "@/lib/revisions/queries";
 import { REVISION_STATUS_LABEL } from "@/lib/revisions/labels";
-import { REPRINT_CAUSE_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { REPRINT_CAUSE_LABEL, shortDateTime } from "@/lib/ops/labels";
 import { workImageUrl } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 

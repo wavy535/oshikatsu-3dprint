@@ -2,11 +2,13 @@ import "server-only";
 import { betterAuth, APIError } from "better-auth";
 import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { emailOTP, phoneNumber } from "better-auth/plugins";
+import { anonymous, emailOTP, phoneNumber } from "better-auth/plugins";
 import { getPool } from "@/lib/db/pool";
 import { sendMail } from "@/lib/mail/send";
 import { siteUrl } from "@/lib/site";
 import { developmentTrustedOrigins } from "./dev-origins";
+import { demoGuestEnabled } from "./demo-mode";
+import { serviceDatabase } from "@/lib/db/client";
 import { sendPhoneOtp } from "./sms";
 
 const timestamps = { createdAt: "created_at", updatedAt: "updated_at" };
@@ -65,6 +67,15 @@ function createAuth() {
       fields: { lastRequest: "last_request" },
       customRules: { "/phone-number/send-otp": { window: 60, max: 1 } },
     },
+    databaseHooks: {
+      user: { create: { after: async (user) => {
+        if (demoGuestEnabled() && (user as { isAnonymous?: boolean }).isAnonymous) {
+          // Only the anonymous plugin creates this server-controlled flag.
+          // Each visitor gets an ordinary creator profile, never an admin.
+          await serviceDatabase().updateTable("profiles").set({ role: "creator", display_name: "ゲスト" }).where("id", "=", user.id).execute();
+        }
+      } } },
+    },
     emailAndPassword: {
       enabled: true,
       requireEmailVerification: true,
@@ -77,6 +88,8 @@ function createAuth() {
     },
     // These features are not part of the product. Keep the auth HTTP surface small.
     disabledPaths: [
+      "/delete-anonymous-user",
+      ...(!demoGuestEnabled() ? ["/sign-in/anonymous"] : []),
       "/sign-in/phone-number",
       "/phone-number/request-password-reset",
       "/phone-number/reset-password",
@@ -84,6 +97,9 @@ function createAuth() {
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (demoGuestEnabled() && !["/sign-in/anonymous", "/sign-out", "/get-session", "/ok"].includes(ctx.path)) {
+          throw new APIError("FORBIDDEN", { message: "このデモではゲストとしてご利用ください" });
+        }
         if (!ctx.path.startsWith("/phone-number/")) return;
         const session = await getSessionFromCtx(ctx);
         if (!session || session.session.expiresAt <= new Date())
@@ -96,6 +112,12 @@ function createAuth() {
       }),
     },
     plugins: [
+      anonymous({
+        generateName: () => "ゲスト",
+        emailDomainName: "guest.oshinest.invalid",
+        disableDeleteAnonymousUser: true,
+        schema: { user: { fields: { isAnonymous: "is_anonymous" } } },
+      }),
       emailOTP({
         otpLength: 6,
         expiresIn: 600,

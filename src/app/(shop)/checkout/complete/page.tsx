@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { CheckCircle2, Clock } from "lucide-react";
 
 import { getCompletedOrder } from "@/lib/checkout/queries";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "注文完了" };
@@ -25,7 +25,7 @@ export default async function CheckoutCompletePage({
   const confirmed = order.status !== "payment_pending" && order.status !== "cancelled";
 
   return (
-    <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col items-center gap-5 px-6 py-12 text-center">
+    <div className="mx-auto flex w-full max-w-[640px] flex-1 flex-col items-center gap-5 px-4 sm:px-6 py-12 text-center">
       {confirmed ? (
         <CheckCircle2 className="size-12 text-ok" aria-hidden />
       ) : (

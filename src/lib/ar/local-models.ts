@@ -21,7 +21,13 @@ export type LocalModelFolder = {
 };
 
 /** 手元の3Dデータの置き場所（絶対パス） */
-export const localModelRoot = () => path.resolve(process.cwd(), AR_DEV_PAGE.localModelRoot);
+export function localModelRoot() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Local AR models are available only in development");
+  }
+  // Developer-owned files are read at runtime only; never trace them into a deployment.
+  return path.resolve(/* turbopackIgnore: true */ process.cwd(), AR_DEV_PAGE.localModelRoot);
+}
 
 const isMissing = (error: unknown) =>
   error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR");

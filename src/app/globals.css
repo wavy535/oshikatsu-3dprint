@@ -140,3 +140,20 @@ body {
 .num {
   font-variant-numeric: tabular-nums;
 }
+
+/* Long titles, email addresses and file names must fit their content column. */
+main {
+  overflow-wrap: anywhere;
+}
+
+/* Keep editable fields legible and avoid focus zoom on mobile Safari. */
+@media (width < 640px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+  select,
+  textarea {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+}

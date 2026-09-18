@@ -4,7 +4,7 @@ import { ImageIcon, Truck } from "lucide-react";
 
 import { getMyOrder, ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { OrderStatusStepper } from "@/components/order/order-status-stepper";
 import { ReviewForm } from "@/components/order/review-form";
 import { OrderControls } from "@/components/checkout/order-controls";

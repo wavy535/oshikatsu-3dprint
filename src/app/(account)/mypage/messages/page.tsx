@@ -6,7 +6,7 @@ import { MessageCircle } from "lucide-react";
 import { getThread, listThreads, resolveCounterpart } from "@/lib/messages/queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { shortDateTime } from "@/lib/ops/labels";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Avatar } from "@/components/ui/avatar";
 import { MessageComposer } from "@/components/messages/message-composer";
 import { cn } from "@/lib/utils";

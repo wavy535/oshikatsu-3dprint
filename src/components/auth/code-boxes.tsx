@@ -38,7 +38,7 @@ export function CodeBoxes({
           inputMode="numeric"
           autoComplete={i === 0 ? "one-time-code" : "off"}
           aria-label={`${label} ${i + 1}文字目`}
-          className="h-12 w-11 rounded-lg border border-line bg-white text-center text-lg font-semibold text-ink outline-none focus:border-brand focus:ring-3 focus:ring-brand/20"
+          className="h-12 min-w-0 w-0 flex-1 rounded-lg border border-line bg-white text-center text-lg font-semibold text-ink outline-none focus:border-brand focus:ring-3 focus:ring-brand/20"
           onChange={(e) => {
             const chars = e.target.value.replace(/\D/g, "");
             if (!chars) return setDigit(i, "");

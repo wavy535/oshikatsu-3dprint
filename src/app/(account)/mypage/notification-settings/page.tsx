@@ -18,8 +18,8 @@ export default async function NotificationSettingsPage() {
         注文・発送とクリエイター向けの通知は、届かないこと自体がトラブルになるためオフにできません。
       </p>
 
-      <div className="overflow-hidden rounded-xl border border-line bg-white">
-        <table className="w-full text-[12.5px]">
+      <div className="overflow-x-auto rounded-xl border border-line bg-white">
+        <table className="w-full min-w-[420px] text-[12.5px]">
           <thead>
             <tr className="border-b border-line text-[11px] text-muted-foreground">
               <th className="px-4 py-2.5 text-left font-semibold">種類</th>

@@ -15,7 +15,8 @@
     "db:migrate": "node scripts/db.mjs migrate",
     "db:seed": "node scripts/db.mjs seed && node scripts/seed-storage.mjs",
     "db:types": "node scripts/db-types.mjs",
-    "dev:services": "docker compose up -d --build --wait"
+    "dev:services": "docker compose up -d --build --wait",
+    "perf:frontend": "node scripts/measure-frontend.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1127.0",

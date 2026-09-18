@@ -1,0 +1,156 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "OshiNest guest-only demo application",
+  "Parameters": {
+    "ImageUri": {
+      "Type": "String"
+    },
+    "AppRoleArn": {
+      "Type": "String"
+    },
+    "SubnetA": {
+      "Type": "String"
+    },
+    "SubnetB": {
+      "Type": "String"
+    },
+    "AppSecurityGroup": {
+      "Type": "String"
+    },
+    "DatabaseEndpoint": {
+      "Type": "String"
+    },
+    "RuntimePasswordArn": {
+      "Type": "String"
+    },
+    "AuthSecretArn": {
+      "Type": "String"
+    },
+    "Bucket": {
+      "Type": "String"
+    },
+    "SiteUrl": {
+      "Type": "String",
+      "Default": "https://setup.invalid"
+    }
+  },
+  "Resources": {
+    "Logs": {
+      "Type": "AWS::Logs::LogGroup",
+      "Properties": {
+        "LogGroupName": "/aws/lambda/oshinest-demo",
+        "RetentionInDays": 7
+      }
+    },
+    "App": {
+      "Type": "AWS::Lambda::Function",
+      "DependsOn": "Logs",
+      "Properties": {
+        "FunctionName": "oshinest-demo",
+        "Description": "OshiNest guest preview, no real payments or administrator access",
+        "PackageType": "Image",
+        "Code": {
+          "ImageUri": {
+            "Ref": "ImageUri"
+          }
+        },
+        "Role": {
+          "Ref": "AppRoleArn"
+        },
+        "Architectures": [
+          "x86_64"
+        ],
+        "MemorySize": 2048,
+        "Timeout": 120,
+        "EphemeralStorage": {
+          "Size": 512
+        },
+        "VpcConfig": {
+          "SubnetIds": [
+            {
+              "Ref": "SubnetA"
+            },
+            {
+              "Ref": "SubnetB"
+            }
+          ],
+          "SecurityGroupIds": [
+            {
+              "Ref": "AppSecurityGroup"
+            }
+          ],
+          "Ipv6AllowedForDualStack": true
+        },
+        "Environment": {
+          "Variables": {
+            "SITE_URL": {
+              "Ref": "SiteUrl"
+            },
+            "DATABASE_URL": {
+              "Fn::Sub": "postgresql://app_runtime:{{resolve:secretsmanager:${RuntimePasswordArn}:SecretString}}@${DatabaseEndpoint}:5432/oshinest"
+            },
+            "DATABASE_SSL_CA": "/app/certs/rds-global-bundle.pem",
+            "AUTH_SECRET": {
+              "Fn::Sub": "{{resolve:secretsmanager:${AuthSecretArn}:SecretString}}"
+            },
+            "S3_BUCKET": {
+              "Ref": "Bucket"
+            },
+            "AWS_USE_DUALSTACK_ENDPOINT": "true",
+            "AR_MODEL_STORAGE": "s3",
+            "DEMO_GUEST_ENABLED": "true",
+            "MAIL_PROVIDER": "none",
+            "SMS_PROVIDER": "none"
+          }
+        }
+      }
+    },
+    "Url": {
+      "Type": "AWS::Lambda::Url",
+      "Properties": {
+        "TargetFunctionArn": {
+          "Ref": "App"
+        },
+        "AuthType": "NONE",
+        "InvokeMode": "BUFFERED"
+      }
+    },
+    "UrlPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "App"
+        },
+        "Action": "lambda:InvokeFunctionUrl",
+        "Principal": "*",
+        "FunctionUrlAuthType": "NONE"
+      }
+    },
+    "InvokePermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "FunctionName": {
+          "Ref": "App"
+        },
+        "Action": "lambda:InvokeFunction",
+        "Principal": "*",
+        "InvokedViaFunctionUrl": true
+      }
+    }
+  },
+  "Outputs": {
+    "Url": {
+      "Value": {
+        "Fn::GetAtt": [
+          "Url",
+          "FunctionUrl"
+        ]
+      }
+    },
+    "FunctionName": {
+      "Value": {
+        "Ref": "App"
+      }
+    }
+  }
+}

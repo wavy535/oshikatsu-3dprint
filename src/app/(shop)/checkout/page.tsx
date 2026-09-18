@@ -47,7 +47,7 @@ export default async function CheckoutPage({
   if (ctx.lines.length === 0) redirect("/cart");
 
   return (
-    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-6 py-6">
+    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6">
       <div className="flex items-center gap-2.5">
         <Link href="/cart" className="hover:opacity-80">
           <Step n={1} label="カート" state="done" />

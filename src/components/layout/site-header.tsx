@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Bell, Plus, Search, ShieldCheck, ShoppingBag, ShoppingCart, Smile } from "lucide-react";
+import { demoGuestEnabled } from "@/lib/auth/demo-mode";
 import { getShellContext } from "@/lib/layout/queries";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -9,7 +10,7 @@ function SearchBar({ defaultValue }: { defaultValue?: string }) {
   return (
     <form
       action="/works"
-      className="flex h-10 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-white px-4 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/20"
+      className="flex h-11 min-w-0 flex-1 items-center gap-2 rounded-full border border-line bg-white px-4 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand/20"
     >
       <Search className="size-4 shrink-0 text-muted-foreground" aria-hidden />
       <input
@@ -41,7 +42,7 @@ function NavItem({
   return (
     <Link
       href={href}
-      className="flex flex-col items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-ink"
+      className="flex min-h-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 lg:px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-ink"
     >
       <span className="relative">
         {icon}
@@ -65,26 +66,28 @@ function NavItem({
  */
 export async function SiteHeader({ query }: { query?: string }) {
   const shell = await getShellContext();
+  const guestMode = demoGuestEnabled();
   const signedIn = Boolean(shell.user);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-[1270px] items-center gap-5 px-6 py-3">
+    <header className="lg:sticky top-0 z-40 border-b border-line bg-white/95 backdrop-blur">
+      {guestMode && <p className="bg-brand-soft px-4 py-2 text-center text-xs text-ink">ゲスト体験版 · 実際の支払い・発送はありません</p>}
+      <div className="mx-auto flex w-full max-w-[1270px] flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:flex-nowrap lg:gap-5">
         <Link href="/" className="text-lg font-bold tracking-tight text-brand">
           OshiNest
         </Link>
 
-        <div className="hidden min-w-0 flex-1 md:flex">
+        <div className="hidden min-w-0 flex-1 lg:flex">
           <SearchBar defaultValue={query} />
         </div>
 
         {signedIn ? (
-          <nav className="ml-auto flex items-center gap-1">
+          <nav aria-label="メインメニュー" className="flex w-full items-center justify-between gap-1 lg:ml-auto lg:w-auto">
             {shell.isAdmin && (
               <Button
                 asChild
                 size="sm"
-                className="mr-1 hidden bg-console text-white hover:bg-console/90 sm:inline-flex"
+                className="mr-1 hidden bg-console text-white hover:bg-console/90 lg:inline-flex"
               >
                 {/* 運営だけに見える入口。コンソール側の暗色ヘッダーと同じ色にして役割の切り替えを分かりやすくする */}
                 <Link href="/admin/print-queue">
@@ -94,7 +97,7 @@ export async function SiteHeader({ query }: { query?: string }) {
               </Button>
             )}
             {shell.isCreator ? (
-              <Button asChild size="sm" className="mr-1 hidden sm:inline-flex">
+              <Button asChild size="sm" className="mr-1 hidden lg:inline-flex">
                 {/* 下書きの作成は作品管理の Server Action で行うので、そこへ送る */}
                 <Link href="/studio/works">
                   <Plus className="size-4" aria-hidden />
@@ -102,7 +105,7 @@ export async function SiteHeader({ query }: { query?: string }) {
                 </Link>
               </Button>
             ) : (
-              <Button asChild variant="outline" size="sm" className="mr-1 hidden sm:inline-flex">
+              <Button asChild variant="outline" size="sm" className="mr-1 hidden lg:inline-flex">
                 <Link href="/creator/apply">クリエイター登録</Link>
               </Button>
             )}
@@ -132,7 +135,7 @@ export async function SiteHeader({ query }: { query?: string }) {
             />
             <Link
               href="/mypage"
-              className="flex flex-col items-center gap-0.5 rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-ink"
+              className="flex min-h-11 shrink-0 flex-col items-center justify-center gap-0.5 rounded-md px-1 py-1 lg:px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:text-ink"
             >
               <Avatar
                 src={shell.profile?.avatar_url}
@@ -145,16 +148,26 @@ export async function SiteHeader({ query }: { query?: string }) {
         ) : (
           <div className="ml-auto flex items-center gap-2.5">
             <Button asChild variant="outline" size="sm">
-              <Link href="/login">ログイン</Link>
+              <Link href="/login">{guestMode ? "ゲストで始める" : "ログイン"}</Link>
             </Button>
-            <Button asChild size="sm">
-              <Link href="/signup">新規会員登録</Link>
-            </Button>
+            {!guestMode && <Button asChild size="sm">
+              <Link href="/signup"><span className="sm:hidden">新規登録</span><span className="hidden sm:inline">新規会員登録</span></Link>
+            </Button>}
           </div>
         )}
       </div>
 
-      <div className="border-t border-line/70 px-6 pb-2 md:hidden">
+      {signedIn && (
+        <nav aria-label="制作・運営メニュー" className="flex flex-wrap gap-2 px-4 pb-2 sm:px-6 lg:hidden">
+          <Button asChild variant="outline" size="sm">
+            <Link href={shell.isCreator ? "/studio/works" : "/creator/apply"}>
+              {shell.isCreator ? "作品を投稿する" : "クリエイター登録"}
+            </Link>
+          </Button>
+          {shell.isAdmin && <Button asChild variant="outline" size="sm"><Link href="/admin/print-queue">運営コンソール</Link></Button>}
+        </nav>
+      )}
+      <div className="border-t border-line/70 px-4 py-2 sm:px-6 lg:hidden">
         <SearchBar defaultValue={query} />
       </div>
     </header>

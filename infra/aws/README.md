@@ -1,118 +1,69 @@
-# AWSへの配備（低利用の学習環境）
+# AWS運用
 
-2026-09-09。Next.jsを維持し、アクセス時だけ動くLambdaと、自動停止するAurora Serverless v2を使う。実課金・送金は行わない。アプリ内通知と認証メールは通常どおり使い、通知メールとデータ整理は管理画面から手動で実行する。
+対象：**small-vlm-sop-check / 796093524263 / ap-northeast-1（東京）**。既存VLMサービスとは別のOshiNest専用リソース。
 
-| 役割 | 構成 |
+[公開デモ](https://2ku246qcgjm7yh37q4xrrxubhy0oyazc.lambda-url.ap-northeast-1.on.aws/)
+
+## 構成
+
+| 定義 | リソース |
 | --- | --- |
-| Web・認証・3D解析 | Next.js 16 / Node.js 24 standalone + Lambda Web Adapter。まず1 GiB、120秒で検証 |
-| HTTPS | Lambda Function URL。ログイン・権限確認はアプリで実行 |
-| DB | Aurora PostgreSQL 17互換 / Serverless v2、writer 1台、0〜1 ACU、接続なし300秒で自動停止 |
-| ファイル | 非公開S3バケット1個。ブラウザから署名付きURLで直接アップロード |
-| メール・SMS | SES v2 / SNS。Lambda実行ロールの一時認証を使用 |
-| 通知送信・整理 | `/admin/maintenance` の管理者操作。スケジューラや定期DB照会は設けない |
+| [foundation.json](foundation.json) | 専用VPC・2AZのprivate subnet・IPv6外向き通信・S3 endpoint、Aurora PostgreSQL 17.6、S3、ECR、Secrets Manager、IAM |
+| [application.json](application.json) | Next.js + Lambda Web Adapter、Lambda 2GiB / 120秒、公開Function URL（BUFFERED）、ログ7日 |
 
-ECS・ALB・NAT Gateway・RDS Proxy・常駐ワーカーはこの構成に含めない。認証、所有者の確認、DBのTLSと基本的なアクセス制限は維持する。WAFや追加の認証基盤は導入しない。
+Auroraはwriter 1台、0〜1 ACU、接続なし300秒で自動停止する設定。暗号化・非公開、バックアップ1日、削除保護あり。NAT Gateway・ALB・CloudFront・RDS Proxyは使わない。DB停止中も保存領域などの費用は残る。
 
-Lambdaの常時起動設定は使わず、DB停止中は計算資源の料金が発生しない。ただしDBストレージ・バックアップ・Secrets Manager・S3・ECR・ログなどの費用は残る。復帰時はDBだけで通常約15秒、長時間停止後は30秒以上かかる場合がある。連続アクセスするとDBは停止しないため、月額はリージョンと使用時間を決めて見積もる。[Auroraの自動停止・復帰](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-serverless-v2-auto-pause.html)
+- `DEMO_GUEST_ENABLED=true`：ブラウザごとのゲスト購入・投稿。管理者権限なし。
+- `MAIL_PROVIDER=none` / `SMS_PROVIDER=none`：外部通知なし。実決済・送金もなし。
+- `AR_MODEL_STORAGE=s3`：非公開S3へ生成物を保存し、署名付きURLで取得。作品ARのキャッシュ照会には `ar-cache/*` に限定したListBucket権限を使う。
+- DBと認証の秘密はSecrets Managerで管理。アプリには管理用DB接続を渡さない。RDSのCA検証を有効にする。
 
-## ビルドとローカル確認
+## 配備・更新
 
-```bash
-docker build --platform linux/amd64 --provenance=false -t oshinest:lambda .
-# Linux。先にルートREADMEのローカルサービスとDBを準備する。
-docker run --rm --network host --read-only --tmpfs /tmp --env-file .env.local \
-  -e PORT=3001 -e SITE_URL=http://localhost:3001 oshinest:lambda
-```
-
-同じイメージを通常のNodeサーバーとしても実行できる。Dockerfileに[AWS Lambda Web Adapter](https://aws.github.io/aws-lambda-web-adapter/getting-started/docker-images.html)のバイナリを追加しており、Lambdaでは拡張機能として起動する。アプリの新しい依存パッケージや独自ランタイムは追加していない。アダプターは1.0.1のdigestを固定している。
-
-ビルド時のDB接続・秘密値は不要。`.env.local`はイメージに含めない。`/api/health`はDBを使わない起動確認用で、DBを起こす監視やウォームアップは設定しない。
-
-## ネットワーク
-
-Lambdaと非公開DBを同じVPCへ配置する。NAT Gatewayの固定費を避けるため、外向きのAWS API通信にはIPv6を使う。
-
-1. 2つのAZにIPv4・IPv6両方のCIDRを持つサブネットを用意する。Lambdaの選択サブネットは全てdual-stackにする。
-2. サブネットの `::/0` をegress-only internet gatewayへ向け、外向きHTTPSを許可する。DBにはVPC内のIPv4経路で接続する。
-3. DBの5432番はLambdaのセキュリティグループと、マイグレーション時の管理用経路から許可する。DBを公開しない。
-4. Lambdaに `Ipv6AllowedForDualStack=true` と `AWS_USE_DUALSTACK_ENDPOINT=true` を設定する。S3・SES・SNSを同じワークロードリージョンに置く。
-
-[LambdaのIPv6接続](https://docs.aws.amazon.com/lambda/latest/dg/configuration-vpc.html)、[egress-only internet gateway](https://docs.aws.amazon.com/vpc/latest/userguide/egress-only-internet-gateway.html)、[SESのdual-stackエンドポイント](https://docs.aws.amazon.com/general/latest/gr/ses.html)、[SNSのdual-stack設定](https://docs.aws.amazon.com/sns/latest/dg/sns-dual-stack.html)を参照。IPv4だけのサブネットへ設定例をそのまま適用すると外部APIに到達できない。
-
-## DBの作成と準備
-
-DXRアカウント `569855251962`、CLIプロファイル `dxr`。**実際のワークロードリージョンとリソースの範囲は配備前に決定する。** ログインの `us-east-1` やローカルS3の署名用リージョンから推測しない。このディレクトリのファイルは設定例であり、AWSへの作成・変更はまだ行っていない。
-
-[aurora.example.json](aurora.example.json)のバージョン・サブネットグループ・セキュリティグループを埋め、作業用ファイルへ保存する。対象リージョンで0 ACUへの自動停止をサポートするPostgreSQL 17互換バージョンを選ぶ。未対応の場合にMinCapacityを0.5へ変えると常時課金に戻るため、先に利用可否を確認する。
+リポジトリルートで実行する。CloudFormationを配備定義の唯一の入口とし、個別のLambda/RDS作成用JSONは使わない。CI/CDは未設定。
 
 ```bash
-: "${OSHINEST_AWS_REGION:?Set the agreed workload Region}"
-aws rds create-db-cluster --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --cli-input-json file:///tmp/oshinest-aurora.json
-aws rds create-db-instance --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --db-instance-identifier oshinest-demo-writer --db-cluster-identifier oshinest-demo \
-  --engine aurora-postgresql --db-instance-class db.serverless \
-  --no-publicly-accessible --no-enable-performance-insights
+export OSHINEST_AWS_PROFILE=small-vlm-sop-check
+export OSHINEST_AWS_REGION=ap-northeast-1
+export OSHINEST_AWS_ACCOUNT=796093524263
+aws sso login --profile "$OSHINEST_AWS_PROFILE" --use-device-code --no-browser
+aws sts get-caller-identity --profile "$OSHINEST_AWS_PROFILE" --region "$OSHINEST_AWS_REGION"
 ```
 
-DB接続を維持するRDS ProxyやDB監視クライアントを追加すると自動停止を妨げる。アプリはLambdaで接続を返すたびに切断し、トランザクションの途中だけ同じ接続を保持する。接続タイムアウトは復帰待ちを含め60秒、SQL実行は30秒。ローカルdevは通常の接続プールを使う。
-
-マイグレーションはDBへ接続できる作業環境から実行する。Lambda起動時には実行しない。
-
-1. DB作成者のURLを作業環境の `MIGRATION_DATABASE_URL` に設定する。管理パスワードはAuroraが作成したSecrets Managerの秘密から取得する。
-2. `DATABASE_SSL_CA=infra/aws/rds-global-bundle.pem` を設定し、`npm run db:migrate` を実行する。番号順、1ファイル1トランザクションで適用する。
-3. `app_runtime` をLOGIN可能にし、管理接続の `\password app_runtime` などでパスワードを設定する。アプリの `DATABASE_URL` はこのユーザーとcluster writer endpointを使う。管理用URLはアプリへ渡さない。
-
-`db/bootstrap.sql`は管理用のロール作成を含む。権限が足りなければDB管理者が先に適用する。アプリは `app_guest` / `app_user` / `app_service` へ切り替えて業務データを操作する。AWSではローカルの既知パスワードや `db:seed` を使わない。
-
-アプリの `DATABASE_SSL_CA` は `/app/certs/rds-global-bundle.pem`。CAとホスト名を検証し、接続URLにSSLオプションを重ねない。[RDSのTLS](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/PostgreSQL.Concepts.General.SSL.html)、[CA配布元](https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem)。証明書の更新時はバンドルを更新して再ビルドする。
-
-新構成は空のPostgreSQLへ適用するベースライン。旧環境のデータ移送・認証情報の自動変換は含めない。旧ローカルDBのボリュームは保持している。
-
-## Lambda・S3・メール
-
-実行ロールの信頼先を `lambda.amazonaws.com` とし、VPC接続とログにはAWS管理ポリシー `AWSLambdaVPCAccessExecutionRole`、アプリには [lambda-policy.example.json](lambda-policy.example.json) の対象リソースを指定する。ECRはLambdaと同じリージョンに作成し、ビルドした単一アーキテクチャのイメージをpushする。
-
-[lambda.example.json](lambda.example.json)のイメージdigest・ロール・ネットワーク・環境変数を埋める。`DATABASE_URL` と32文字以上の `AUTH_SECRET` はLambda環境変数に実値を設定する。Secrets ManagerのARNを入れるだけでは展開されない。秘密を含む作業用JSONはリポジトリへ保存しない。
-
-`AWS_REGION` はLambdaが設定するため環境変数のVariablesへ追加しない。`S3_ENDPOINT`・ローカルS3キー・Mailpit設定も渡さない。SESの検証済み送信元を `MAIL_FROM` に指定し、学習時は [SES sandbox](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html) / [SNS SMS sandbox](https://docs.aws.amazon.com/sns/latest/dg/sns-sms-sandbox.html) 内の宛先を使う。
-
-Function URLは関数作成後に確定するため、初回の `SITE_URL` は `https://setup.invalid` として関数を作成し、URL取得後に更新する。公開アクセス許可はその後に追加する。
+1. 基盤は `oshinest-demo-foundation` に `foundation.json` を適用。初回はcreate-stack、更新はupdate-stackを使い、既存のSiteUrlを保持する。IAMを含むため `CAPABILITY_IAM` を指定し、完了を待つ。
+2. `docker build --platform linux/amd64 --provenance=false -t oshinest:deploy .` でビルド。ECR `oshinest-demo` に一意のタグでpushする。
+3. ECRのdigest付きURIを `OSHINEST_IMAGE_URI` に設定。初回は `node infra/aws/deploy-application.mjs application`。更新時は下記コマンドを使う。
+4. 初回のみアプリ作成完了後、`node infra/aws/deploy-application.mjs configure-url` でSiteUrlとS3 CORSを実URLへ合わせる。
+5. `/api/health` とゲスト投稿・購入・管理画面拒否を確認する。
 
 ```bash
-aws lambda create-function --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --cli-input-json file:///tmp/oshinest-lambda.json
-aws lambda wait function-active-v2 --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --function-name oshinest-demo
-aws lambda create-function-url-config --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --cli-input-json file://infra/aws/function-url.example.json
+# 新しいイメージのdigest URIをOSHINEST_IMAGE_URIに設定してから実行
+node infra/aws/deploy-application.mjs update
 ```
 
-返されたHTTPS URLの末尾 `/` を除いて `SITE_URL` を更新する。作業用JSONの `Environment` オブジェクト全体を `/tmp/oshinest-lambda-env.json` へ保存し、次で適用する。環境変数の更新は全置換なので、他のキーも含める。
+更新処理は対象アカウントを照合し、既存パラメータを保持してアプリのCloudFormationを更新する。ARキャッシュ権限を追加する今回の変更は、基盤更新を先に適用する。
+
+## DB変更
+
+Lambda起動時にはマイグレーションしない。DB変更がある場合、アプリ更新の前に一時的な管理用Lambdaで適用する。
 
 ```bash
-aws lambda update-function-configuration --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --function-name oshinest-demo --environment file:///tmp/oshinest-lambda-env.json
-aws lambda wait function-updated-v2 --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --function-name oshinest-demo
-aws lambda add-permission --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --function-name oshinest-demo --statement-id PublicFunctionUrl \
-  --action lambda:InvokeFunctionUrl --principal '*' --function-url-auth-type NONE
-aws lambda add-permission --profile dxr --region "$OSHINEST_AWS_REGION" \
-  --function-name oshinest-demo --statement-id InvokeViaFunctionUrl \
-  --action lambda:InvokeFunction --principal '*' --invoked-via-function-url
+python3 infra/aws/package-migration.py
+node infra/aws/deploy-application.mjs migration
+aws lambda wait function-active-v2 --profile "$OSHINEST_AWS_PROFILE" --region "$OSHINEST_AWS_REGION" --function-name oshinest-demo-migrate
+aws lambda invoke --profile "$OSHINEST_AWS_PROFILE" --region "$OSHINEST_AWS_REGION" --function-name oshinest-demo-migrate --cli-read-timeout 650 /tmp/oshinest-migration-result.json
+# FunctionErrorがなく、結果のok:trueを確認してから削除する
+aws lambda delete-function --profile "$OSHINEST_AWS_PROFILE" --region "$OSHINEST_AWS_REGION" --function-name oshinest-demo-migrate
 ```
 
-公開WebアプリのためFunction URLは `AuthType=NONE`。会員の認証はBetter Authが担当し、運営画面・Server Actions・ファイル参照の権限確認を維持する。[Function URLには両方の呼び出し許可が必要](https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html)。認証のIP制限はLambdaが渡す `requestContext.http.sourceIp` を使う。
+AWSでは開発用 `db:seed` を実行しない。S3のRetainとDBの削除保護を維持する。
 
-S3のBlock Public Accessを有効にし、[s3-cors.example.json](s3-cors.example.json)のoriginを同じFunction URLへ変更して適用する。ブラウザのアップロードはS3へ直接送る。作品画像は `/api/files/public/work-images/...` から署名付きURLへリダイレクトし、3Dファイル・検品写真は権限を確認して取得する。
+## 配備記録・残る確認
 
-この例はVPC接続したFunction URLなので **BUFFERED** を使う。[ストリーミングの制約と6 MBの応答上限](https://docs.aws.amazon.com/lambda/latest/dg/configuration-response-streaming.html)がある。大きいファイルをLambda経由で転送せず、S3直接転送を維持する。3D解析の最大入力に対するメモリ・時間は未計測のため、1 GiB / 120秒を実用上限として保証しない。実データで確認して調整する。
+2026-09-18の配備ではマイグレーション0001〜0011を適用。ゲスト投稿・別ゲストとの下書き分離・AR取得・デモ購入・管理画面404を確認。同日の更新で統合コミット `77c02be`（リファクタリング・PR #4のAR色対応）を配備済み。基盤はARキャッシュ照会権限のみ更新し、DB変更はない。
 
-## 通知送信と停止の確認
+配備イメージ：`796093524263.dkr.ecr.ap-northeast-1.amazonaws.com/oshinest-demo@sha256:74f8c18a6408878f3c9343b33c2fa1f56bc70d931eca8e44ba64e6f16cee4bbf`。基盤・アプリとも `UPDATE_COMPLETE`。公開サイトでゲスト投稿・データ分離・管理画面拒否・色付きARの取得と再取得・別ゲストのデモ購入を確認。確認用作品は出品を解除した。
 
-管理者で `/admin/maintenance` の「通知送信と整理を実行」を押す。期限切れ見積り、古い通知、期限切れ認証データを整理し、配信時刻を過ぎた通知を最大20件処理する。認証時のメール送信とアプリ内通知はこの操作を待たない。見積り承認では有効期限をその場で検査するため、整理前でも期限切れの承認はできない。
-
-メールの送信開始期限は45秒、各メールは5秒。リースは5分で失効し、未送信分は再操作で回復する。SES受理後のDB記録に失敗すると再送される場合がある。7日を超えた通知は配信対象外。毎日決まった時刻の配送は保証しない。
-
-配備後は画面・ログイン・S3アップロード・解析・認証メール・管理者の手動送信を確認する。その後、ブラウザとDBクライアントを閉じて待ち、CloudWatchの `ServerlessDatabaseCapacity=0` を確認する。次のアクセスで復帰できることも確認する。これらのAWS上の確認はまだ未実施。
+- 初回ゲスト開始がテストの15秒上限を超過。同時間帯にLambdaの15.8秒の応答を観測したため、起動待ちを考慮した90秒上限で再確認し成功。遅延原因の切り分け、DBの停止・復帰時間、実利用料金、iOS/Android実機ARは未確認。
+- 更新イメージのInspector指摘：CRITICAL 3 / HIGH 17 / MEDIUM 14 / UNTRIAGED 2。CRITICALはperl由来で修正版なしとの判定。ベースOS・同梱パッケージの更新追跡を続ける。
+- ゲストCookie削除後のデータ復元は提供しない。検証で作ったデータはデモDBに残る。

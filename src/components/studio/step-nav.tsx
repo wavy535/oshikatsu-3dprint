@@ -17,7 +17,7 @@ export function StepNav({ workId, current }: { workId: string; current: number }
         const done = s.n < current;
         const active = s.n === current;
         const content = (
-          <span className="flex items-center gap-2">
+          <span className="flex flex-col items-center gap-1 sm:flex-row sm:gap-2">
             <span
               className={cn(
                 "flex size-6 items-center justify-center rounded-full text-[10.5px] font-semibold",
@@ -26,13 +26,13 @@ export function StepNav({ workId, current }: { workId: string; current: number }
             >
               {done ? <Check className="size-3.5" aria-hidden /> : s.n}
             </span>
-            <span className={cn("text-[12px]", active ? "font-semibold text-ink" : "text-muted-foreground")}>
+            <span className={cn("text-center text-[11px] sm:text-[12px]", active ? "font-semibold text-ink" : "text-muted-foreground")}>
               {s.label}
             </span>
           </span>
         );
         return (
-          <li key={s.n} className="flex flex-1 items-center gap-2">
+          <li key={s.n} className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
             {done ? (
               <Link href={`/studio/works/${workId}/steps/${s.n}`} className="hover:opacity-80">
                 {content}

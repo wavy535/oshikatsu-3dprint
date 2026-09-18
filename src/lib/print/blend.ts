@@ -1,6 +1,7 @@
 import { BlendFile, BlendParseError, NULL_ADDRESS, decompressBlend, type BlendBlock } from "./blend-file.ts";
+import { linearToSrgbHex } from "./color.ts";
 import { AnalysisBudget, MODEL_LIMITS, checkMeshSize, checkModelFileSize } from "./limits.ts";
-import type { NamedMesh } from "./mesh.ts";
+import { NO_MATERIAL, type MeshMaterial, type NamedMesh } from "./mesh.ts";
 import { triangulatePolygon } from "./polygon.ts";
 import { catmullClark, type PolyMesh } from "./subdivision.ts";
 
@@ -38,6 +39,16 @@ const SUBSURF_MODIFIER = "SubsurfModifierData";
 const MODIFIER_SUFFIX = /ModifierData$/;
 const POSITION_ATTRIBUTE = "position";
 const CORNER_VERT_ATTRIBUTE = ".corner_vert";
+const MATERIAL_INDEX_ATTRIBUTE = "material_index";
+// 面の属性が入る CustomData のメンバー名（版で変わる）
+const FACE_DATA_MEMBERS = ["pdata", "face_data"] as const;
+// 色は Principled BSDF の基本色を使う。テクスチャにつないでいる場合は取れないので表示色に落とす
+const PRINCIPLED_NODE = "ShaderNodeBsdfPrincipled";
+const BASE_COLOR_SOCKET = "Base Color";
+const RGBA_SOCKET_VALUE = "bNodeSocketValueRGBA";
+const RGB_CHANNELS = 3;
+// Blender のマテリアルの既定の表示色
+const DEFAULT_MATERIAL_COLOR = [0.8, 0.8, 0.8];
 const MIN_FACE_CORNERS = 3;
 const MATRIX_4X4_FLOATS = 16;
 const MATRIX_4X4_COLUMNS = 4;
@@ -175,6 +186,8 @@ function attributeBlock(file: BlendFile, mesh: BlendBlock, name: string, customD
       return holder ? file.resolve(holder, file.pointer(holder, "AttributeArray", "data")) : null;
     }
   }
+  // 版によっては、その種類の CustomData（面の属性など）を持たない
+  if (!file.has("Mesh", customData)) return null;
   const layers = file.resolve(mesh, file.pointer(mesh, "Mesh", `${customData}.layers`));
   const total = file.int32(mesh, "Mesh", `${customData}.totlayer`);
   for (let i = 0; i < total && layers; i++) {
@@ -182,6 +195,55 @@ function attributeBlock(file: BlendFile, mesh: BlendBlock, name: string, customD
       return file.resolve(layers, file.pointer(layers, "CustomDataLayer", "data", i));
   }
   return null;
+}
+
+// マテリアルの色は Principled BSDF の基本色から取る。テクスチャにつないでいるときは取れないので null
+function principledBaseColor(file: BlendFile, material: BlendBlock, budget: AnalysisBudget): number[] | null {
+  if (!file.has("Material", "nodetree")) return null;
+  const tree = file.resolve(material, file.pointer(material, "Material", "nodetree"));
+  if (!tree || file.structName(tree) !== "bNodeTree" || !file.has("bNode", "idname")) return null;
+  for (const node of file.list(tree, "bNodeTree", "nodes", budget)) {
+    if (file.string(node, "bNode", "idname") !== PRINCIPLED_NODE) continue;
+    for (const socket of file.list(node, "bNode", "inputs", budget)) {
+      if (file.string(socket, "bNodeSocket", "name") !== BASE_COLOR_SOCKET) continue;
+      if (file.has("bNodeSocket", "link") && file.pointer(socket, "bNodeSocket", "link") !== NULL_ADDRESS) return null;
+      const value = file.resolve(socket, file.pointer(socket, "bNodeSocket", "default_value"));
+      return value && file.structName(value) === RGBA_SOCKET_VALUE
+        ? file.floats(value, RGBA_SOCKET_VALUE, "value", RGB_CHANNELS)
+        : null;
+    }
+  }
+  return null;
+}
+
+/** マテリアルの色（sRGB の "#RRGGBB"）。ノードの基本色がなければビューポートの表示色を使う */
+function materialHex(file: BlendFile, material: BlendBlock, budget: AnalysisBudget) {
+  const viewport = file.has("Material", "r")
+    ? ["r", "g", "b"].map((path) => file.floats(material, "Material", path, 1)[0])
+    : DEFAULT_MATERIAL_COLOR;
+  return linearToSrgbHex(principledBaseColor(file, material, budget) ?? viewport);
+}
+
+/** 面の材質スロットが指すマテリアル。オブジェクト側の指定が空ならメッシュ側を使う */
+function materialSlots(file: BlendFile, ob: BlendBlock, mesh: BlendBlock) {
+  const arrayOf = (owner: BlendBlock, struct: string) => {
+    if (!file.has(struct, "mat") || !file.has(struct, "totcol")) return { array: null, count: 0 };
+    return {
+      array: file.resolve(owner, file.pointer(owner, struct, "mat")),
+      count: Math.max(0, file.int16(owner, struct, "totcol")),
+    };
+  };
+  const sources = [arrayOf(ob, "Object"), arrayOf(mesh, "Mesh")];
+  const count = Math.max(...sources.map((source) => source.count));
+  if (count > MODEL_LIMITS.materials) throw new BlendParseError(".blend のマテリアルのスロットが多すぎます");
+  return Array.from({ length: count }, (_, slot) => {
+    for (const { array, count: length } of sources) {
+      if (!array || slot >= length) continue;
+      const material = file.resolve(array, file.pointerElement(array, slot));
+      if (material?.code === "MA") return material;
+    }
+    return null;
+  });
 }
 
 function readMesh(file: BlendFile, mesh: BlendBlock): PolyMesh {
@@ -200,6 +262,13 @@ function readMesh(file: BlendFile, mesh: BlendBlock): PolyMesh {
   const positions = file.readFloat32Array(attributeBlock(file, mesh, POSITION_ATTRIBUTE, vertData), vertexCount * 3, "頂点の位置");
   const cornerVerts = file.readInt32Array(attributeBlock(file, mesh, CORNER_VERT_ATTRIBUTE, cornerData), cornerCount, "面の頂点");
 
+  // 面ごとの材質スロットの番号。ないときは全面スロット0（Blender と同じ扱い）
+  const faceData = FACE_DATA_MEMBERS.find((name) => file.has("Mesh", name)) ?? FACE_DATA_MEMBERS[0];
+  const materialIndexBlock = attributeBlock(file, mesh, MATERIAL_INDEX_ATTRIBUTE, faceData);
+  const faceMaterials = materialIndexBlock
+    ? file.readInt32Array(materialIndexBlock, faceCount, "面の材質")
+    : null;
+
   if (faceOffsets[0] !== 0 || faceOffsets[faceCount] !== cornerCount)
     throw new BlendParseError(`.blend のメッシュ「${file.idName(mesh)}」の面の並びが不正です`);
   for (let f = 0; f < faceCount; f++) {
@@ -212,7 +281,7 @@ function readMesh(file: BlendFile, mesh: BlendBlock): PolyMesh {
   for (const value of positions) {
     if (!Number.isFinite(value)) throw new BlendParseError(`.blend のメッシュ「${file.idName(mesh)}」の頂点の位置が不正です`);
   }
-  return { positions, faceOffsets, cornerVerts };
+  return { positions, faceOffsets, cornerVerts, faceMaterials };
 }
 
 function pickScene(file: BlendFile) {
@@ -244,6 +313,19 @@ export function parseBlend(buf: Buffer, options: BlendReadOptions, budget = new 
   const objects: NamedMesh[] = [];
   let totalVertices = 0;
   let totalTriangles = 0;
+
+  // 使われたマテリアルだけを色の一覧にし、面はその添字で色を指す
+  const materials: MeshMaterial[] = [];
+  const colorOfMaterial = new Map<number, number>();
+  const colorIndex = (material: BlendBlock | null) => {
+    if (!material) return NO_MATERIAL;
+    const known = colorOfMaterial.get(material.index);
+    if (known !== undefined) return known;
+    if (materials.length >= MODEL_LIMITS.materials) return NO_MATERIAL;
+    colorOfMaterial.set(material.index, materials.length);
+    materials.push({ name: file.idName(material), hex: materialHex(file, material, budget) });
+    return materials.length - 1;
+  };
 
   for (const base of file.list(viewLayer, "ViewLayer", "object_bases", budget)) {
     const ob = file.resolve(base, file.pointer(base, "Base", "object"));
@@ -297,12 +379,20 @@ export function parseBlend(buf: Buffer, options: BlendReadOptions, budget = new 
       for (let k = 0; k < 3; k++) positions[v * 3 + k] = (moved[k] + world.t[k]) * options.mmPerUnit;
     }
 
+    // 面の材質スロット → 色の一覧の添字。面を三角形に分けた数だけ、同じ色を並べる
+    const slotColors = materialSlots(file, ob, meshBlock).map((material) => colorIndex(material));
+    const colored = slotColors.some((color) => color !== NO_MATERIAL);
     const indices: number[] = [];
+    const triangleColors: number[] = [];
     const faceCount = mesh.faceOffsets.length - 1;
     for (let f = 0; f < faceCount; f++) {
+      const before = indices.length;
       triangulatePolygon(positions, mesh.cornerVerts.subarray(mesh.faceOffsets[f], mesh.faceOffsets[f + 1]), indices);
+      if (!colored) continue;
+      const color = slotColors[mesh.faceMaterials ? mesh.faceMaterials[f] : 0] ?? NO_MATERIAL;
+      for (let t = before; t < indices.length; t += 3) triangleColors.push(color);
     }
-    // 拡縮が負（鏡映）なら、面の向きがそろうよう三角形の巡回を逆にする
+    // 拡縮が負（鏡映）なら、面の向きがそろうよう三角形の巡回を逆にする（並び順は変えない）
     if (determinant3(world.m) < 0) {
       for (let t = 0; t < indices.length; t += 3) [indices[t + 1], indices[t + 2]] = [indices[t + 2], indices[t + 1]];
     }
@@ -310,10 +400,17 @@ export function parseBlend(buf: Buffer, options: BlendReadOptions, budget = new 
     totalVertices += vertexCount;
     totalTriangles += indices.length / 3;
     checkMeshSize(totalVertices, totalTriangles);
-    objects.push({ name, mesh: { positions, indices: Uint32Array.from(indices), materialIndices: null } });
+    objects.push({
+      name,
+      mesh: {
+        positions,
+        indices: Uint32Array.from(indices),
+        materialIndices: colored ? Int32Array.from(triangleColors) : null,
+      },
+    });
   }
 
   report.objects.sort((a, b) => a.name.localeCompare(b.name, "ja", { numeric: true }));
   if (objects.length === 0) throw new BlendParseError(".blend に表示するメッシュがありません");
-  return { objects, report };
+  return { objects, materials, report };
 }

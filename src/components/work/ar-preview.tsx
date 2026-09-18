@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Box } from "lucide-react";
 
 import { AR_DISPLAY } from "@/lib/ar/config";
 import type { ArModelKind, ArModelOption, RoomUnavailableReason } from "@/lib/ar/options";
-import { Button } from "@/components/ui/button";
+import type { QrUnavailableReason } from "@/lib/ar/preview";
+import { ArModelViewer } from "./ar-model-viewer";
 import { cn } from "@/lib/utils";
 
 // 小数の誤差（125.50000000000001 など）を出さず、整数なら小数点も付けない
@@ -26,9 +27,9 @@ const ROOM_HINT: Record<RoomUnavailableReason, string> = {
 };
 
 /** QR コードを出せない理由 */
-const QR_HINT = {
+const QR_HINT: Record<QrUnavailableReason, string> = {
   no_size: "選んだぬいのサイズに対応する展開がないため、QR コードを出せません。",
-  no_model: "このサイズの3Dデータが登録されていないため、QR コードを出せません。",
+  no_model: "AR用の3Dデータが登録されていないため、QR コードを出せません。",
 } as const;
 
 type Props = {
@@ -45,7 +46,7 @@ type Props = {
   baseQuery: string;
   // 選んだぬいのサイズの作品を AR で開く QR コード
   qr: { url: string; imageDataUrl: string } | null;
-  qrUnavailable: keyof typeof QR_HINT | null;
+  qrUnavailable: QrUnavailableReason | null;
 };
 
 /**
@@ -68,45 +69,12 @@ export function ArPreview({
 }: Props) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [viewerReady, setViewerReady] = useState(false);
-  const [viewerFailed, setViewerFailed] = useState(false);
   const [kind, setKind] = useState<ArModelKind | null>(options[0]?.kind ?? null);
-  const [modelFailed, setModelFailed] = useState(false);
-  const [viewer, setViewer] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open || viewerReady) return;
-    let active = true;
-    import("@google/model-viewer").then(
-      () => {
-        if (active) setViewerReady(true);
-      },
-      () => {
-        if (active) setViewerFailed(true);
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [open, viewerReady]);
-
-  useEffect(() => {
-    if (!viewer) return;
-    const onError = () => setModelFailed(true);
-    const onLoad = () => setModelFailed(false);
-    viewer.addEventListener("error", onError);
-    viewer.addEventListener("load", onLoad);
-    return () => {
-      viewer.removeEventListener("error", onError);
-      viewer.removeEventListener("load", onLoad);
-    };
-  }, [viewer]);
-
   if (options.length === 0 && !roomUnavailable) return null;
   const selected = options.find((option) => option.kind === kind) ?? options[0] ?? null;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-line bg-ground/60 p-3">
+    <div className="flex min-h-28 flex-col gap-2 rounded-lg border border-line bg-ground/60 p-3">
       <div className="flex items-center gap-2">
         <p className="flex items-center gap-1.5 text-[12px] font-semibold text-ink">
           <Box className="size-3.5" aria-hidden />
@@ -116,7 +84,7 @@ export function ArPreview({
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="ml-auto text-[11.5px] font-semibold text-brand hover:underline"
+            className="ml-auto min-h-11 px-2 text-[11.5px] font-semibold text-brand hover:underline"
           >
             開く
           </button>
@@ -129,6 +97,7 @@ export function ArPreview({
           <label className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
             マイぬい
             <select
+              aria-label="マイぬい"
               value={selectedNuiId ?? ""}
               onChange={(event) => {
                 const query = new URLSearchParams(baseQuery);
@@ -147,7 +116,7 @@ export function ArPreview({
             </select>
           </label>
           {selectedNuiId && qr && (
-            <div className="flex items-start gap-3 rounded-lg border border-line bg-white p-2.5">
+            <div className="flex flex-col items-start gap-3 rounded-lg border border-line bg-white p-2.5 sm:flex-row">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={qr.imageDataUrl}
@@ -182,10 +151,9 @@ export function ArPreview({
                 aria-pressed={option.kind === selected.kind}
                 onClick={() => {
                   setKind(option.kind);
-                  setModelFailed(false);
                 }}
                 className={cn(
-                  "rounded-full border px-2.5 py-1 text-[11px]",
+                  "min-h-11 rounded-full border px-2.5 py-1 text-[11px]",
                   option.kind === selected.kind
                     ? "border-brand bg-brand-soft font-semibold text-ink"
                     : "border-line bg-white text-muted-foreground hover:text-ink",
@@ -196,33 +164,7 @@ export function ArPreview({
             ))}
           </div>
 
-          {viewerFailed ? (
-            <p className="text-[11.5px] text-danger">3D表示を読み込めませんでした。時間をおいて開き直してください。</p>
-          ) : viewerReady ? (
-            <model-viewer
-              ref={setViewer}
-              src={selected.src}
-              alt={LABEL[selected.kind]}
-              ar
-              ar-modes="webxr scene-viewer quick-look"
-              ar-scale="fixed"
-              ar-placement="floor"
-              camera-controls
-              touch-action="pan-y"
-              shadow-intensity="1"
-              className="relative block h-64 w-full rounded-md bg-white"
-            >
-              <Button slot="ar-button" size="sm" className="absolute right-2 bottom-2">
-                ARで置いてみる
-              </Button>
-            </model-viewer>
-          ) : (
-            <p className="text-[11.5px] text-muted-foreground">3D表示を準備しています…</p>
-          )}
-
-          {modelFailed && (
-            <p className="text-[11.5px] text-danger">このモデルを表示できませんでした。</p>
-          )}
+          <ArModelViewer key={selected.src} src={selected.src} label={LABEL[selected.kind]} />
 
           {selected.kind !== "work" && interiorMm && (
             <p className="text-[11px] leading-4 text-muted-foreground">
@@ -249,7 +191,7 @@ export function ArPreview({
             <li>実寸でも数cmずれることがあります。入るかどうかは相性判定をご確認ください。</li>
             <li>ARのボタンが出ないときは、iPhone は Safari、Android は Chrome で開いてください。</li>
             {selected.kind === "work" && (
-              <li>作品は単色で表示します。複数パーツの作品は、印刷用に並べた配置のまま表示されます。</li>
+              <li>作品はAR用データに色があればその色で、なければ単色で表示します。配置もAR用データに従います。</li>
             )}
           </ul>
         </>

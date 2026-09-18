@@ -6,7 +6,7 @@ import { getCreatorDashboard } from "@/lib/sales/queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { monthLabel, shortDateTime } from "@/lib/ops/labels";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { RequestPayoutButton } from "@/components/sales/payout-forms";
 import { MonthSelect } from "@/components/sales/month-select";
 

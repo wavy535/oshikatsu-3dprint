@@ -4,7 +4,8 @@ import { AlertTriangle, ChevronLeft, ImageIcon } from "lucide-react";
 
 import { getMyRevision } from "@/lib/revisions/queries";
 import { REVISION_STATUS_LABEL } from "@/lib/revisions/labels";
-import { REPRINT_CAUSE_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { REPRINT_CAUSE_LABEL, shortDateTime } from "@/lib/ops/labels";
 import { RevisionActions } from "@/components/revision/revision-actions";
 
 export const metadata = { title: "修正依頼" };

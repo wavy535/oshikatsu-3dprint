@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useRef, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ImagePlus, Star, Trash2 } from "lucide-react";
 
@@ -35,14 +35,6 @@ export function ThumbnailPicker({
   isPublished: boolean;
 }) {
   const router = useRouter();
-  const [registerState, registerImage] = useActionState(
-    async (previous: StepActionState, data: FormData) => {
-      const next = await registerImageAction(previous, data);
-      router.refresh();
-      return next;
-    },
-    initialState,
-  );
   const [thumbState, setThumbnail, settingThumb] = useActionState(
     setThumbnailAction,
     initialState,
@@ -57,50 +49,55 @@ export function ThumbnailPicker({
   );
 
   const [uploading, setUploading] = useState(false);
+  const busy = useRef(false);
+  const [progress, setProgress] = useState("");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function onPick(file: File) {
+  async function onPick(files: File[]) {
+    if (busy.current || !files.length) return;
     setUploadError(null);
-    if (!file.type.startsWith("image/")) {
-      setUploadError("画像ファイルを選んでください");
-      return;
+    if (files.length > 16) { setUploadError("一度に選べる画像は16枚までです"); return; }
+    for (const file of files) {
+      if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) || file.size > 10 * 1024 * 1024) {
+        setUploadError(`${file.name}: PNG・JPEG・WebP・GIF（1枚10MBまで）を選んでください`);
+        return;
+      }
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError("画像が大きすぎます（10MBまで）");
-      return;
-    }
-
+    busy.current = true;
     setUploading(true);
-    let path: string;
+    let completed = 0;
     try {
-      path = await uploadFile("work-images", file, workId);
+      for (const file of files) {
+        setProgress(`${completed + 1}/${files.length} ${file.name}`);
+        const path = await uploadFile("work-images", file, workId);
+        const fd = new FormData();
+        fd.set("workId", workId);
+        fd.set("storagePath", path);
+        const result = await registerImageAction(initialState, fd);
+        if (result.error) throw new Error(result.error);
+        completed++;
+      }
     } catch (error) {
-      setUploadError(
-        error instanceof Error ? error.message : "アップロードに失敗しました",
-      );
-      return;
+      setUploadError(`${completed}枚を登録しました。${error instanceof Error ? error.message : "送信に失敗しました"}。未登録の画像を選び直してください。`);
     } finally {
+      busy.current = false;
       setUploading(false);
+      setProgress("");
+      if (inputRef.current) inputRef.current.value = "";
+      router.refresh();
     }
-
-    const fd = new FormData();
-    fd.set("workId", workId);
-    fd.set("storagePath", path);
-    startTransition(() => {
-      registerImage(fd);
-    });
   }
 
   const error =
-    uploadError ?? registerState.error ?? thumbState.error ?? deleteState.error;
+    uploadError ?? thumbState.error ?? deleteState.error;
 
   return (
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
         <h2 className="text-[13px] font-semibold text-ink">作品画像</h2>
         <p className="text-[11.5px] text-muted-foreground">
-          1枚目がサムネイルになります。星を押すと入れ替えられます。
+          複数の画像をまとめて選べます。1枚目がサムネイルになります。星を押すと入れ替えられます。
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -134,7 +131,7 @@ export function ThumbnailPicker({
                     <input type="hidden" name="imageId" value={img.id} />
                     <button
                       type="submit"
-                      disabled={settingThumb}
+                      disabled={settingThumb || uploading}
                       className="flex items-center gap-1 text-[10.5px] text-muted-foreground hover:text-ink"
                     >
                       <Star className="size-3" aria-hidden />
@@ -148,6 +145,7 @@ export function ThumbnailPicker({
                   <button
                     type="submit"
                     aria-label="この画像を削除"
+                    disabled={uploading}
                     className="text-muted-foreground hover:text-danger"
                   >
                     <Trash2 className="size-3.5" aria-hidden />
@@ -171,15 +169,19 @@ export function ThumbnailPicker({
           <input
             ref={inputRef}
             type="file"
+            multiple
+            disabled={uploading}
+            aria-label="作品画像"
             accept="image/*"
             className="hidden"
             onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) void onPick(file);
+              void onPick(Array.from(e.target.files ?? []));
+              e.target.value = "";
             }}
           />
         </div>
 
+        {progress && <p role="status" className="text-[12px]">{progress}</p>}
         {error && <p className="text-[12px] text-danger">{error}</p>}
       </section>
 
@@ -188,7 +190,7 @@ export function ThumbnailPicker({
         {publishState.error && (
           <p className="text-[12px] text-danger">{publishState.error}</p>
         )}
-        <Button type="submit" disabled={publishing} className="self-end">
+        <Button type="submit" disabled={publishing || uploading} className="self-end">
           {publishing
             ? "公開しています..."
             : isPublished

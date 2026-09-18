@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
-import { getWorkDraft, listFilaments } from "@/lib/works/studio-queries";
+import { getInstructionsDraft, listFilaments } from "@/lib/works/studio-queries";
 import { StepNav } from "@/components/studio/step-nav";
 import { PrintInstructionsForm } from "@/components/studio/print-instructions-form";
 
@@ -10,16 +10,14 @@ export const metadata = { title: "STEP2 印刷指示" };
 /** Figma ②出品フロー「STEP2 印刷指示」。 */
 export default async function Step2Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [work, filaments] = await Promise.all([getWorkDraft(id), listFilaments()]);
+  const [work, filaments] = await Promise.all([getInstructionsDraft(id), listFilaments()]);
   if (!work) notFound();
 
-  const asset = work.work_assets?.[0];
-  // 3Dデータが無いとパーツも無いので STEP1 へ戻す
-  if (!asset) redirect(`/studio/works/${id}/steps/1`);
-
-  const objectById = new Map(
-    (asset.work_asset_objects ?? []).map((o) => [o.id, o])
-  );
+  const assets = work.work_assets ?? [];
+  if (!assets.length || assets.some((asset) => !["passed", "warning"].includes(asset.validation_status))) redirect(`/studio/works/${id}/steps/1`);
+  const objectById = new Map(assets.flatMap((asset) =>
+    (asset.work_asset_objects ?? []).map((object) => [object.id, { ...object, name: `${asset.file_name} / ${object.name}` }] as const)
+  ));
 
   const parts = (work.work_part_instructions ?? [])
     .filter((i) => i.variant_id === null && objectById.has(i.object_id))
@@ -41,7 +39,7 @@ export default async function Step2Page({ params }: { params: Promise<{ id: stri
     .map((s) => ({
       id: s.id,
       slotIndex: s.slot_index,
-      sourceName: s.source_name,
+      sourceName: `${assets.find((asset) => asset.id === s.asset_id)?.file_name ?? ""} / ${s.source_name}`,
       sourceHex: s.source_hex,
       filamentId: s.filament_id,
     }))

@@ -22,6 +22,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/auth/guards", () => ({
   requireAdmin: vi.fn(),
+  requireCreator: vi.fn(),
   getOptionalUser: vi.fn(),
 }));
 vi.mock("@/lib/files/s3", () => ({
@@ -33,10 +34,14 @@ vi.mock("@/lib/db/client", async (importOriginal) => ({
   serviceDatabase: vi.fn(),
 }));
 import { scopedPool, serviceDatabase } from "@/lib/db/client";
-import { requireAdmin, getOptionalUser } from "@/lib/auth/guards";
+import { requireAdmin, requireCreator, getOptionalUser } from "@/lib/auth/guards";
 import { readModel } from "@/lib/files/s3";
 import { advanceBatchAction, finishPrintJobAction, submitQcAction } from "@/lib/ops/printing-actions";
-import { registerAssetAction, saveWorkInfoAction } from "@/lib/works/step-actions";
+import { saveWorkInfoAction } from "@/lib/works/step-actions";
+import { registerPrintAssetsAction } from "@/lib/works/asset-actions";
+import { registerArAssetAction } from "@/lib/works/ar-actions";
+import { getArWorkSource } from "@/lib/ar/queries";
+import { getAnalysisDraft, getInstructionsDraft, getInfoDraft, getPublishDraft } from "@/lib/works/studio-queries";
 import { validateAndPersistAsset } from "@/lib/works/asset-validation";
 
 if (existsSync(".env.local")) process.loadEnvFile(".env.local");
@@ -49,6 +54,7 @@ const runtime = new pg.Pool({
   max: 4,
 });
 let failQuery: string | undefined;
+let pricingReads = 0;
 function actor(userId?: string) {
   const pool = scopedPool(runtime, {
     role: userId ? "app_user" : "app_service",
@@ -63,6 +69,7 @@ function actor(userId?: string) {
           return {
             ...client,
             query: (async (sql: string, values: readonly unknown[]) => {
+              if (sql.includes('from "print_pricing_rules"')) pricingReads++;
               // Use real PostgreSQL before and after the failing statement, including rollback.
               if (failQuery && sql.includes(failQuery))
                 throw new Error("injected database failure");
@@ -409,11 +416,12 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     ).toBe(object.rows[0].id);
   });
   const modelFile = readFileSync("tests/fixtures/tetrahedron.stl");
-  function registerModel(name: string) {
-    return registerAssetAction({ error: null }, form({
-      workId, storagePath: `${creatorId}/${workId}/${name}.stl`,
-      fileName: "tetrahedron.stl", fileSize: String(modelFile.length),
-    }));
+  async function registerModel(name: string) {
+    const assetId = (await owner.query("select id from work_assets where work_id=$1 order by is_primary desc, created_at desc limit 1", [workId])).rows[0]?.id;
+    return registerPrintAssetsAction({ error: null }, form({ payload: JSON.stringify({
+      workId, assetId, files: [{ storage_path: `${creatorId}/${workId}/${name}.stl`,
+        file_name: "tetrahedron.stl", file_size_bytes: modelFile.length }],
+    }) }));
   }
   async function assetSnapshot() {
     return (await owner.query(`select jsonb_build_object(
@@ -463,6 +471,101 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     expect(after.assets[0].storage_path).toBe("newer.stl");
     after.assets[0].storage_path = first.assets[0].storage_path;
     expect(after).toEqual(first);
+  });
+
+  test("step queries load their required data and isolate another creator's work", async () => {
+    vi.mocked(requireCreator).mockResolvedValue({ db: creatorDb, user: { id: creatorId }, profile: { role: "creator" } } as Awaited<ReturnType<typeof requireCreator>>);
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    expect((await registerBatch(["seat", "legs"])).ok).toBe(true);
+    const analysis = await getAnalysisDraft(workId);
+    expect(analysis?.work_assets).toHaveLength(2);
+    expect(analysis?.work_assets[0].work_asset_objects).toHaveLength(1);
+    expect((await getInstructionsDraft(workId))?.work_part_instructions).toHaveLength(2);
+    expect((await getInfoDraft(workId))?.work_variants.length).toBeGreaterThan(0);
+    const publish = await getPublishDraft(workId);
+    expect(publish?.work_assets).toHaveLength(2);
+    expect(publish?.work_assets[0]).not.toHaveProperty("work_asset_objects");
+    expect(publish).not.toHaveProperty("work_part_instructions");
+    const other = await owner.query("insert into works (creator_id,title) values ($1,'other') returning id", [adminId]);
+    for (const read of [getAnalysisDraft, getInstructionsDraft, getInfoDraft, getPublishDraft]) {
+      expect(await read(other.rows[0].id)).toBeFalsy();
+    }
+  });
+
+  function registerBatch(names: string[], assetId?: string) {
+    return registerPrintAssetsAction({ error: null }, form({ payload: JSON.stringify({
+      workId, assetId, files: names.map((name) => ({
+        storage_path: `${creatorId}/${workId}/${name}.stl`, file_name: `${name}.stl`, file_size_bytes: modelFile.length,
+      })),
+    }) }));
+  }
+  test("a batch keeps every print part and aggregates estimates; targeted replacement keeps other files", async () => {
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    pricingReads = 0;
+    expect((await registerBatch(["seat", "legs"])).ok).toBe(true);
+    expect(pricingReads).toBe(1);
+    const first = await assetSnapshot();
+    expect(first.assets).toHaveLength(2);
+    expect(first.objects).toHaveLength(2);
+    expect(first.instructions).toHaveLength(2);
+    expect(first.variants.every((v: {part_count: number}) => v.part_count === 2)).toBe(true);
+    expect(first.assets.filter((a: {is_primary: boolean}) => a.is_primary)).toHaveLength(1);
+    // Retrying an already registered batch is idempotent.
+    pricingReads = 0;
+    expect((await registerBatch(["seat", "legs"])).ok).toBe(true);
+    expect(pricingReads).toBe(1);
+    expect((await assetSnapshot()).assets).toEqual(first.assets);
+    const target = first.assets.find((a: {file_name: string}) => a.file_name === "legs.stl");
+    expect((await registerBatch(["replacement"], target.id)).ok).toBe(true);
+    const after = await assetSnapshot();
+    expect(after.assets).toHaveLength(2);
+    expect(after.assets.find((a: {id: string}) => a.id !== target.id)).toEqual(first.assets.find((a: {id: string}) => a.id !== target.id));
+    expect(after.variants.find((v: {id: string}) => v.id === variantId)).toMatchObject({ price_jpy: 1000, stock: 10, part_count: 2 });
+  });
+  test("invalid files and failed batch persistence leave the entire previous product intact", async () => {
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    expect((await registerBatch(["first"])).ok).toBe(true);
+    const before = await assetSnapshot();
+    vi.mocked(readModel).mockResolvedValueOnce(modelFile).mockResolvedValueOnce(Buffer.alloc(modelFile.length));
+    expect((await registerBatch(["valid", "invalid"])).error).toBeTruthy();
+    expect(await assetSnapshot()).toEqual(before);
+    // Existing sizes use UPDATE, so fail the second stage after all new parts are inserted.
+    failQuery = 'update "work_variants"';
+    expect((await registerBatch(["second", "third"])).error).toBeTruthy();
+    expect(await assetSnapshot()).toEqual(before);
+  });
+  test("AR registration is independent, has no print fallback, and preserves the previous AR file on failure", async () => {
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    expect((await registerBatch(["print"])).ok).toBe(true);
+    expect(await getArWorkSource(workId, variantId)).toBeNull();
+    const before = await assetSnapshot();
+    const arForm = (name: string) => form({ workId, storagePath: `${creatorId}/${workId}/${name}.stl`, fileName: `${name}.stl`, fileSize: String(modelFile.length) });
+    expect((await registerArAssetAction({ error: null }, arForm("assembled"))).ok).toBe(true);
+    expect(readModel).toHaveBeenLastCalledWith(`${creatorId}/${workId}/assembled.stl`, "work-ar");
+    expect(await assetSnapshot()).toEqual(before);
+    const source = await getArWorkSource(workId, variantId);
+    expect(source?.fileName).toBe("assembled.stl");
+    vi.mocked(readModel).mockResolvedValueOnce(Buffer.alloc(modelFile.length));
+    expect((await registerArAssetAction({ error: null }, arForm("invalid"))).error).toBeTruthy();
+    expect(await getArWorkSource(workId, variantId)).toEqual(source);
+    await owner.query("update works set status='draft' where id=$1", [workId]);
+    expect(await getArWorkSource(workId, variantId)).toBeNull();
+  });
+
+  test("orders snapshot the whole print set and keep it after files are replaced", async () => {
+    vi.mocked(readModel).mockResolvedValue(modelFile);
+    pricingReads = 0;
+    expect((await registerBatch(["seat", "legs"])).ok).toBe(true);
+    expect(pricingReads).toBe(1);
+    const inserted = await owner.query(`insert into order_items
+      (order_id,work_id,creator_id,variant_id,unit_price,quantity,creator_payout_amount,platform_fee_amount,print_cost_amount,stl_storage_path_snapshot,filament_material_snapshot,filament_color_snapshot)
+      values ($1,$2,$3,$4,1000,1,800,200,0,'legacy.stl','PLA','white') returning id, print_assets_snapshot`, [orderId,workId,creatorId,variantId]);
+    const item = inserted.rows[0];
+    expect(item.print_assets_snapshot).toHaveLength(2);
+    expect(item.print_assets_snapshot.map((a: {file_name: string}) => a.file_name).sort()).toEqual(["legs.stl", "seat.stl"]);
+    const before = await assetSnapshot();
+    expect((await registerBatch(["new-seat"], before.assets[0].id)).ok).toBe(true);
+    expect((await owner.query("select print_assets_snapshot from order_items where id=$1", [item.id])).rows[0].print_assets_snapshot).toEqual(item.print_assets_snapshot);
   });
 
 });
