@@ -1,4 +1,9 @@
 import { expect, test } from "@playwright/test";
+import { basematerialsXml, modelXml, modelZip, tetrahedronMeshWith } from "../helpers/model-files";
+
+// Aurora may resume on the first guest request; Lambda allows up to 120 seconds.
+test.use({ actionTimeout: 90_000, navigationTimeout: 90_000 });
+test.setTimeout(180_000);
 
 test.skip(process.env.E2E_GUEST !== "true", "Run against the isolated guest deployment");
 
@@ -6,7 +11,7 @@ test("guests enter without credentials, post works, remain isolated and cannot b
   await page.goto("/studio/works");
   await expect(page.getByLabel("パスワード", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "ゲストで始める", exact: true }).click();
-  await expect(page).toHaveURL(/\/studio\/works$/);
+  await expect(page).toHaveURL(/\/studio\/works$/, { timeout: 90_000 });
   const session = await (await page.request.get("/api/auth/get-session")).json();
   expect(session.user.isAnonymous).toBe(true);
   await page.getByRole("button", { name: "作品を投稿する" }).click();
@@ -22,7 +27,7 @@ test("guests enter without credentials, post works, remain isolated and cannot b
     const other = await another.newPage();
     await other.goto("/login");
     await other.getByRole("button", { name: "ゲストで始める", exact: true }).click();
-    await expect(other).toHaveURL(/\/$/);
+    await expect(other).toHaveURL(/\/$/, { timeout: 90_000 });
     const otherSession = await (await other.request.get("/api/auth/get-session")).json();
     expect(otherSession.user.id).not.toBe(session.user.id);
     expect((await other.goto(draft))?.status()).toBe(404);
@@ -53,8 +58,13 @@ test("a guest publishes separate print and AR files and another guest places a d
   await page.getByLabel("15cmを出品する", { exact: true }).check();
   await page.getByRole("button", { name: "公開の設定へ進む", exact: true }).click();
   await expect(page).toHaveURL(/\/steps\/4$/);
-  await page.getByLabel("AR用ファイル", { exact: true }).setInputFiles("tests/fixtures/tetrahedron.stl");
-  await expect(page.getByText("登録済み：tetrahedron.stl")).toBeVisible();
+  await page.getByLabel("AR用ファイル", { exact: true }).setInputFiles({
+    name: "colored.3mf", mimeType: "application/octet-stream", buffer: modelZip(modelXml(
+      basematerialsXml(1, [["Red", "#FF0000"], ["Blue", "#0000FF"]]) +
+      `<object id="2" pid="1" pindex="0">${tetrahedronMeshWith([0, 0, 1, 1])}</object>`, '<item objectid="2"/>',
+    )),
+  });
+  await expect(page.getByText("登録済み：colored.3mf")).toBeVisible();
   await page.getByLabel("作品画像", { exact: true }).setInputFiles({ name: "test.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64") });
   await expect(page.locator('img[src^="/api/files/public/work-images/"]')).toHaveCount(1);
   await page.getByRole("button", { name: "公開する", exact: true }).click();
@@ -64,7 +74,7 @@ test("a guest publishes separate print and AR files and another guest places a d
     const other = await buyer.newPage();
     await other.goto("/login");
     await other.getByRole("button", { name: "ゲストで始める", exact: true }).click();
-    await expect(other).toHaveURL(/\/$/);
+    await expect(other).toHaveURL(/\/$/, { timeout: 90_000 });
     await other.goto(`/works/${workId}`);
     await other.getByRole("button", { name: "開く", exact: true }).click();
     const viewer = other.locator("model-viewer");
@@ -73,6 +83,12 @@ test("a guest publishes separate print and AR files and another guest places a d
     const ar = await other.request.get(src);
     expect(ar.ok()).toBe(true);
     expect(ar.headers()["content-type"]).toContain("model/gltf-binary");
+    const bytes = await ar.body();
+    const glb = JSON.parse(bytes.subarray(20, 20 + bytes.readUInt32LE(12)).toString("utf8"));
+    expect(glb.materials.map((material: { name: string }) => material.name)).toEqual(["Red", "Blue"]);
+    const again = await other.request.get(src);
+    expect(again.ok()).toBe(true);
+    expect(await again.body()).toEqual(bytes);
     await other.getByRole("button", { name: "カートに追加", exact: true }).click();
     await expect(other.getByText("カートに追加しました。", { exact: false })).toBeVisible();
     await other.goto("/mypage/addresses");
