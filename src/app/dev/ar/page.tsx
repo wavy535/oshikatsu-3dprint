@@ -251,7 +251,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
         <h2 className="text-sm font-bold text-ink">作品の3Dデータ（手元のファイル）</h2>
         <p className="text-[12px] leading-5 text-muted-foreground">
           <span className="num break-all">{localRoot}</span>{" "}
-          の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL / .blend を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。3MF / STL はプレートに置いた（印刷する）向きのまま、.blend は組み立てた配置のままで、色は反映しません。
+          の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL / .blend を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。3MF / STL はプレートに置いた（印刷する）向きのまま、.blend は組み立てた配置のままで表示します。データが色を持っていれば、その色も反映します。
         </p>
         {localFolders === null && (
           <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
@@ -335,6 +335,26 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                       "間引きで細部はつぶれますが、外形の大きさはほぼ保たれます。"}
                     定規を当てて、上の大きさと比べてください。
                   </p>
+                  {modelPreview.colors.length > 0 && (
+                    <div className="flex flex-col gap-1 text-[11.5px] text-muted-foreground">
+                      <p>
+                        AR に反映する色 <span className="num">{modelPreview.colors.length}</span> 色（色ごとにメッシュを分けます）
+                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1">
+                        {modelPreview.colors.map((color) => (
+                          <span key={`${color.name}-${color.hex}`} className="flex items-center gap-1.5">
+                            <span
+                              aria-hidden
+                              className="size-3 rounded-sm border border-line"
+                              style={{ backgroundColor: color.hex }}
+                            />
+                            <span className="break-all text-ink">{color.name}</span>
+                            <span className="num">{color.hex}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   {modelPreview.blend && (
                     <BlendSummary
                       report={modelPreview.blend}

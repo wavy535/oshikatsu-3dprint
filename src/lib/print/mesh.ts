@@ -16,6 +16,18 @@ export type NamedMesh = {
   mesh: Mesh;
 };
 
+/** 色が決まっていない三角形（Mesh.materialIndices の値） */
+export const NO_MATERIAL = -1;
+
+/**
+ * 色（Mesh.materialIndices が指す先）。hex は sRGB の "#RRGGBB"。
+ * 3MF の basematerials と、Blender のマテリアルの両方をこの形にそろえる。
+ */
+export type MeshMaterial = {
+  name: string;
+  hex: string;
+};
+
 export type Vec3 = [number, number, number];
 
 export type Bounds = {

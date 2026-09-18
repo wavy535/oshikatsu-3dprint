@@ -363,6 +363,14 @@ export class BlendFile {
     return this.buf.toString("utf8", start, zero === -1 || zero > start + size ? start + size : zero);
   }
 
+  /** ポインタだけが並んだブロック（Material ** など）の element 番目 */
+  pointerElement(block: BlendBlock, element: number) {
+    const at = element * POINTER_BYTES;
+    if (element < 0 || at + POINTER_BYTES > block.length)
+      throw new BlendParseError(".blend のポインタの配列がブロックの範囲外です");
+    return this.buf.readBigUInt64LE(block.start + at);
+  }
+
   /** 名前の文字列だけが入ったブロック（char*）を読む */
   blockString(block: BlendBlock) {
     const zero = this.buf.indexOf(0, block.start);

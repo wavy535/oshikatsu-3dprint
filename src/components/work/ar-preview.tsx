@@ -191,7 +191,7 @@ export function ArPreview({
             <li>実寸でも数cmずれることがあります。入るかどうかは相性判定をご確認ください。</li>
             <li>ARのボタンが出ないときは、iPhone は Safari、Android は Chrome で開いてください。</li>
             {selected.kind === "work" && (
-              <li>作品は単色で表示します。AR用データに登録された配置で表示されます。</li>
+              <li>作品はAR用データに色があればその色で、なければ単色で表示します。配置もAR用データに従います。</li>
             )}
           </ul>
         </>

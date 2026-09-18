@@ -11,7 +11,7 @@ import { AnalysisBudget } from "@/lib/print/limits";
 /**
  * 作品の3Dデータを AR 用のモデルに変換して返す。公開中の作品・掲載中のサイズだけ。
  * 拡張子で GLB（model-viewer・Scene Viewer）か USDZ（QR コードから開く Quick Look）を選ぶ。
- * 返すのは間引いた単色の形状で、印刷用の元データは返さない。
+ * 返すのは間引いた色付きの形状で、印刷用の元データは返さない。
  * URL の v（元データの版）が現在のデータと一致しないときは、古いリンクとして扱う。
  */
 export async function GET(

@@ -54,6 +54,33 @@ export const tetrahedronMesh = `<mesh><vertices>
 <triangle v1="0" v2="1" v3="3"/><triangle v1="0" v2="3" v3="2"/>
 <triangle v1="1" v2="2" v3="3"/></triangles></mesh>`;
 
+/** 四面体。colors を渡すと三角形ごとに（数値なら全部に）色番号 p1 を付ける。x をずらして並べられる */
+export function tetrahedronMeshWith(colors?: number | readonly number[], offsetX = 0) {
+  const vertex = (x: number, y: number, z: number) => `<vertex x="${x + offsetX}" y="${y}" z="${z}"/>`;
+  const corners = [
+    [0, 2, 1],
+    [0, 1, 3],
+    [0, 3, 2],
+    [1, 2, 3],
+  ];
+  const color = (index: number) => {
+    const value = typeof colors === "number" ? colors : colors?.[index];
+    return value === undefined ? "" : ` p1="${value}"`;
+  };
+  return (
+    `<mesh><vertices>${vertex(0, 0, 0)}${vertex(10, 0, 0)}${vertex(0, 10, 0)}${vertex(0, 0, 10)}</vertices>` +
+    `<triangles>${corners
+      .map(([v1, v2, v3], index) => `<triangle v1="${v1}" v2="${v2}" v3="${v3}"${color(index)}/>`)
+      .join("")}</triangles></mesh>`
+  );
+}
+
+/** 色の一覧（3MF コアの basematerials） */
+export const basematerialsXml = (id: number, colors: readonly (readonly [name: string, hex: string])[]) =>
+  `<basematerials id="${id}">${colors
+    .map(([name, hex]) => `<base name="${name}" displaycolor="${hex}"/>`)
+    .join("")}</basematerials>`;
+
 export function modelXml(
   resources = `<object id="1">${tetrahedronMesh}</object>`,
   build = '<item objectid="1"/>',

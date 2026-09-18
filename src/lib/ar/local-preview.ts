@@ -11,9 +11,11 @@ export function convertLocalModel(buffer: Buffer, name: string, excludeObjects: 
   const blend = workModelExtension(name) === "blend"
     ? readBlendModel(buffer, budget, { excludeObjects })
     : null;
-  const objects = blend?.objects ?? readModelObjects(buffer, name, budget);
-  const result = buildWorkMeshes(objects, AR_DEV_PAGE.localModelScale, budget, AR_ANCHOR.room);
-  return { ...result, sizeMm: meshSizeMm(result.meshes), blend: blend?.report ?? null };
+  const model = blend
+    ? { objects: blend.objects, materials: blend.materials }
+    : readModelObjects(buffer, name, budget);
+  const result = buildWorkMeshes(model, AR_DEV_PAGE.localModelScale, budget, AR_ANCHOR.room);
+  return { ...result, sizeMm: meshSizeMm(result.meshes), blend: blend?.report ?? null, colors: model.materials.map(({ name, hex }) => ({ name, hex })) };
 }
 
 type LocalModelPreview =
@@ -25,8 +27,8 @@ export async function previewLocalModel(name: string, excludeObjects: readonly s
   const buffer = await readLocalModel(name);
   if (!buffer) return { ok: false, message: "ファイルを読めませんでした" };
   try {
-    const { sizeMm, sourceTriangles, outputTriangles, blend } = convertLocalModel(buffer, name, excludeObjects);
-    return { ok: true, sizeMm, sourceTriangles, outputTriangles, blend };
+    const { sizeMm, sourceTriangles, outputTriangles, blend, colors } = convertLocalModel(buffer, name, excludeObjects);
+    return { ok: true, sizeMm, sourceTriangles, outputTriangles, blend, colors };
   } catch (error) {
     return { ok: false, message: error instanceof Error ? error.message : String(error) };
   }

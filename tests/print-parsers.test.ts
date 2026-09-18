@@ -8,6 +8,8 @@ import { MODEL_LIMITS, ModelLimitError } from "@/lib/print/limits";
 import {
   PRODUCTION_NAMESPACE,
   bambuStylePackage,
+  basematerialsXml,
+  tetrahedronMeshWith,
   modelPackage,
   modelZip,
   modelXml,
@@ -46,6 +48,46 @@ test("3MF accepts quoted attributes, units and build transforms", () => {
   expect(doc.objects).toHaveLength(2);
   expect(doc.objects[0].mesh.positions[3]).toBe(100);
   expect(doc.objects[1].mesh.positions[0]).toBe(50);
+});
+
+test("3MF colors are collected once and pointed at per triangle", () => {
+  const xml = modelXml(
+    basematerialsXml(9, [
+      ["白", "#FFFFFFFF"],
+      ["黒", "#101010FF"],
+      ["木", "#DAC3A0"],
+    ]) +
+      // 三角形ごとに色を指す面、オブジェクト全体に1色だけ指す面、範囲外の色を指す面
+      `<object id="1" pid="9" pindex="0">${tetrahedronMeshWith([2, 0, 1, 7])}</object>` +
+      `<object id="2" pid="9" pindex="1">${tetrahedronMeshWith(undefined, 40)}</object>` +
+      `<object id="3">${tetrahedronMeshWith(undefined, 80)}</object>`,
+    '<item objectid="1"/><item objectid="2"/><item objectid="3"/>',
+  );
+  const doc = parseThreeMf(modelZip(xml));
+  expect(doc.materials.map((material) => [material.name, material.hex])).toEqual([
+    ["白", "#FFFFFF"],
+    ["黒", "#101010"],
+    ["木", "#DAC3A0"],
+  ]);
+  // 範囲外の色番号は「色なし」（-1）になる
+  expect([...doc.objects[0].mesh.materialIndices!]).toEqual([2, 0, 1, -1]);
+  // pindex だけのオブジェクトは全三角形が同じ色
+  expect([...doc.objects[1].mesh.materialIndices!]).toEqual([1, 1, 1, 1]);
+  // 色を指していないオブジェクトは色なし
+  expect(doc.objects[2].mesh.materialIndices).toBeNull();
+  expect(doc.materials.map((material) => material.faceCount)).toEqual([1, 5, 1]);
+});
+
+test("3MF drops colors nothing uses once there are many of them", () => {
+  const colors = Array.from({ length: 10 }, (_, i) => [`色${i}`, `#0000${i}${i}`] as [string, string]);
+  const xml = modelXml(
+    basematerialsXml(1, colors) + `<object id="2" pid="1" pindex="0">${tetrahedronMeshWith([3, 3, 3, 3])}</object>`,
+    '<item objectid="2"/>',
+  );
+  const doc = parseThreeMf(modelZip(xml));
+  // 使っている色だけが残り、三角形の色番号もその並びに付け替わる
+  expect(doc.materials.map((material) => material.name)).toEqual(["色3"]);
+  expect([...doc.objects[0].mesh.materialIndices!]).toEqual([0, 0, 0, 0]);
 });
 
 test("ZIP output limits use actual bytes as well as declared size", () => {
