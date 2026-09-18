@@ -1,6 +1,7 @@
 import { Pagination } from "@/components/ui/pagination";
 import { listPayoutRequests } from "@/lib/ops/sales-queries";
-import { PAYOUT_STATUS_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { PAYOUT_STATUS_LABEL, shortDateTime } from "@/lib/ops/labels";
 import { PayoutActions } from "@/components/ops/payout-actions";
 import { Pill } from "@/components/ops/status-badge";
 import { StatCard, TD, TH } from "@/components/ops/stat-card";

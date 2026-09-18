@@ -71,17 +71,19 @@ function useIsActive() {
 /** 暗色ヘッダーのタブ。 */
 export function ConsoleTabs() {
   const isActive = useIsActive();
-  const items = [...OPS_ITEMS, ...MASTER_ITEMS].filter((i) => i.inTabs);
+  const items = [...OPS_ITEMS, ...MASTER_ITEMS];
 
   return (
-    <nav className="flex flex-wrap items-center gap-0.5">
+    <nav aria-label="運営メニュー" className="order-last flex w-full min-w-0 items-center gap-0.5 overflow-x-auto xl:order-none xl:w-auto xl:flex-1 xl:flex-wrap">
       {items.map((item) =>
         item.href ? (
           <Link
             key={item.label}
             href={item.href}
+            aria-current={isActive(item) ? "page" : undefined}
             className={cn(
-              "rounded-lg px-2.5 py-1.5 text-[11.5px] leading-[18px] whitespace-nowrap transition-colors",
+              "flex min-h-11 shrink-0 items-center rounded-lg px-2.5 py-1.5 text-[11.5px] leading-[18px] whitespace-nowrap transition-colors lg:min-h-0",
+              !item.inTabs && "lg:hidden",
               isActive(item)
                 ? "bg-console-2 font-semibold text-white"
                 : "text-console-muted hover:bg-console-2 hover:text-console-ink"
@@ -93,7 +95,7 @@ export function ConsoleTabs() {
           <span
             key={item.label}
             title="準備中"
-            className="rounded-lg px-2.5 py-1.5 text-[11.5px] leading-[18px] whitespace-nowrap text-console-muted/60"
+            className="flex min-h-11 shrink-0 items-center rounded-lg px-2.5 py-1.5 text-[11.5px] leading-[18px] whitespace-nowrap text-console-muted/60 lg:hidden"
           >
             {item.label}
           </span>

@@ -3,13 +3,8 @@ import { notFound } from "next/navigation";
 import { AlertTriangle, ChevronLeft, ImageIcon } from "lucide-react";
 
 import { getPrintJob } from "@/lib/ops/printing-queries";
-import {
-  JOB_STATUS_LABEL,
-  ORIENTATION_LABEL,
-  SUPPORT_LABEL,
-  shortDateTime,
-  yen,
-} from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { JOB_STATUS_LABEL, ORIENTATION_LABEL, SUPPORT_LABEL, shortDateTime } from "@/lib/ops/labels";
 import { workImageUrl } from "@/lib/storage";
 import { JobControls, JobEditActualsForm, JobFinishForm } from "@/components/ops/job-controls";
 import { JobStatusBadge } from "@/components/ops/status-badge";
@@ -47,7 +42,7 @@ export default async function PrintJobPage({ params }: { params: Promise<{ id: s
   const data = await getPrintJob(id);
   if (!data) notFound();
 
-  const { job, detail, events, printers, filaments, work, variant, slots, parts } = data;
+  const { job, detail, events, printers, filaments, work, variant, slots, parts, printFiles } = data;
   const image = workImageUrl(job.thumbnail_path);
   const creatorName = work?.profiles?.display_name ?? "—";
   const primaryFilamentId = slots[0]?.filaments?.id ?? null;
@@ -106,6 +101,12 @@ export default async function PrintJobPage({ params }: { params: Promise<{ id: s
             )}
           </div>
 
+          {printFiles.length > 0 && <Card title="注文時の印刷用ファイル">
+            <p className="text-[11px] text-muted-foreground">全{printFiles.length}ファイルで1作品分です。</p>
+            {printFiles.map((file, index) => <a key={index} className="break-all py-2 text-[12px] text-brand underline" href={`/api/admin/print-jobs/${job.id}/files/${index}`}>
+              {file.file_name}{file.scale_ratio ? `（倍率 ${file.scale_ratio}）` : ""}
+            </a>)}
+          </Card>}
           <Card title="基本情報">
             <Row label="注文番号" value={<span className="num">#{job.order_id?.slice(0, 8)}</span>} />
             <Row label="購入者" value={job.buyer_name ?? "—"} />

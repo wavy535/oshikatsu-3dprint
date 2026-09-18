@@ -5,7 +5,8 @@ import { ChevronLeft, Gift } from "lucide-react";
 import { getOrderForAdmin } from "@/lib/ops/orders-queries";
 import { getOrderSettlement } from "@/lib/ops/sales-queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
-import { CARRIER_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { CARRIER_LABEL, shortDateTime } from "@/lib/ops/labels";
 import { JobStatusBadge, Pill } from "@/components/ops/status-badge";
 import { Card, Row, TD, TH } from "@/components/ops/stat-card";
 

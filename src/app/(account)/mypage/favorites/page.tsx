@@ -5,7 +5,7 @@ import { Heart } from "lucide-react";
 
 import { requireUser } from "@/lib/auth/guards";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
 export const metadata = { title: "お気に入り" };

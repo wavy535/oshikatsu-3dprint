@@ -2,7 +2,8 @@ import Link from "next/link";
 import { isSalesMonth, monthKey, shiftMonth } from "@/lib/sales/months";
 
 import { getSales } from "@/lib/ops/sales-queries";
-import { monthLabel, shortDateTime, yen } from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { monthLabel, shortDateTime } from "@/lib/ops/labels";
 import { MonthSelect } from "@/components/ops/month-select";
 import { Pill } from "@/components/ops/status-badge";
 import { Card, Row, StatCard, TD, TH } from "@/components/ops/stat-card";

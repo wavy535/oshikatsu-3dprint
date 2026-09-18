@@ -46,7 +46,7 @@ export default async function WorkReviewsPage({ params, searchParams }: { params
   const max = Math.max(...reviews.distribution.map((d) => d.count), 1);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-3 px-6 py-5">
+    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-3 px-4 sm:px-6 py-5">
       <Link href={`/works/${id}`} className="text-[11px] font-semibold text-brand hover:underline">‹ 作品詳細に戻る</Link>
       <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="text-[18px] font-bold text-ink">{work.title}</h1>

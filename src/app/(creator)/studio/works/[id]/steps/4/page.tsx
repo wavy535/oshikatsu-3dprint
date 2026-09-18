@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { CheckCircle2, XCircle } from "lucide-react";
 
-import { getWorkDraft } from "@/lib/works/studio-queries";
+import { getPublishDraft } from "@/lib/works/studio-queries";
 import { StepNav } from "@/components/studio/step-nav";
+import { AssetUploader } from "@/components/studio/asset-uploader";
 import { ThumbnailPicker } from "@/components/studio/thumbnail-picker";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export const metadata = { title: "STEP4 公開" };
@@ -13,7 +14,7 @@ export const metadata = { title: "STEP4 公開" };
 /** Figma ②出品フロー「STEP4 公開」。公開の条件を満たしているかをここで見せる。 */
 export default async function Step4Page({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const work = await getWorkDraft(id);
+  const work = await getPublishDraft(id);
   if (!work) notFound();
   if (!work.work_assets?.length) redirect(`/studio/works/${id}/steps/1`);
 
@@ -22,7 +23,7 @@ export default async function Step4Page({ params }: { params: Promise<{ id: stri
     .map((i) => ({ id: i.id, storagePath: i.storage_path, sortOrder: i.sort_order ?? 0 }));
 
   const listed = (work.work_variants ?? []).filter((v) => v.is_listed && v.price_jpy !== null);
-  const failed = (work.work_assets ?? []).some((a) => a.validation_status === "failed");
+  const failed = (work.work_assets ?? []).some((a) => !["passed", "warning"].includes(a.validation_status));
 
   const checks = [
     { ok: !failed, label: "3Dデータの検証にエラーが無い" },
@@ -64,6 +65,8 @@ export default async function Step4Page({ params }: { params: Promise<{ id: stri
           </p>
         )}
       </section>
+
+      <AssetUploader workId={work.id} purpose="ar" currentFile={work.ar_asset?.file_name} />
 
       <ThumbnailPicker
         workId={work.id}

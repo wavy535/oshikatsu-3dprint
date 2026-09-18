@@ -4,7 +4,7 @@ import { ImageIcon, Package } from "lucide-react";
 
 import { listMyOrders, ORDER_STATUS_LABEL } from "@/lib/orders/queries";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 

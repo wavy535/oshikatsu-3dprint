@@ -6,7 +6,7 @@ import { uploadPolicy } from "./s3";
 import { MODEL_LIMITS } from "@/lib/print/limits";
 
 const uploadSchema = z.object({
-  group: z.enum(["work-stl", "work-images", "qc-photos"]),
+  group: z.enum(["work-stl", "work-ar", "work-images", "qc-photos"]),
   workId: z.uuid(),
   jobId: z.uuid().optional(),
   fileName: z.string().min(1).max(200),
@@ -46,27 +46,28 @@ export async function prepareUpload(input: z.input<typeof uploadSchema>) {
     folder = `${user.id}/${workId}`;
   }
   const extension = fileName.split(".").pop()?.toLowerCase();
+  const isModel = group === "work-stl" || group === "work-ar";
   const maxBytes =
-    group === "work-stl"
+    isModel
       ? MODEL_LIMITS.fileBytes
       : (group === "qc-photos" ? 8 : 10) * 1024 * 1024;
   if (bytes > maxBytes) return { error: "ファイルが大きすぎます" };
   if (
-    group === "work-stl"
-      ? !["stl", "3mf"].includes(extension ?? "")
+    isModel
+      ? !(group === "work-ar" ? ["stl", "3mf", "blend"] : ["stl", "3mf"]).includes(extension ?? "")
       : !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(
           contentType,
         )
   )
     return { error: "対応していないファイル形式です" };
-  const path = `${folder}/${randomUUID()}.${group === "work-stl" ? extension : contentType.split("/")[1]}`;
+  const path = `${folder}/${randomUUID()}.${isModel ? extension : contentType.split("/")[1]}`;
   try {
     return {
       path,
       ...(await uploadPolicy(
         group,
         path,
-        group === "work-stl" ? "application/octet-stream" : contentType,
+        isModel ? "application/octet-stream" : contentType,
         bytes,
       )),
     };

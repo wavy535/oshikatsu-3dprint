@@ -27,8 +27,8 @@ export default function Home() {
   return (
     <>
       <section className="border-b border-line bg-white">
-        <div className="mx-auto flex w-full max-w-[1270px] flex-col gap-5 px-6 py-14">
-          <h1 className="text-3xl leading-tight font-bold text-ink">
+        <div className="mx-auto flex w-full max-w-[1270px] flex-col gap-5 px-4 sm:px-6 py-14">
+          <h1 className="text-balance text-2xl leading-tight font-bold text-ink sm:text-3xl">
             推しぬいに、ぴったりの居場所を。
           </h1>
           <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -49,7 +49,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="mx-auto grid w-full max-w-[1270px] gap-4 px-6 py-10 md:grid-cols-3">
+      <section className="mx-auto grid w-full max-w-[1270px] gap-4 px-4 sm:px-6 py-10 md:grid-cols-3">
         {POINTS.map(({ icon: Icon, title, text }) => (
           <div key={title} className="flex flex-col gap-2 rounded-xl border border-line bg-white p-5">
             <span className="flex size-9 items-center justify-center rounded-full bg-brand-soft">

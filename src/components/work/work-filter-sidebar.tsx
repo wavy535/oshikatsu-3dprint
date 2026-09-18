@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ResponsiveSidebar } from "@/components/layout/responsive-sidebar";
 import { buildWorksHref, type RawSearchParams } from "@/lib/works/search-params";
 import type { WorkFilters } from "@/lib/works/list-options";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,7 @@ function Row({
     <Link
       href={href}
       className={cn(
-        "rounded-lg px-2.5 py-1.5 text-[12.5px] transition-colors",
+        "flex min-h-11 items-center rounded-lg px-2.5 py-1.5 lg:min-h-0 text-[12.5px] transition-colors",
         active ? "bg-brand-soft font-semibold text-accent-foreground" : "text-ink hover:bg-ground"
       )}
     >
@@ -61,70 +62,72 @@ export function WorkFilterSidebar({
   worldviews: Tag[];
 }) {
   return (
-    <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-line bg-white p-3 lg:w-56">
-      <Group label="カテゴリ">
-        <Row
-          href={buildWorksHref(sp, { category: undefined })}
-          label="すべて"
-          active={!filters.category}
-        />
-        {categories.map((t) => (
+    <ResponsiveSidebar label="作品を絞り込む">
+      <aside className="flex w-full shrink-0 flex-col gap-4 rounded-xl border-0 border-line bg-white p-3 lg:w-56 lg:border">
+        <Group label="カテゴリ">
           <Row
-            key={t.id}
-            href={buildWorksHref(sp, { category: t.slug })}
-            label={t.name}
-            active={filters.category === t.slug}
+            href={buildWorksHref(sp, { category: undefined })}
+            label="すべて"
+            active={!filters.category}
           />
-        ))}
-      </Group>
+          {categories.map((t) => (
+            <Row
+              key={t.id}
+              href={buildWorksHref(sp, { category: t.slug })}
+              label={t.name}
+              active={filters.category === t.slug}
+            />
+          ))}
+        </Group>
 
-      <Group label="対応ぬいサイズ">
-        <Row
-          href={buildWorksHref(sp, { nuiSize: "" })}
-          label="すべて"
-          active={!filters.nuiSizeCm}
-        />
-        {NUI_SIZES.map((cm) => (
+        <Group label="対応ぬいサイズ">
           <Row
-            key={cm}
-            href={buildWorksHref(sp, { nuiSize: cm })}
-            label={`${cm}cm`}
-            active={filters.nuiSizeCm === cm}
+            href={buildWorksHref(sp, { nuiSize: "" })}
+            label="すべて"
+            active={!filters.nuiSizeCm}
           />
-        ))}
-      </Group>
+          {NUI_SIZES.map((cm) => (
+            <Row
+              key={cm}
+              href={buildWorksHref(sp, { nuiSize: cm })}
+              label={`${cm}cm`}
+              active={filters.nuiSizeCm === cm}
+            />
+          ))}
+        </Group>
 
-      <Group label="世界観">
-        <Row
-          href={buildWorksHref(sp, { worldview: undefined })}
-          label="すべて"
-          active={!filters.worldview}
-        />
-        {worldviews.map((t) => (
+        <Group label="世界観">
           <Row
-            key={t.id}
-            href={buildWorksHref(sp, { worldview: t.slug })}
-            label={t.name}
-            active={filters.worldview === t.slug}
+            href={buildWorksHref(sp, { worldview: undefined })}
+            label="すべて"
+            active={!filters.worldview}
           />
-        ))}
-      </Group>
+          {worldviews.map((t) => (
+            <Row
+              key={t.id}
+              href={buildWorksHref(sp, { worldview: t.slug })}
+              label={t.name}
+              active={filters.worldview === t.slug}
+            />
+          ))}
+        </Group>
 
-      <Group label="価格帯">
-        <Row
-          href={buildWorksHref(sp, { priceMin: undefined, priceMax: undefined })}
-          label="すべて"
-          active={filters.priceMin === undefined && filters.priceMax === undefined}
-        />
-        {PRICE_BANDS.map((b) => (
+        <Group label="価格帯">
           <Row
-            key={b.label}
-            href={buildWorksHref(sp, { priceMin: b.min, priceMax: b.max })}
-            label={b.label}
-            active={filters.priceMin === b.min && filters.priceMax === b.max}
+            href={buildWorksHref(sp, { priceMin: undefined, priceMax: undefined })}
+            label="すべて"
+            active={filters.priceMin === undefined && filters.priceMax === undefined}
           />
-        ))}
-      </Group>
-    </aside>
+          {PRICE_BANDS.map((b) => (
+            <Row
+              key={b.label}
+              href={buildWorksHref(sp, { priceMin: b.min, priceMax: b.max })}
+              label={b.label}
+              active={filters.priceMin === b.min && filters.priceMax === b.max}
+            />
+          ))}
+        </Group>
+      </aside>
+    </ResponsiveSidebar>
   );
 }

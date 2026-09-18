@@ -5,7 +5,8 @@ import { Gift } from "lucide-react";
 
 import { getOrderSummary, listOrders, type OrderSearchParams } from "@/lib/ops/orders-queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
-import { ORDER_STATUS_FILTERS, shortDateTime, yen } from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { ORDER_STATUS_FILTERS, shortDateTime } from "@/lib/ops/labels";
 import { ListFilters } from "@/components/ops/list-filters";
 import { Pill } from "@/components/ops/status-badge";
 import { StatCard, TD, TH } from "@/components/ops/stat-card";

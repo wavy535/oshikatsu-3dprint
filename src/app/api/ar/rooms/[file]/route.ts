@@ -1,9 +1,7 @@
-import { encodeGlb } from "@/lib/ar/glb";
 import { parseNuiQuery, parseRoomFile, revisionOfUrl } from "@/lib/ar/params";
 import { modelResponse } from "@/lib/ar/response";
 import { modelRevision } from "@/lib/ar/revision";
 import { buildRoomMeshes } from "@/lib/ar/room";
-import { encodeUsdz } from "@/lib/ar/usdz";
 
 /**
  * 仮の部屋のモデル。拡張子で GLB（model-viewer・Scene Viewer）か USDZ（Quick Look）を返す。
@@ -20,7 +18,5 @@ export async function GET(
   if (!room || !nui) return new Response(null, { status: 404 });
   const meshes = buildRoomMeshes(nui, room.layout);
   const cacheable = revisionOfUrl(searchParams) === modelRevision();
-  return room.format === "usdz"
-    ? modelResponse(encodeUsdz(meshes), "usdz", cacheable)
-    : modelResponse(encodeGlb(meshes), "glb", cacheable);
+  return modelResponse(meshes, room.format, cacheable);
 }

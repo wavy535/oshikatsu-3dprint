@@ -5,7 +5,7 @@ import { Sparkles } from "lucide-react";
 import { listMyCustomRequests } from "@/lib/custom-orders/queries";
 import { REQUEST_STATUS_LABEL } from "@/lib/custom-orders/labels";
 import { shortDateTime } from "@/lib/ops/labels";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Avatar } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 

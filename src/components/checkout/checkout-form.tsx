@@ -7,7 +7,7 @@ import { CreditCard, FlaskConical, ImageIcon, MapPin } from "lucide-react";
 import { placeOrderAction, type CheckoutActionState } from "@/lib/checkout/actions";
 import type { CartLine } from "@/lib/cart/queries";
 import { workImageUrl } from "@/lib/storage";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 
 const initial: CheckoutActionState = { error: null };

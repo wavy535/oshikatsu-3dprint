@@ -6,6 +6,7 @@ import { siteUrl } from "@/lib/site";
 import { authHeaders } from "./request";
 
 type AuthPath =
+  | "/sign-in/anonymous"
   | "/sign-up/email"
   | "/sign-in/email"
   | "/sign-out"

@@ -1,5 +1,7 @@
 "use client";
 
+import { yen } from "@/lib/format";
+
 import { useActionState, useMemo, useState } from "react";
 import { FileText, XCircle } from "lucide-react";
 
@@ -20,7 +22,7 @@ type Rule = {
   platform_fee_rate: number;
 } | null;
 
-const yen = (n: number) => `¥${Math.round(n).toLocaleString("ja-JP")}`;
+
 
 /**
  * クリエイターが見積りを書く。印刷代行費・受取額は料金表の式で入力に合わせてその場で出す
@@ -97,10 +99,10 @@ export function QuoteForm({ requestId, baseWorkId, rule }: { requestId: string; 
 
         {est && (
           <div className="grid grid-cols-2 gap-2 rounded-lg bg-ground px-3 py-2.5 text-[11px] sm:grid-cols-4">
-            <span className="flex flex-col"><span className="text-muted-foreground">印刷代行費（目安）</span><span className="num font-semibold text-ink">{yen(est.printFee)}</span></span>
-            <span className="flex flex-col"><span className="text-muted-foreground">送料</span><span className="num font-semibold text-ink">{yen(rule!.shipping_fee_jpy)}</span></span>
-            <span className="flex flex-col"><span className="text-muted-foreground">購入者の支払い</span><span className="num font-semibold text-ink">{yen(est.total)}</span></span>
-            <span className="flex flex-col"><span className="text-muted-foreground">あなたの受取（見込み）</span><span className="num font-semibold text-brand">{yen(est.payout)}</span></span>
+            <span className="flex flex-col"><span className="text-muted-foreground">印刷代行費（目安）</span><span className="num font-semibold text-ink">{yen(Math.round(est.printFee))}</span></span>
+            <span className="flex flex-col"><span className="text-muted-foreground">送料</span><span className="num font-semibold text-ink">{yen(Math.round(rule!.shipping_fee_jpy))}</span></span>
+            <span className="flex flex-col"><span className="text-muted-foreground">購入者の支払い</span><span className="num font-semibold text-ink">{yen(Math.round(est.total))}</span></span>
+            <span className="flex flex-col"><span className="text-muted-foreground">あなたの受取（見込み）</span><span className="num font-semibold text-brand">{yen(Math.round(est.payout))}</span></span>
           </div>
         )}
 

@@ -3,12 +3,13 @@ import { beforeEach, expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ getOptionalUser: vi.fn() }));
-vi.mock("@/lib/works/asset-validation", () => ({ validateAndPersistAsset: vi.fn(), replaceAsset: vi.fn() }));
+vi.mock("@/lib/works/asset-validation", () => ({ validateAndPersistAsset: vi.fn(), replaceAsset: vi.fn(), appendAssets: vi.fn() }));
 
+import { registerPrintAssetsAction } from "@/lib/works/asset-actions";
 import { mockDatabase } from "./helpers/database";
 import { getOptionalUser } from "@/lib/auth/guards";
-import { replaceAsset, validateAndPersistAsset } from "@/lib/works/asset-validation";
-import { registerAssetAction, revalidateAssetAction } from "@/lib/works/step-actions";
+import { appendAssets, replaceAsset, validateAndPersistAsset } from "@/lib/works/asset-validation";
+import { revalidateAssetAction } from "@/lib/works/step-actions";
 
 const workId = "10000000-0000-4000-8000-000000000001";
 const assetId = "20000000-0000-4000-8000-000000000001";
@@ -70,13 +71,15 @@ test("不正なIDはDBと解析へ渡さない", async () => {
 });
 
 
-test.each(["guest", "other creator", "foreign path"])("%s cannot replace an asset or trigger a download", async (role) => {
+test.each(["guest", "other creator", "foreign path", "foreign asset"])("%s cannot register print files", async (role) => {
   signedIn = role !== "guest";
   ownsWork = role !== "other creator";
-  const fd = input();
-  fd.set("fileName", "model.stl");
-  fd.set("fileSize", "100");
-  fd.set("storagePath", `${role === "foreign path" ? "another-user" : userId}/${workId}/model.stl`);
-  expect((await registerAssetAction({ error: null }, fd)).error).toBeTruthy();
+  assetBelongsToWork = role !== "foreign asset";
+  const fd = new FormData();
+  fd.set("payload", JSON.stringify({ workId, assetId: role === "foreign asset" ? assetId : undefined,
+    files: [{ storage_path: `${role === "foreign path" ? "someone" : userId}/${workId}/model.stl`, file_name: "model.stl", file_size_bytes: 100 }],
+  }));
+  expect((await registerPrintAssetsAction({ error: null }, fd)).error).toBeTruthy();
+  expect(appendAssets).not.toHaveBeenCalled();
   expect(replaceAsset).not.toHaveBeenCalled();
 });

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ResponsiveSidebar } from "./responsive-sidebar";
 import { cn } from "@/lib/utils";
 
 export type NavGroup = {
@@ -17,40 +18,43 @@ export function SideNav({ groups }: { groups: NavGroup[] }) {
   const pathname = usePathname();
 
   return (
-    <nav className="flex w-full shrink-0 flex-col gap-4 rounded-xl border border-line bg-white p-3 lg:w-56">
-      {groups.map((group) => (
-        <div key={group.label} className="flex flex-col gap-1">
-          <p className="px-2 py-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground">
-            {group.label}
-          </p>
-          {group.items.map((item) => {
-            const active =
-              pathname === item.href ||
-              (item.href !== "/mypage" &&
-                item.href !== "/studio" &&
-                pathname.startsWith(`${item.href}/`));
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[12.5px] transition-colors",
-                  active
-                    ? "bg-brand-soft font-semibold text-accent-foreground"
-                    : "text-ink hover:bg-ground"
-                )}
-              >
-                {item.label}
-                {item.badge ? (
-                  <span className="ml-auto rounded-full bg-danger px-1.5 text-[10px] font-semibold text-white">
-                    {item.badge > 99 ? "99+" : item.badge}
-                  </span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </div>
-      ))}
-    </nav>
+    <ResponsiveSidebar key={pathname} label="マイページメニュー">
+      <nav aria-label="アカウント・クリエイター" className="flex w-full shrink-0 flex-col gap-4 rounded-xl border-0 border-line bg-white p-3 lg:w-56 lg:border">
+        {groups.map((group) => (
+          <div key={group.label} className="flex flex-col gap-1">
+            <p className="px-2 py-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground">
+              {group.label}
+            </p>
+            {group.items.map((item) => {
+              const active =
+                pathname === item.href ||
+                (item.href !== "/mypage" &&
+                  item.href !== "/studio" &&
+                  pathname.startsWith(`${item.href}/`));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={active ? "page" : undefined}
+                  className={cn(
+                    "flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-1.5 lg:min-h-0 text-[12.5px] transition-colors",
+                    active
+                      ? "bg-brand-soft font-semibold text-accent-foreground"
+                      : "text-ink hover:bg-ground"
+                  )}
+                >
+                  {item.label}
+                  {item.badge ? (
+                    <span className="ml-auto rounded-full bg-danger px-1.5 text-[10px] font-semibold text-white">
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  ) : null}
+                </Link>
+              );
+            })}
+          </div>
+        ))}
+      </nav>
+    </ResponsiveSidebar>
   );
 }

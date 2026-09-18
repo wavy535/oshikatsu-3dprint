@@ -7,40 +7,12 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getDatabase, getOptionalUser } from "@/lib/auth/guards";
-import { replaceAsset, validateAndPersistAsset } from "@/lib/works/asset-validation";
+import { getOptionalUser } from "@/lib/auth/guards";
+import { validateAndPersistAsset } from "@/lib/works/asset-validation";
+import { requireOwnWork } from "./ownership";
 import { idSchema } from "@/lib/validation";
-import { MODEL_LIMITS } from "@/lib/print/limits";
 
 export type StepActionState = { error: string | null; ok?: boolean };
-
-type OwnWork =
-  | {
-      ok: true;
-      db: Awaited<ReturnType<typeof getDatabase>>;
-      user: { id: string };
-      work: { id: string; status: string };
-    }
-  | { ok: false; error: string };
-
-/** その作品の持ち主か確かめる。すべてのSTEPの入口で通す。 */
-async function requireOwnWork(workId: string): Promise<OwnWork> {
-  const { db, user } = await getOptionalUser();
-  if (!user) return { ok: false, error: "ログインが必要です" };
-
-  const { data: work } = await queryResult(
-    db
-      .selectFrom("works")
-      .select(["works.id", "works.creator_id", "works.status"])
-      .where("works.id", "=", workId)
-      .executeTakeFirst(),
-  );
-
-  if (!work || work.creator_id !== user.id) {
-    return { ok: false, error: "この作品を編集する権限がありません" };
-  }
-  return { ok: true, db, user, work };
-}
 
 /** 「作品を投稿する」から呼ぶ。空の下書きを作って STEP1 へ送る。 */
 export async function createDraftWorkAction(): Promise<void> {
@@ -60,56 +32,6 @@ export async function createDraftWorkAction(): Promise<void> {
 }
 
 // ───────── STEP1: 3Dデータ ─────────
-
-const assetSchema = z.object({
-  workId: z.uuid(),
-  storagePath: z.string().min(1),
-  fileName: z.string().min(1).max(200),
-  fileSize: z.coerce.number().int().positive().max(MODEL_LIMITS.fileBytes),
-});
-
-/**
- * アップロード済みのファイルを work_assets として登録し、そのまま検証まで走らせる。
- *
- * ファイルは所有者を確認した署名付きPOSTでS3へ直接送る。
- * 登録時にも作品の所属、キーのプレフィックス、実際のサイズを照合する。
- */
-export async function registerAssetAction(
-  _prev: StepActionState,
-  formData: FormData,
-): Promise<StepActionState> {
-  const parsed = assetSchema.safeParse({
-    workId: formData.get("workId"),
-    storagePath: formData.get("storagePath"),
-    fileName: formData.get("fileName"),
-    fileSize: formData.get("fileSize"),
-  });
-  if (!parsed.success) return { error: "アップロードの情報が不正です" };
-
-  const owned = await requireOwnWork(parsed.data.workId);
-  if (!owned.ok) return { error: owned.error };
-  const { user } = owned;
-
-  const ext = parsed.data.fileName.split(".").pop()?.toLowerCase();
-  if (ext !== "stl" && ext !== "3mf") {
-    return { error: "STL または 3MF のファイルを選んでください" };
-  }
-  if (
-    !parsed.data.storagePath.startsWith(`${user.id}/${parsed.data.workId}/`)
-  ) {
-    return { error: "アップロード先が不正です" };
-  }
-
-  const result = await replaceAsset(parsed.data.workId, {
-    storage_path: parsed.data.storagePath,
-    file_name: parsed.data.fileName,
-    file_size_bytes: parsed.data.fileSize,
-  });
-  revalidatePath(`/studio/works/${parsed.data.workId}/steps/1`);
-
-  if (!result.ok) return { error: result.error };
-  return { error: null, ok: true };
-}
 
 /** 検証をやり直す（アップロードし直さずに再解析する）。 */
 export async function revalidateAssetAction(
@@ -522,7 +444,7 @@ export async function publishWorkAction(
 
   if ((assetsRes.data ?? []).length === 0)
     return { error: "3Dデータをアップロードしてください" };
-  if ((assetsRes.data ?? []).some((a) => a.validation_status === "failed")) {
+  if ((assetsRes.data ?? []).some((a) => !["passed", "warning"].includes(a.validation_status))) {
     return { error: "検証に通っていない3Dデータがあります" };
   }
   if (

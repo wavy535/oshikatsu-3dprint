@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { MessageSquare, Package, Smile } from "lucide-react";
 
+import { demoGuestEnabled } from "@/lib/auth/demo-mode";
+import { GuestEntry } from "@/components/auth/guest-entry";
 import { LoginForm } from "@/components/auth/login-form";
 import { SignupForm } from "@/components/auth/signup-form";
 import { cn } from "@/lib/utils";
@@ -23,6 +25,7 @@ export default async function LoginPage({
   searchParams: Promise<{ redirect?: string; mode?: string }>;
 }) {
   const { redirect, mode } = await searchParams;
+  const guestMode = demoGuestEnabled();
   const signup = mode === "signup";
   const nextPath = redirect?.startsWith("/") ? redirect : undefined;
   const qs = nextPath ? `&redirect=${encodeURIComponent(nextPath)}` : "";
@@ -30,7 +33,7 @@ export default async function LoginPage({
   return (
     <div className="flex flex-1 flex-col lg:flex-row">
       {/* 左のブランドパネル */}
-      <div className="flex flex-col justify-center gap-5 bg-brand px-10 py-12 lg:w-[560px] lg:px-14">
+      <div className="flex flex-col justify-center gap-3 bg-brand px-4 py-6 sm:px-10 sm:py-12 lg:gap-5 lg:w-[560px] lg:px-14">
         <Link href="/" className="text-3xl font-bold text-white">
           OshiNest
         </Link>
@@ -54,8 +57,9 @@ export default async function LoginPage({
       </div>
 
       {/* 右の認証カード */}
-      <div className="flex flex-1 items-center justify-center bg-ground px-6 py-12">
-        <div className="w-full max-w-[400px] rounded-2xl border border-line bg-white p-7">
+      <div className="flex flex-1 items-center justify-center bg-ground px-4 py-6 sm:px-6 sm:py-12">
+        <div className="w-full max-w-[400px] rounded-2xl border border-line bg-white p-4 sm:p-7">
+          {guestMode ? <GuestEntry redirectTo={nextPath} /> : <>
           <div className="mb-6 grid grid-cols-2 gap-1 rounded-lg bg-ground p-1">
             <Link
               href={`/login?mode=login${qs}`}
@@ -78,6 +82,7 @@ export default async function LoginPage({
           </div>
 
           {signup ? <SignupForm /> : <LoginForm redirectTo={nextPath} />}
+          </>}
         </div>
       </div>
     </div>

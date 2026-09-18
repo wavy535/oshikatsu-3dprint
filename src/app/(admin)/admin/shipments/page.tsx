@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { getShipmentSummary, listShipments, type ShipmentSearchParams } from "@/lib/ops/shipping-queries";
 import { ORDER_STATUS_LABEL } from "@/lib/orders/queries";
-import { CARRIER_LABEL, shortDateTime, yen } from "@/lib/ops/labels";
+import { yen } from "@/lib/format";
+import { CARRIER_LABEL, shortDateTime } from "@/lib/ops/labels";
 import { ListFilters } from "@/components/ops/list-filters";
 import { Pill } from "@/components/ops/status-badge";
 import { StatCard, TD, TH } from "@/components/ops/stat-card";

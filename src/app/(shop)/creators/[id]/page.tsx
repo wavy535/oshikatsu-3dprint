@@ -54,7 +54,7 @@ export default async function CreatorPage({
   const isSelf = viewerId === id;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-6 py-6">
+    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6">
       <section className="flex flex-col gap-5 rounded-xl border border-line bg-white p-6 lg:flex-row lg:items-start">
         <Avatar src={profile.avatar_url} name={profile.display_name} className="size-[84px] text-2xl" />
         <div className="flex min-w-0 flex-1 flex-col gap-2">

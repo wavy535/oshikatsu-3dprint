@@ -21,7 +21,7 @@ export default async function AdminLayout({
 
   return (
     <div className="flex min-h-full flex-1 flex-col bg-ground text-ink">
-      <header className="flex h-[68px] flex-none items-center gap-6 bg-console px-6">
+      <header className="flex flex-none flex-wrap items-center gap-3 bg-console px-4 py-3 sm:px-6 xl:flex-nowrap">
         <div className="flex items-center gap-2">
           <Link href="/admin/print-queue" className="text-[19px] font-bold text-white">
             OshiNest
@@ -35,9 +35,9 @@ export default async function AdminLayout({
           <ConsoleTabs />
         </Suspense>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 xl:ml-auto">
           <Bell className="size-[15px] text-console-ink" aria-hidden />
-          <span className="text-[11.5px] text-console-ink">
+          <span className="break-all text-[11.5px] text-console-ink">
             オペ：{profile?.display_name ?? "運営"}
           </span>
           <Link
@@ -49,7 +49,7 @@ export default async function AdminLayout({
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-[1440px] flex-1 gap-5 px-6 py-4">
+      <div className="mx-auto flex w-full max-w-[1440px] flex-1 gap-5 px-4 sm:px-6 py-4">
         <Suspense fallback={null}>
           <ConsoleSideNav />
         </Suspense>

@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
+import { demoGuestEnabled, safeGuestRedirect } from "./demo-mode";
+import { getOptionalUser } from "./guards";
 import { authMutation } from "@/lib/auth/mutation";
 
 /** メールとパスワードで登録し、10分間有効の6桁コードで確認する。 */
@@ -154,4 +156,15 @@ export async function resendSignUpCodeAction(
 export async function signOutAction() {
   await authMutation("/sign-out", {});
   redirect("/");
+}
+
+
+export async function enterGuestAction(_previous: AuthActionState, formData: FormData): Promise<AuthActionState> {
+  if (!demoGuestEnabled()) return { error: "ゲスト利用はこの環境では無効です" };
+  const { user } = await getOptionalUser();
+  if (!user) {
+    const { error } = await authMutation("/sign-in/anonymous", {});
+    if (error) return { error: error.status === 429 ? "少し待ってから、もう一度お試しください" : "ゲストアカウントを準備できませんでした" };
+  }
+  redirect(safeGuestRedirect(formData.get("redirect")));
 }

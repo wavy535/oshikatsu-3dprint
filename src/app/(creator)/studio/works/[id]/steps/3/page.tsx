@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { requireCreator } from "@/lib/auth/guards";
-import { getWorkDraft, listTags } from "@/lib/works/studio-queries";
+import { getInfoDraft, listTags } from "@/lib/works/studio-queries";
 import { StepNav } from "@/components/studio/step-nav";
 import { WorkInfoForm } from "@/components/studio/work-info-form";
 
@@ -17,7 +17,7 @@ export default async function Step3Page({
 }) {
   const { id } = await params;
   const { db } = await requireCreator();
-  const [work, tags] = await Promise.all([getWorkDraft(id), listTags()]);
+  const [work, tags] = await Promise.all([getInfoDraft(id), listTags()]);
   if (!work) notFound();
   if (!work.work_assets?.length) redirect(`/studio/works/${id}/steps/1`);
 

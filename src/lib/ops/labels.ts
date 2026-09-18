@@ -83,9 +83,6 @@ export const SUPPORT_LABEL: Record<SupportMode, string> = {
   custom: "要・指定あり",
 };
 
-export function yen(n: number | null | undefined) {
-  return n === null || n === undefined ? "—" : `¥${n.toLocaleString("ja-JP")}`;
-}
 
 /** 一覧・詳細で使う短い日時（例: 09/06 18:00）。 */
 export function shortDateTime(value: string | null | undefined) {

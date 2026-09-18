@@ -7,7 +7,7 @@ import { getWork } from "@/lib/works/queries";
 import { listWorkQna } from "@/lib/qna/queries";
 import { getOptionalUser } from "@/lib/auth/guards";
 import { shortDateTime } from "@/lib/ops/labels";
-import { yen } from "@/components/work/work-card";
+import { yen } from "@/lib/format";
 import { AnswerForm, AskQuestionForm } from "@/components/work/qna-forms";
 
 export const metadata = { title: "Q&A・発送" };
@@ -24,7 +24,7 @@ export default async function WorkQaPage({ params, searchParams }: { params: Pro
   const answered = qna.threads.filter((t) => t.answer).length;
 
   return (
-    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-3 px-6 py-5">
+    <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-3 px-4 sm:px-6 py-5">
       <Link href={`/works/${id}`} className="text-[11px] font-semibold text-brand hover:underline">‹ 作品詳細に戻る</Link>
       <div className="flex flex-wrap items-baseline gap-3">
         <h1 className="text-[18px] font-bold text-ink">{work.title}</h1>

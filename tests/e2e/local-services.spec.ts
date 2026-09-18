@@ -1,3 +1,4 @@
+import { signInFixture } from "./helpers/auth";
 import { randomInt, randomUUID } from "node:crypto";
 import { modelXml, modelZip } from "../helpers/model-files";
 import { MODEL_LIMITS } from "../../src/lib/print/limits";
@@ -21,10 +22,8 @@ test.beforeEach(async ({ baseURL }) => {
 
 async function signIn(page: Page, email: string) {
   await page.goto("/login");
-  await page.getByLabel("メールアドレス", { exact: true }).fill(email);
-  await page.getByLabel("パスワード", { exact: true }).fill("password123");
-  await page.getByRole("button", { name: "ログイン", exact: true }).click();
-  await expect(page).toHaveURL(/\/$/);
+  await signInFixture(page, page.url(), email);
+  await page.goto("/");
 }
 
 async function deliveredCode(
@@ -128,6 +127,8 @@ test("a buyer places a demo order and can read it after reloading", async ({
   await signIn(page, "buyer@example.com");
   await page.goto("/works");
   await page.locator('a[href^="/works/"]').first().click();
+  // Repeated local runs may have consumed the first size's stock.
+  await page.locator('a[href*="?size="]').filter({ hasNotText: "在庫なし" }).first().click();
   await page.getByRole("button", { name: "カートに追加", exact: true }).click();
   await expect(
     page.getByText("カートに追加しました。", { exact: false }),
@@ -173,29 +174,28 @@ test("a creator recovers from a 3MF limit error, validates 3MF and STL, and stor
       .getByText("3MFの展開後のモデルは64MiBまでです。", { exact: false })
       .first(),
   ).toBeVisible();
-  await expect(page.getByRole("button", { name: "ファイルを選ぶ", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "印刷用ファイルを選ぶ", exact: true })).toBeEnabled();
   await page.locator('input[type="file"]').setInputFiles({
     name: "tetrahedron.3mf",
     mimeType: "application/octet-stream",
     buffer: modelZip(modelXml()),
   });
   await expect(
-    page.getByText("tetrahedron.3mf", { exact: false }),
+    page.getByText("tetrahedron.3mf", { exact: false }).filter({ visible: true }),
   ).toBeVisible();
   await expect(page.getByText("閉じたメッシュ", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "ファイルを選ぶ", exact: true })).toBeEnabled();
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles("tests/fixtures/tetrahedron.stl");
+  await expect(page.getByRole("button", { name: "印刷用ファイルを選ぶ", exact: true })).toBeEnabled();
+  await page.getByLabel("アップロード方法").selectOption({ index: 1 });
+  await page.getByLabel("印刷用ファイル").setInputFiles("tests/fixtures/tetrahedron.stl");
   await expect(
     page.getByRole("heading", { name: "自動検証の結果" }),
   ).toBeVisible();
   await expect(
-    page.getByText("tetrahedron.stl", { exact: false }),
+    page.getByText("tetrahedron.stl", { exact: false }).filter({ visible: true }),
   ).toBeVisible();
   await expect(page.getByText("閉じたメッシュ", { exact: true })).toBeVisible();
   await page.goto(step1.replace(/\/1$/, "/4"));
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.getByLabel("作品画像", { exact: true }).setInputFiles({
     name: "thumbnail.png",
     mimeType: "image/png",
     buffer: Buffer.from(
@@ -215,4 +215,37 @@ test("a creator recovers from a 3MF limit error, validates 3MF and STL, and stor
     .toBe(true);
   await page.reload();
   await expect(page.getByText("サムネイル", { exact: true })).toBeVisible();
+});
+
+
+test("multiple print files, an independent AR model and multiple images can be posted to one work", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, "creator@example.com");
+  await page.goto("/studio/works");
+  await page.getByRole("button", { name: "作品を投稿する" }).click();
+  await expect(page).toHaveURL(/\/steps\/1$/);
+  const step1 = page.url();
+  const model = modelZip(modelXml());
+  await page.getByLabel("印刷用ファイル").setInputFiles([
+    { name: "seat.3mf", mimeType: "application/octet-stream", buffer: model },
+    { name: "legs.3mf", mimeType: "application/octet-stream", buffer: model },
+  ]);
+  await expect(page.getByRole("heading", { name: "自動検証の結果" })).toHaveCount(2);
+  await page.getByRole("link", { name: "印刷指示へ進む", exact: true }).click();
+  await expect(page.getByText(/seat\.3mf \/ /).first()).toBeVisible();
+  await expect(page.getByText(/legs\.3mf \/ /).first()).toBeVisible();
+  await page.goto(step1.replace(/\/1$/, "/4"));
+  await page.getByLabel("AR用ファイル", { exact: true }).setInputFiles({ name: "assembled.3mf", mimeType: "application/octet-stream", buffer: model });
+  await expect(page.getByText("登録済み：assembled.3mf")).toBeVisible();
+  const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64");
+  await page.getByLabel("作品画像", { exact: true }).setInputFiles([
+    { name: "front.png", mimeType: "image/png", buffer: png },
+    { name: "back.png", mimeType: "image/png", buffer: png },
+  ]);
+  await expect(page.locator('img[src^="/api/files/public/work-images/"]')).toHaveCount(2);
+  await page.reload();
+  await expect(page.getByText("登録済み：assembled.3mf")).toBeVisible();
+  await page.goto(step1);
+  await expect(page.getByRole("heading", { name: "自動検証の結果" })).toHaveCount(2);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
 });

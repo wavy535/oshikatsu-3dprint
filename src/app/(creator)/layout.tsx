@@ -30,8 +30,8 @@ export default async function CreatorLayout({ children }: { children: React.Reac
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-6 py-6 lg:flex-row">
-        <div className="lg:w-56">
+      <main className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6 lg:flex-row">
+        <div className="min-w-0 shrink-0 lg:w-56">
           <SideNav groups={groups} />
         </div>
         <div className="flex min-w-0 flex-1 flex-col gap-5">{children}</div>

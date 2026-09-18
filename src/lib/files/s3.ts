@@ -1,14 +1,17 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import {
   GetObjectCommand,
+  PutObjectCommand,
   HeadObjectCommand,
+  ListObjectsV2Command,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { checkModelFileSize } from "@/lib/print/limits";
 
-export type FileGroup = "work-stl" | "work-images" | "qc-photos" | "avatars";
+export type FileGroup = "work-stl" | "work-ar" | "work-images" | "qc-photos" | "avatars" | "ar-cache";
 let client: S3Client | undefined;
 export function s3Client() {
   if (!client) {
@@ -56,9 +59,9 @@ export function signedDownload(
   });
 }
 
-export async function readModel(path: string) {
+export async function readModel(path: string, group: "work-stl" | "work-ar" = "work-stl") {
   const response = await s3Client().send(
-    new GetObjectCommand(object("work-stl", path)),
+    new GetObjectCommand(object(group, path)),
     { abortSignal: AbortSignal.timeout(30_000) },
   );
   if (!response.Body) throw new Error("3Dデータを読み込めませんでした");
@@ -124,4 +127,27 @@ export async function uploadPolicy(
       ["eq", "$Content-Type", contentType],
     ],
   });
+}
+
+
+/** Large generated models bypass Lambda's buffered response limit. */
+export async function storeArModel(bytes: Uint8Array, format: "glb" | "usdz", contentType: string, cachePath?: string) {
+  const hash = createHash("sha256").update(bytes).digest("hex");
+  const path = cachePath ?? `${hash}.${format}`;
+  await s3Client().send(new PutObjectCommand({
+    ...object("ar-cache", path), Body: bytes, ContentType: contentType,
+    CacheControl: "private, max-age=300",
+  }), { abortSignal: AbortSignal.timeout(30_000) });
+  return signedDownload("ar-cache", path, 300);
+}
+
+/** Read only converted models; original files still require their own authorization. */
+export async function findArModel(path: string): Promise<string | null> {
+  const { Bucket, Key } = object("ar-cache", path);
+  const result = await s3Client().send(new ListObjectsV2Command({ Bucket, Prefix: Key, MaxKeys: 1 }),
+    { abortSignal: AbortSignal.timeout(5_000) });
+  const cached = result.Contents?.find((entry) => entry.Key === Key);
+  // Refresh before the seven-day lifecycle deadline, leaving time for signed downloads.
+  if (!cached?.LastModified || Date.now() - cached.LastModified.getTime() >= 6 * 86400_000) return null;
+  return signedDownload("ar-cache", path, 300);
 }
