@@ -8,7 +8,7 @@ export function SiteFooter() {
         <div>
           <Brand compact />
           <p className="mt-3 text-sm text-muted-foreground">
-            推しぬいと暮らす、小さな居場所。
+            ぬいのおうち・家具・台座を、3Dプリントで。
           </p>
         </div>
         <nav
@@ -22,6 +22,7 @@ export function SiteFooter() {
           ].map(({ href, label }) => (
             <Link
               key={href}
+              prefetch={false}
               href={href}
               className="flex min-h-11 items-center text-sm text-muted-foreground hover:text-brand hover:underline"
             >

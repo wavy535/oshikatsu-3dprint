@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Bell, House, Search } from "lucide-react";
+import { Bell, Search } from "lucide-react";
 import { demoGuestEnabled } from "@/lib/auth/demo-mode";
 import { getShellContext } from "@/lib/layout/queries";
 import { Button } from "@/components/ui/button";
@@ -11,16 +11,13 @@ export function Brand({ compact = false }: { compact?: boolean }) {
     <Link
       href="/"
       aria-label="OshiNest ホーム"
-      className="inline-flex shrink-0 items-center gap-2.5 rounded-lg text-xl font-bold text-brand"
+      className="inline-flex shrink-0 items-center gap-2.5 rounded-lg text-2xl font-bold text-ink"
     >
-      <span className="flex size-9 items-center justify-center rounded-xl bg-brand text-white">
-        <House className="size-5" strokeWidth={1.8} aria-hidden />
-      </span>
       <span>
         OshiNest
         {!compact && (
           <span className="mt-0.5 hidden text-sm font-normal text-muted-foreground xl:block">
-            推しぬいと暮らす、小さな居場所。
+            ぬいのおうち・家具・台座
           </span>
         )}
       </span>
@@ -38,7 +35,7 @@ export async function SiteHeader({ query }: { query?: string }) {
           ゲスト体験版 · 実際の支払い・発送はありません
         </p>
       )}
-      <div className="mx-auto flex min-h-18 w-full max-w-[1270px] items-center gap-4 px-4 py-3 sm:px-6 lg:gap-5">
+      <div className="mx-auto flex min-h-16 w-full max-w-[1270px] items-center gap-4 px-4 py-3 sm:px-6 lg:gap-5">
         <Brand compact />
         <form
           action="/works"
@@ -70,6 +67,7 @@ export async function SiteHeader({ query }: { query?: string }) {
             <>
               {shell.isCreator && (
                 <Link
+                  prefetch={false}
                   href="/studio/works"
                   className="hidden min-h-11 items-center rounded-xl border border-line px-3 text-sm font-semibold text-brand xl:inline-flex"
                 >
@@ -95,11 +93,15 @@ export async function SiteHeader({ query }: { query?: string }) {
                 size="sm"
                 className="px-2 sm:px-3"
               >
-                <Link href="/login">{guestMode ? "体験する" : "ログイン"}</Link>
+                <Link prefetch={false} href="/login">
+                  {guestMode ? "体験する" : "ログイン"}
+                </Link>
               </Button>
               {!guestMode && (
                 <Button asChild size="sm" className="hidden sm:inline-flex">
-                  <Link href="/signup">新規登録</Link>
+                  <Link prefetch={false} href="/signup">
+                    新規登録
+                  </Link>
                 </Button>
               )}
             </>
@@ -129,7 +131,7 @@ export function CategoryBar({
               }
               aria-current={activeSlug === category.slug ? "page" : undefined}
               className={cn(
-                "flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-medium",
+                "flex min-h-11 shrink-0 items-center rounded-sm px-4 text-sm font-medium",
                 activeSlug === category.slug
                   ? "bg-brand text-white"
                   : "bg-ground text-ink hover:bg-brand-soft",

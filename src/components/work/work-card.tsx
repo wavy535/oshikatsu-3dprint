@@ -4,19 +4,24 @@ import { Heart, ImageIcon, Star } from "lucide-react";
 import type { WorkCardItem } from "@/lib/works/list-options";
 import { workImageUrl } from "@/lib/storage";
 
-
 /**
  * 作品カード。Figma ⓪共通 / 検索結果の WorkCard。
  * サイズ展開が2本以上ある作品は価格を「¥1,400〜」と出す。
  */
-export function WorkCard({ item, eager = false }: { item: WorkCardItem; eager?: boolean }) {
+export function WorkCard({
+  item,
+  eager = false,
+}: {
+  item: WorkCardItem;
+  eager?: boolean;
+}) {
   const image = workImageUrl(item.imagePath);
 
   return (
     <Link
       prefetch={false}
       href={`/works/${item.id}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white hover:border-brand hover:shadow-sm"
+      className="group flex flex-col border-b border-line bg-white pb-4 hover:text-brand"
     >
       <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-ground">
         {image ? (
@@ -32,9 +37,13 @@ export function WorkCard({ item, eager = false }: { item: WorkCardItem; eager?: 
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <p className="line-clamp-2 text-base leading-6 font-semibold text-ink">{item.title}</p>
-        <p className="truncate text-sm text-muted-foreground">{item.creatorName}</p>
+      <div className="flex flex-1 flex-col gap-2 pt-4">
+        <p className="line-clamp-2 text-base leading-6 font-semibold text-ink group-hover:underline">
+          {item.title}
+        </p>
+        <p className="truncate text-sm text-muted-foreground">
+          {item.creatorName}
+        </p>
 
         <div className="mt-auto flex items-center gap-2 pt-1">
           <span className="num text-lg font-bold text-ink">

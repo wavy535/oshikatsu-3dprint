@@ -42,20 +42,17 @@ export default async function MyPage() {
       </div>
       <section
         aria-labelledby="my-nui-heading"
-        className="flex flex-col gap-5 rounded-2xl border border-line bg-white p-5 sm:flex-row sm:items-center sm:p-7"
+        className="flex flex-col gap-5 border-y border-line py-6 sm:flex-row sm:items-center"
       >
-        <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-brand-soft text-brand">
-          <Smile className="size-7" strokeWidth={1.5} aria-hidden />
-        </span>
         <div className="flex-1">
           <h2 id="my-nui-heading" className="text-xl font-semibold">
             {shell.mainNui
-              ? `${shell.mainNui.name}の居場所をさがそう`
-              : "まずは、うちの子を登録しよう"}
+              ? `${shell.mainNui.name}の対応作品`
+              : "ぬいのサイズを登録"}
           </h2>
           <p className="mt-2 text-sm leading-7 text-muted-foreground">
             {shell.mainNui
-              ? "登録したサイズをもとに、作品との相性を確認できます。"
+              ? "登録した身長に対応する作品を表示します。"
               : "ぬいの名前と身長を登録すると、サイズに合う作品を選びやすくなります。"}
           </p>
         </div>
@@ -66,7 +63,10 @@ export default async function MyPage() {
           </Link>
         </Button>
       </section>
-      <nav aria-label="よく使うメニュー" className="grid gap-3 sm:grid-cols-3">
+      <nav
+        aria-label="よく使うメニュー"
+        className="divide-y divide-line border-b border-line"
+      >
         {[
           {
             href: "/mypage/nuis",
@@ -89,8 +89,9 @@ export default async function MyPage() {
         ].map(({ href, label, detail, icon: Icon }) => (
           <Link
             key={href}
+            prefetch={false}
             href={href}
-            className="flex items-center gap-3 rounded-2xl border border-line bg-white p-5 hover:border-brand"
+            className="flex items-center gap-4 py-4 hover:text-brand"
           >
             <Icon className="size-5 shrink-0 text-brand" aria-hidden />
             <span className="flex-1">
@@ -106,10 +107,7 @@ export default async function MyPage() {
           </Link>
         ))}
       </nav>
-      <section
-        aria-labelledby="profile-heading"
-        className="rounded-2xl border border-line bg-white p-5 sm:p-7"
-      >
+      <section aria-labelledby="profile-heading" className="py-4">
         <h2 id="profile-heading" className="mb-5 text-xl font-semibold">
           登録情報
         </h2>
@@ -122,9 +120,7 @@ export default async function MyPage() {
           <dd className="-mt-3 break-all text-base sm:mt-0">{user.email}</dd>
           <dt className="font-semibold text-muted-foreground">会員種別</dt>
           <dd className="-mt-3 sm:mt-0">
-            <span className="inline-block rounded-full bg-brand-soft px-3 py-1 font-medium text-brand">
-              {roleLabel}
-            </span>
+            <span className="font-medium">{roleLabel}</span>
           </dd>
           {profile?.bio && (
             <>

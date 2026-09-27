@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Brand } from "@/components/layout/site-header";
 import { demoGuestEnabled } from "@/lib/auth/demo-mode";
 import { GuestEntry } from "@/components/auth/guest-entry";
@@ -38,63 +38,31 @@ export default async function LoginPage({
       <main
         id="main-content"
         tabIndex={-1}
-        className="page-shell grid flex-1 items-center gap-10 lg:grid-cols-2 lg:gap-20 lg:py-14"
+        className="page-shell flex flex-1 flex-col lg:py-14"
       >
-        <div className="hidden flex-col gap-6 lg:flex">
-          <p className="text-sm font-semibold text-brand">
-            うちの子との暮らしを、もっと。
-          </p>
-          <h2 className="text-4xl font-bold leading-snug">
-            お気に入りの居場所を、
-            <br />
-            一緒に見つけよう。
-          </h2>
-          <figure className="max-w-md rounded-3xl bg-brand-soft px-6">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/nui-house.svg"
-              width="560"
-              height="440"
-              alt="ぬいぐるみと小さなおうちのイラスト"
-              className="w-full"
-            />
-          </figure>
-          <ul className="flex flex-col gap-3 text-sm text-muted-foreground">
-            {[
-              "マイぬいのサイズを保存できる",
-              "気になる作品をお気に入りに",
-              "購入履歴やメッセージをひとつの場所で",
-            ].map((point) => (
-              <li key={point} className="flex items-center gap-2">
-                <Check className="size-4 text-brand" aria-hidden />
-                {point}
-              </li>
-            ))}
-          </ul>
-        </div>
         <div className="mx-auto w-full max-w-lg">
           <div className="mb-7">
             <h1 className="page-title">
               {guestMode
                 ? "OshiNestを体験する"
                 : signup
-                  ? "はじめまして。"
-                  : "おかえりなさい。"}
+                  ? "新規会員登録"
+                  : "ログイン"}
             </h1>
             <p className="mt-2 text-base text-muted-foreground">
               {signup
-                ? "会員登録して、うちの子の居場所をさがそう。"
-                : "ログインして、ぬいとの暮らしの続きを。"}
+                ? "サイズの保存、お気に入り、購入履歴を利用できます。"
+                : "登録したメールアドレスとパスワードを入力してください。"}
             </p>
           </div>
-          <div className="rounded-2xl border border-line bg-white p-5 sm:p-8">
+          <div className="border-t border-ink bg-white pt-6">
             {guestMode ? (
               <GuestEntry redirectTo={nextPath} />
             ) : (
               <>
                 <nav
                   aria-label="ログイン・会員登録"
-                  className="mb-7 grid grid-cols-2 gap-1 rounded-xl bg-ground p-1"
+                  className="mb-7 grid grid-cols-2 border-b border-line"
                 >
                   {[
                     { mode: "login", label: "ログイン", active: !signup },
@@ -102,13 +70,14 @@ export default async function LoginPage({
                   ].map((item) => (
                     <Link
                       key={item.mode}
+                      prefetch={false}
                       href={`/login?mode=${item.mode}${qs}`}
                       aria-current={item.active ? "page" : undefined}
                       className={cn(
-                        "flex min-h-12 items-center justify-center rounded-lg px-2 text-center text-sm font-semibold",
+                        "flex min-h-12 items-center justify-center border-b-2 px-2 text-center text-sm font-semibold",
                         item.active
-                          ? "bg-white text-brand shadow-sm"
-                          : "text-muted-foreground hover:text-ink",
+                          ? "border-brand text-brand"
+                          : "border-transparent text-muted-foreground hover:text-ink",
                       )}
                     >
                       {item.label}

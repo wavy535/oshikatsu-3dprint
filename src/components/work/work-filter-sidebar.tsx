@@ -22,6 +22,7 @@ function Choice({
   return (
     <Link
       href={href}
+      prefetch={false}
       aria-current={active ? "true" : undefined}
       className={cn(
         "flex min-h-11 items-center justify-between gap-1 rounded-lg border px-3 py-2 text-sm",
@@ -51,7 +52,7 @@ export function WorkFilterSidebar({
     <ResponsiveSidebar label="作品を絞り込む">
       <aside
         aria-label="絞り込み条件"
-        className="flex w-full flex-col gap-6 rounded-2xl bg-white p-4 lg:border lg:border-line lg:p-5"
+        className="flex w-full flex-col gap-6 bg-white p-4 lg:border-r lg:border-line lg:py-0 lg:pr-6 lg:pl-0"
       >
         <div className="hidden items-center gap-2 text-base font-semibold lg:flex">
           <SlidersHorizontal className="size-4 text-brand" aria-hidden />

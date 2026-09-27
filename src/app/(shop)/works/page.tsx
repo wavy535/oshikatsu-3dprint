@@ -1,6 +1,6 @@
 import { Pagination } from "@/components/ui/pagination";
 import Link from "next/link";
-import { ArrowRight, Search, SearchX, X } from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
 
 import { listFilterTags, listWorks } from "@/lib/works/queries";
 import { PAGE_SIZE, SORTS, type Sort } from "@/lib/works/list-options";
@@ -109,7 +109,7 @@ export default async function WorksPage({
     <div className="page-shell flex flex-1 flex-col gap-6">
       <div>
         <p className="mb-1 text-sm text-muted-foreground">
-          うちの子に似合う、小さな世界。
+          台座・家具・背景を、サイズや価格で絞り込む
         </p>
         <h1 className="page-title">
           {filters.q ? `「${filters.q}」の検索結果` : "作品をさがす"}
@@ -154,7 +154,7 @@ export default async function WorksPage({
                   key={filter.label}
                   href={filter.href}
                   aria-label={`${filter.label}の条件を解除`}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-full border border-line bg-white px-4 text-sm text-ink"
+                  className="inline-flex min-h-11 items-center gap-2 rounded-sm border border-line bg-white px-4 text-sm text-ink"
                 >
                   {filter.label}
                   <X className="size-4 text-muted-foreground" aria-hidden />
@@ -174,10 +174,7 @@ export default async function WorksPage({
             </p>
           ) : null}
           {items.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 rounded-2xl border border-line bg-white px-5 py-14 text-center sm:px-8">
-              <span className="flex size-16 items-center justify-center rounded-full bg-ground">
-                <SearchX className="size-7 text-brand" aria-hidden />
-              </span>
+            <div className="flex flex-col items-start gap-4 border-b border-line bg-white py-10">
               <h2 className="text-xl font-semibold">
                 {hasFilters
                   ? "条件に合う作品が見つかりませんでした"
@@ -185,8 +182,8 @@ export default async function WorksPage({
               </h2>
               <p className="max-w-sm text-sm leading-7 text-muted-foreground">
                 {hasFilters
-                  ? "サイズやカテゴリを変えると、ほかの作品に出会えるかもしれません。"
-                  : "公開された作品はここに並びます。先にマイぬいを登録して、お気に入りを迎える準備をしませんか。"}
+                  ? "絞り込み条件を減らすか、別のキーワードで検索してください。"
+                  : "現在、公開中の作品はありません。マイぬいのサイズを登録すると、今後作品を探すときの絞り込みに使えます。"}
               </p>
               <Button asChild variant="outline">
                 <Link href={hasFilters ? "/works?nuiSize=" : "/mypage/nuis"}>

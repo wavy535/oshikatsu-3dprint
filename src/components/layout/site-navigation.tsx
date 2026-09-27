@@ -26,13 +26,14 @@ export function SiteNavigation({ cartCount }: { cartCount: number }) {
       {ITEMS.map(({ href, label, icon: Icon }) => (
         <Link
           key={href}
+          prefetch={false}
           href={href}
           aria-current={activeHref === href ? "page" : undefined}
           className={cn(
-            "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-1 text-sm lg:flex-row lg:gap-2 lg:px-3",
+            "flex min-h-12 min-w-0 flex-col items-center justify-center gap-1 border-t-2 px-1 py-1 text-sm lg:flex-row lg:gap-2 lg:px-3",
             activeHref === href
-              ? "bg-brand-soft font-semibold text-brand"
-              : "text-muted-foreground hover:bg-ground hover:text-ink",
+              ? "border-brand font-semibold text-brand"
+              : "border-transparent text-muted-foreground hover:bg-ground hover:text-ink",
           )}
         >
           <span className="relative">

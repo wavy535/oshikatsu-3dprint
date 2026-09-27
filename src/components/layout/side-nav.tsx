@@ -29,7 +29,7 @@ export function SideNav({
     <ResponsiveSidebar key={pathname} label={label}>
       <nav
         aria-label="アカウント・クリエイター"
-        className="flex w-full shrink-0 flex-col gap-5 rounded-2xl border-0 border-line bg-white p-3 lg:w-60 lg:border"
+        className="flex w-full shrink-0 flex-col gap-5 border-0 border-line bg-white p-3 lg:w-60 lg:border-r"
       >
         {groups.map((group) => (
           <div key={group.label} className="flex flex-col gap-1">
@@ -45,6 +45,7 @@ export function SideNav({
               return (
                 <Link
                   key={item.href}
+                  prefetch={false}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
