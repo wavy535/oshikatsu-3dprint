@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { useHydrated } from "@/lib/use-hydrated";
 
 /**
  * 6桁の確認コード入力。1マス1文字で、入力すると次のマスへ進み、
@@ -19,6 +20,7 @@ export function CodeBoxes({
   label?: string;
 }) {
   const boxes = useRef<(HTMLInputElement | null)[]>([]);
+  const hydrated = useHydrated();
 
   function setDigit(index: number, value: string) {
     const next = [...digits];
@@ -35,6 +37,7 @@ export function CodeBoxes({
             boxes.current[i] = el;
           }}
           value={d}
+          disabled={!hydrated}
           inputMode="numeric"
           autoComplete={i === 0 ? "one-time-code" : "off"}
           aria-label={`${label} ${i + 1}文字目`}

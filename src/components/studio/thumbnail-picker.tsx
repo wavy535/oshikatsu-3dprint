@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ImagePlus, Star, Trash2 } from "lucide-react";
 
 import { uploadFile } from "@/lib/files/upload";
+import { useHydrated } from "@/lib/use-hydrated";
 import {
   deleteImageAction,
   publishWorkAction,
@@ -22,7 +23,7 @@ type Image = { id: string; storagePath: string; sortOrder: number };
 
 /**
  * Figma ②出品フロー「STEP4 公開」。
- * 画像は署名付きPOSTでS3へ送ってから、行の登録をServer Actionに任せる。
+ * 画像は署名付きPUTでR2へ送ってから、行の登録をServer Actionに任せる。
  * 先頭（sort_order = 0）の画像がサムネイルになる。
  */
 export function ThumbnailPicker({
@@ -35,6 +36,7 @@ export function ThumbnailPicker({
   isPublished: boolean;
 }) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [thumbState, setThumbnail, settingThumb] = useActionState(
     setThumbnailAction,
     initialState,
@@ -158,7 +160,7 @@ export function ThumbnailPicker({
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
+            disabled={!hydrated || uploading}
             className="flex aspect-square w-32 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line bg-white text-muted-foreground hover:border-brand/40 hover:text-ink"
           >
             <ImagePlus className="size-5" aria-hidden />
@@ -170,7 +172,7 @@ export function ThumbnailPicker({
             ref={inputRef}
             type="file"
             multiple
-            disabled={uploading}
+            disabled={!hydrated || uploading}
             aria-label="作品画像"
             accept="image/*"
             className="hidden"

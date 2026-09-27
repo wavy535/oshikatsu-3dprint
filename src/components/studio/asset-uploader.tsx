@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useHydrated } from "@/lib/use-hydrated";
 import { Upload } from "lucide-react";
 import { uploadFile } from "@/lib/files/upload";
 import { registerPrintAssetsAction } from "@/lib/works/asset-actions";
@@ -21,6 +22,7 @@ export function AssetUploader({ workId, assets = [], purpose = "print", currentF
   currentFile?: string;
 }) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const input = useRef<HTMLInputElement>(null);
   const locked = useRef(false);
   const [target, setTarget] = useState("");
@@ -86,7 +88,7 @@ export function AssetUploader({ workId, assets = [], purpose = "print", currentF
       {!ar && assets.length > 0 && (
         <label className="flex flex-col gap-1 text-[12px]">
           アップロード方法
-          <select value={target} disabled={Boolean(progress)} onChange={(event) => setTarget(event.target.value)} className="min-w-0 rounded-md border border-line p-2">
+          <select value={target} disabled={!hydrated || Boolean(progress)} onChange={(event) => setTarget(event.target.value)} className="min-w-0 rounded-md border border-line p-2">
             <option value="">ファイルを追加する</option>
             {assets.map((asset) => <option key={asset.id} value={asset.id}>{asset.file_name} を差し替える</option>)}
           </select>
@@ -94,8 +96,8 @@ export function AssetUploader({ workId, assets = [], purpose = "print", currentF
       )}
       <div onDragOver={(event) => event.preventDefault()} onDrop={(event) => { event.preventDefault(); void onPick(Array.from(event.dataTransfer.files)); }} className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-line px-4 py-6 text-center">
         <Upload className="size-6 text-muted-foreground" aria-hidden />
-        <input ref={input} type="file" aria-label={ar ? "AR用ファイル" : "印刷用ファイル"} accept={ar ? ".stl,.3mf,.blend" : ".stl,.3mf"} multiple={multiple} disabled={Boolean(progress)} className="hidden" onChange={(event) => { void onPick(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
-        <Button type="button" size="sm" disabled={Boolean(progress)} onClick={() => input.current?.click()}>{ar ? "AR用ファイルを選ぶ" : target ? "差し替えるファイルを選ぶ" : "印刷用ファイルを選ぶ"}</Button>
+        <input ref={input} type="file" aria-label={ar ? "AR用ファイル" : "印刷用ファイル"} accept={ar ? ".stl,.3mf,.blend" : ".stl,.3mf"} multiple={multiple} disabled={!hydrated || Boolean(progress)} className="hidden" onChange={(event) => { void onPick(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
+        <Button type="button" size="sm" disabled={!hydrated || Boolean(progress)} onClick={() => input.current?.click()}>{ar ? "AR用ファイルを選ぶ" : target ? "差し替えるファイルを選ぶ" : "印刷用ファイルを選ぶ"}</Button>
         {progress && <p role="status" className="break-all text-[12px] text-muted-foreground">{progress}</p>}
       </div>
       {error && <p role="alert" className="text-[12px] text-danger">{error}</p>}

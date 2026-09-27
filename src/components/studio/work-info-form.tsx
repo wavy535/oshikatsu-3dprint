@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { useHydrated } from "@/lib/use-hydrated";
 
 const initialState: StepActionState = { error: null };
 
@@ -64,6 +65,7 @@ export function WorkInfoForm({
   /** separate = 代行費を作品価格に上乗せして請求する */
   feeBilling: string;
 }) {
+  const hydrated = useHydrated();
   const [state, formAction, pending] = useActionState(saveWorkInfoAction, initialState);
   const [title, setTitle] = useState(initial.title === "無題の作品" ? "" : initial.title);
   const [description, setDescription] = useState(initial.description);
@@ -102,6 +104,7 @@ export function WorkInfoForm({
 
   return (
     <form action={formAction} className="flex flex-col gap-4">
+      <fieldset disabled={!hydrated} className="contents">
       <input type="hidden" name="payload" value={payload} />
 
       <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
@@ -346,6 +349,7 @@ export function WorkInfoForm({
       <Button type="submit" disabled={pending} className="self-end">
         {pending ? "保存しています..." : "公開の設定へ進む"}
       </Button>
+      </fieldset>
     </form>
   );
 }

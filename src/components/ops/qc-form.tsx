@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { uploadFile } from "@/lib/files/upload";
+import { useHydrated } from "@/lib/use-hydrated";
 import { createShipmentAction } from "@/lib/ops/shipping-actions";
 import { submitQcAction } from "@/lib/ops/printing-actions";
 import { type OpsActionState } from "@/lib/ops/action-state";
@@ -47,6 +48,7 @@ export function QcForm({
   workId: string | null;
   checks: CheckDefinition[];
 }) {
+  const hydrated = useHydrated();
   const [state, action, pending] = useActionState(submitQcAction, initial);
   const [answers, setAnswers] = useState<Record<string, "pass" | "fail">>({});
   const [cause, setCause] = useState<ReprintCause | "">("");
@@ -208,7 +210,7 @@ export function QcForm({
             accept="image/*"
             multiple
             className="hidden"
-            disabled={uploading || photos.length >= 6}
+            disabled={!hydrated || uploading || photos.length >= 6}
             onChange={(e) => {
               if (e.target.files) void onPickPhotos(e.target.files);
               e.target.value = "";
