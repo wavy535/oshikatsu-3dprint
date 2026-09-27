@@ -2,7 +2,7 @@ import { cache } from "react";
 import { sql } from "kysely";
 import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import "server-only";
-import { getUserProfile } from "@/lib/auth/guards";
+import { getOptionalUser, getUserProfile } from "@/lib/auth/guards";
 import type { UserRole } from "@/types/db";
 
 export type ShellContext = {
@@ -32,30 +32,36 @@ const GUEST: ShellContext = {
 
 /** Header and sidebar share this result within one render, never across users. */
 export const getShellContext = cache(async (): Promise<ShellContext> => {
-  const { db, user, profile } = await getUserProfile();
+  const { db, user } = await getOptionalUser();
   if (!user) return GUEST;
-  const counts = await db
-    .selectNoFrom((eb) => [
-      eb
-        .selectFrom("cart_items")
-        .innerJoin("carts", "carts.id", "cart_items.cart_id")
-        .select(
-          sql<number>`coalesce(sum(cart_items.quantity), 0)`.as(
-            "count",
-          ),
-        )
-        .where("carts.user_id", "=", user.id)
-        .as("cartCount"),
-      eb.selectFrom("notifications").select(eb=>eb.fn.countAll<number>().as("count")).where("user_id","=",user.id).where("read_at","is",null).as("unreadCount"),
-      jsonObjectFrom(
+  const [{ profile }, counts] = await Promise.all([
+    getUserProfile(),
+    db
+      .selectNoFrom((eb) => [
         eb
-          .selectFrom("nui_profiles")
-          .select(["id", "name", "nui_size_cm"])
+          .selectFrom("cart_items")
+          .innerJoin("carts", "carts.id", "cart_items.cart_id")
+          .select(
+            sql<number>`coalesce(sum(cart_items.quantity), 0)`.as("count"),
+          )
+          .where("carts.user_id", "=", user.id)
+          .as("cartCount"),
+        eb
+          .selectFrom("notifications")
+          .select((eb) => eb.fn.countAll<number>().as("count"))
           .where("user_id", "=", user.id)
-          .where("is_main", "=", true),
-      ).as("mainNui"),
-    ])
-    .executeTakeFirstOrThrow();
+          .where("read_at", "is", null)
+          .as("unreadCount"),
+        jsonObjectFrom(
+          eb
+            .selectFrom("nui_profiles")
+            .select(["id", "name", "nui_size_cm"])
+            .where("user_id", "=", user.id)
+            .where("is_main", "=", true),
+        ).as("mainNui"),
+      ])
+      .executeTakeFirstOrThrow(),
+  ]);
 
   const role = profile?.role ?? "buyer";
 

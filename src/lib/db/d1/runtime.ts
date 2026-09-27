@@ -343,13 +343,18 @@ const contexts = new WeakMap<
   Kysely<Database>,
   { binding: Binding; actor: Actor }
 >();
-export function d1Database(binding: Binding, actor: Actor): Kysely<Database> {
+export function d1Database(
+  binding: Binding,
+  actor: Actor,
+  introspectionTables?: readonly string[],
+): Kysely<Database> {
   const db = new Kysely<Database>({
     dialect: {
       createAdapter: () => new SqliteAdapter(),
       createQueryCompiler: () => new SqliteQueryCompiler(),
       createDriver: () => new D1Driver(binding, actor),
-      createIntrospector: () => d1Introspector(binding, actor),
+      createIntrospector: () =>
+        d1Introspector(binding, actor, introspectionTables),
     },
     plugins: [
       {

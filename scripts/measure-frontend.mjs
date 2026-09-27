@@ -1,8 +1,13 @@
 import { chromium } from "@playwright/test";
 
 // Run against a production build or the public Worker. Never use the Vite dev server.
-// Fresh anonymous contexts, fixed mobile network/CPU. Lab samples, not field vitals.
+// Fresh browser contexts, fixed network/CPU. Optional private storage state for member pages.
+// Never commit storage-state files: they contain session cookies.
 const baseURL = process.env.PERF_BASE_URL ?? "http://localhost:3000";
+const storageState = process.env.PERF_STORAGE_STATE;
+const viewport = { width: Number(process.env.PERF_WIDTH ?? 390), height: 844 };
+if (!Number.isInteger(viewport.width) || viewport.width < 320)
+  throw new Error("Invalid PERF_WIDTH");
 const routes = process.argv.slice(2);
 if (!routes.length) routes.push("/", "/works");
 if (routes.some((route) => !route.startsWith("/") || route.startsWith("//"))) {
@@ -19,12 +24,24 @@ const samples = [];
 try {
   for (const route of routes) {
     // Warm the server separately; each recorded sample still gets a fresh browser context.
-    const warmup = await fetch(new URL(route, baseURL));
-    if (!warmup.ok) throw new Error(`${route}: HTTP ${warmup.status}`);
-    await warmup.arrayBuffer();
+    const warmContext = await browser.newContext({ storageState });
+    try {
+      const warmup = await warmContext.request.get(
+        new URL(route, baseURL).href,
+        { maxRedirects: 0 },
+      );
+      if (!warmup.ok())
+        throw new Error(
+          `${route}: warmup HTTP ${warmup.status()} (check authentication)`,
+        );
+      await warmup.body();
+    } finally {
+      await warmContext.close();
+    }
     for (let run = 1; run <= 3; run++) {
       const context = await browser.newContext({
-        viewport: { width: 390, height: 844 },
+        viewport,
+        storageState,
       });
       try {
         const page = await context.newPage();
@@ -54,7 +71,9 @@ try {
           new PerformanceObserver((list) => {
             for (const entry of list.getEntries()) {
               metrics.lcp = entry.startTime;
-              metrics.lcpElement = entry.element?.outerHTML.slice(0, 500);
+              metrics.lcpElement = entry.element
+                ? `${entry.element.tagName.toLowerCase()}.${[...entry.element.classList].join(".")}`
+                : null;
               metrics.lcpUrl = entry.url;
             }
           }).observe({ type: "largest-contentful-paint", buffered: true });
@@ -79,6 +98,10 @@ try {
         const response = await page.goto(new URL(route, baseURL).href);
         if (!response?.ok())
           throw new Error(`${route}: HTTP ${response?.status()}`);
+        if (new URL(page.url()).pathname !== new URL(route, baseURL).pathname)
+          throw new Error(
+            `${route}: redirected; refusing to measure a different page`,
+          );
         await page.waitForTimeout(1500);
         const metrics = await page.evaluate(() => {
           const navigation = performance.getEntriesByType("navigation")[0];
@@ -94,16 +117,14 @@ try {
             htmlBytes: navigation.decodedBodySize,
             htmlTransferBytes: navigation.transferSize,
             responseEnd: navigation.responseEnd,
-            resources: performance
-              .getEntriesByType("resource")
-              .map((e) => ({
-                url: e.name,
-                type: e.initiatorType,
-                start: e.startTime,
-                end: e.responseEnd,
-                bytes: e.decodedBodySize,
-                transfer: e.transferSize,
-              })),
+            resources: performance.getEntriesByType("resource").map((e) => ({
+              url: e.name,
+              type: e.initiatorType,
+              start: e.startTime,
+              end: e.responseEnd,
+              bytes: e.decodedBodySize,
+              transfer: e.transferSize,
+            })),
             scriptBytes: scripts.reduce(
               (sum, entry) => sum + entry.decodedBodySize,
               0,
@@ -126,7 +147,8 @@ try {
       {
         browser: browser.version(),
         baseURL,
-        viewport: "390x844",
+        viewport: `${viewport.width}x${viewport.height}`,
+        authenticated: Boolean(storageState),
         cpuSlowdown: 4,
         network,
         cache: "disabled",

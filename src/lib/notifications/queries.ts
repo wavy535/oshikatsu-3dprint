@@ -32,31 +32,18 @@ export async function listNotifications(
 /** 通知設定。行が無い種類は「アプリ内・メールON／プッシュOFF」が既定。 */
 export async function getNotificationPreferences() {
   const { db, user } = await requireUser("/mypage/notification-settings");
-  const [prefsRes, settingsRes] = await Promise.all([
-    queryResult(
-      db
-        .selectFrom("notification_preferences")
-        .select([
-          "notification_preferences.kind",
-          "notification_preferences.in_app",
-          "notification_preferences.email",
-          "notification_preferences.push",
-        ])
-        .where("notification_preferences.user_id", "=", user.id)
-        .execute(),
-    ),
-    queryResult(
-      db
-        .selectFrom("notification_settings")
-        .select([
-          "notification_settings.email_to",
-          "notification_settings.digest",
-          "notification_settings.digest_hour",
-        ])
-        .where("notification_settings.user_id", "=", user.id)
-        .executeTakeFirst(),
-    ),
-  ]);
+  const prefsRes = await queryResult(
+    db
+      .selectFrom("notification_preferences")
+      .select([
+        "notification_preferences.kind",
+        "notification_preferences.in_app",
+        "notification_preferences.email",
+        "notification_preferences.push",
+      ])
+      .where("notification_preferences.user_id", "=", user.id)
+      .execute(),
+  );
 
   const byKind = new Map((prefsRes.data ?? []).map((p) => [p.kind, p]));
   const kinds = (Object.keys(KIND_LABEL) as NotificationKind[]).map((kind) => ({
@@ -68,5 +55,5 @@ export async function getNotificationPreferences() {
     locked: MANDATORY_KINDS.includes(kind),
   }));
 
-  return { kinds, settings: settingsRes.data ?? null, email: user.email ?? "" };
+  return { kinds, email: user.email ?? "" };
 }

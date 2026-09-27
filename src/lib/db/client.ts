@@ -8,13 +8,16 @@ export type Db = Kysely<Database>;
 export function database(userId?: string): Db {
   const binding = platform().DATABASE;
   if (!binding) throw new Error("DATABASE D1 binding is required");
-  return d1Database(binding, { role: userId ? "app_user" : "app_guest", userId });
+  return d1Database(binding, {
+    role: userId ? "app_user" : "app_guest",
+    userId,
+  });
 }
 /** Call only after authorizing the operation on the server. */
-export function serviceDatabase(): Db {
+export function serviceDatabase(introspectionTables?: readonly string[]): Db {
   const binding = platform().DATABASE;
   if (!binding) throw new Error("DATABASE D1 binding is required");
-  return d1Database(binding, { role: "app_service" });
+  return d1Database(binding, { role: "app_service" }, introspectionTables);
 }
 export { sql } from "kysely";
 export { atomicBatch, assertQuery } from "./d1/runtime";

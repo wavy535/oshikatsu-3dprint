@@ -7,6 +7,7 @@ import columns from "./columns.json";
 export function d1Introspector(
   binding: Binding,
   actor: Actor,
+  tables: readonly string[] = Object.keys(columns),
 ): DatabaseIntrospector {
   return {
     async getSchemas() {
@@ -14,32 +15,36 @@ export function d1Introspector(
     },
     async getTables(): Promise<TableMetadata[]> {
       if (actor.role !== "app_service") throw new Error("permission denied");
-      const names = Object.keys(columns);
-      const results = await binding.batch<{
+      if (tables.some((name) => !Object.hasOwn(columns, name))) {
+        throw new Error("Unregistered introspection table");
+      }
+      const [result] = await binding.batch<{
+        table_name: string;
         name: string;
         type: string;
         notnull: number;
         dflt_value: unknown;
-      }>(
-        names.map((name) =>
-          binding
-            .prepare(
-              'SELECT name,type,"notnull",dflt_value FROM pragma_table_info(?)',
-            )
-            .bind(name),
-        ),
-      );
-      return results.map((result, index) => ({
-        name: names[index],
+      }>([
+        binding
+          .prepare(
+            `SELECT t.value AS table_name, p.name, p.type, p."notnull", p.dflt_value
+           FROM json_each(?) AS t JOIN pragma_table_info(t.value) AS p`,
+          )
+          .bind(JSON.stringify(tables)),
+      ]);
+      return tables.map((name) => ({
+        name,
         isView: false,
         isForeign: false,
-        columns: result.results.map((c) => ({
-          name: c.name,
-          dataType: c.type,
-          isNullable: !c.notnull,
-          isAutoIncrementing: false,
-          hasDefaultValue: c.dflt_value !== null,
-        })),
+        columns: result.results
+          .filter((c) => c.table_name === name)
+          .map((c) => ({
+            name: c.name,
+            dataType: c.type,
+            isNullable: !c.notnull,
+            isAutoIncrementing: false,
+            hasDefaultValue: c.dflt_value !== null,
+          })),
       }));
     },
   };

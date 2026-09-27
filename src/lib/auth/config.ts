@@ -11,6 +11,15 @@ import { serviceDatabase } from "@/lib/db/client";
 import { emailVerificationRequired } from "./registration-policy";
 
 const timestamps = { createdAt: "created_at", updatedAt: "updated_at" };
+// Keep schema validation live, but inspect only the tables Better Auth writes.
+// Reuse these identifiers in the configuration so the two cannot drift apart.
+const tables = {
+  user: "app_users",
+  session: "auth_sessions",
+  account: "auth_accounts",
+  verification: "auth_verifications",
+  rateLimit: "auth_rate_limits",
+} as const;
 
 function createAuth() {
   const secret = process.env.AUTH_SECRET?.trim();
@@ -22,17 +31,21 @@ function createAuth() {
     // 開発中は、同じ LAN の端末（QR コードから開いたスマホなど）からのログインも受け付ける
     trustedOrigins: developmentTrustedOrigins,
     secret,
-    database: { db: serviceDatabase(), type: "sqlite", transaction: false },
+    database: {
+      db: serviceDatabase(Object.values(tables)),
+      type: "sqlite",
+      transaction: false,
+    },
     advanced: {
-      database: { generateId: "uuid" },
+      database: { generateId: "uuid", joins: true },
       ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },
     },
     user: {
-      modelName: "app_users",
+      modelName: tables.user,
       fields: { ...timestamps, emailVerified: "email_verified" },
     },
     session: {
-      modelName: "auth_sessions",
+      modelName: tables.session,
       fields: {
         ...timestamps,
         userId: "user_id",
@@ -42,7 +55,7 @@ function createAuth() {
       },
     },
     account: {
-      modelName: "auth_accounts",
+      modelName: tables.account,
       fields: {
         ...timestamps,
         userId: "user_id",
@@ -56,23 +69,34 @@ function createAuth() {
       },
     },
     verification: {
-      modelName: "auth_verifications",
+      modelName: tables.verification,
       fields: { ...timestamps, expiresAt: "expires_at" },
     },
     rateLimit: {
       enabled: true,
       storage: "database",
-      modelName: "auth_rate_limits",
+      modelName: tables.rateLimit,
       fields: { lastRequest: "last_request" },
     },
     databaseHooks: {
-      user: { create: { after: async (user) => {
-        if (demoGuestEnabled() && (user as { isAnonymous?: boolean }).isAnonymous) {
-          // Only the anonymous plugin creates this server-controlled flag.
-          // Each visitor gets an ordinary creator profile, never an admin.
-          await serviceDatabase().updateTable("profiles").set({ role: "creator", display_name: "ゲスト" }).where("id", "=", user.id).execute();
-        }
-      } } },
+      user: {
+        create: {
+          after: async (user) => {
+            if (
+              demoGuestEnabled() &&
+              (user as { isAnonymous?: boolean }).isAnonymous
+            ) {
+              // Only the anonymous plugin creates this server-controlled flag.
+              // Each visitor gets an ordinary creator profile, never an admin.
+              await serviceDatabase()
+                .updateTable("profiles")
+                .set({ role: "creator", display_name: "ゲスト" })
+                .where("id", "=", user.id)
+                .execute();
+            }
+          },
+        },
+      },
     },
     emailAndPassword: {
       enabled: true,
@@ -88,7 +112,19 @@ function createAuth() {
     disabledPaths: [
       "/phone-number/send-otp",
       "/phone-number/verify",
-      ...(!emailVerificationRequired() ? ["/email-otp/send-verification-otp", "/email-otp/verify-email", "/email-otp/check-verification-otp", "/send-verification-email", "/verify-email", "/request-password-reset", "/forget-password/email-otp", "/email-otp/request-password-reset", "/email-otp/reset-password"] : []),
+      ...(!emailVerificationRequired()
+        ? [
+            "/email-otp/send-verification-otp",
+            "/email-otp/verify-email",
+            "/email-otp/check-verification-otp",
+            "/send-verification-email",
+            "/verify-email",
+            "/request-password-reset",
+            "/forget-password/email-otp",
+            "/email-otp/request-password-reset",
+            "/email-otp/reset-password",
+          ]
+        : []),
       "/delete-anonymous-user",
       ...(!demoGuestEnabled() ? ["/sign-in/anonymous"] : []),
       "/sign-in/phone-number",
@@ -98,10 +134,16 @@ function createAuth() {
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (demoGuestEnabled() && !["/sign-in/anonymous", "/sign-out", "/get-session", "/ok"].includes(ctx.path)) {
-          throw new APIError("FORBIDDEN", { message: "このデモではゲストとしてご利用ください" });
+        if (
+          demoGuestEnabled() &&
+          !["/sign-in/anonymous", "/sign-out", "/get-session", "/ok"].includes(
+            ctx.path,
+          )
+        ) {
+          throw new APIError("FORBIDDEN", {
+            message: "このデモではゲストとしてご利用ください",
+          });
         }
-
       }),
     },
     plugins: [
