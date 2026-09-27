@@ -45,3 +45,14 @@ const server = createServer(async (req, res) => {
 server.requestTimeout = 60_000;
 server.headersTimeout = 10_000;
 server.listen(Number(process.env.PORT || 8080), "0.0.0.0");
+
+// Node runs as PID 1 in the container: handle termination explicitly so idle
+// containers exit, while requests already in progress can finish on rollout.
+let draining = false;
+function shutdown() {
+  if (draining) return;
+  draining = true;
+  server.close(() => process.exit(0));
+}
+process.once("SIGTERM", shutdown);
+process.once("SIGINT", shutdown);
