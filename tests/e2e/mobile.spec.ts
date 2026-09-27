@@ -22,7 +22,7 @@ for (const role of ["buyer", "creator", "admin"]) {
     await signInFixture(page, baseURL!, `${role}@example.com`);
     await page.goto("/mypage");
     const menu = page.locator("summary", { hasText: "マイページメニュー" });
-    const orders = page.getByRole("link", { name: "購入履歴", exact: true });
+    const orders = page.locator("details").getByRole("link", { name: "購入履歴", exact: true });
     await expect(orders).not.toBeVisible();
     await menu.press("Enter");
     await expect(orders).toBeVisible();
@@ -32,6 +32,7 @@ for (const role of ["buyer", "creator", "admin"]) {
     await expectNoOverflow(page);
 
     if (role === "admin") {
+      await page.getByRole("navigation", { name: "メインメニュー", exact: true }).getByRole("link", { name: "マイページ", exact: true }).click();
       await page.getByRole("link", { name: "運営コンソール", exact: true }).click();
       const nav = page.getByRole("navigation", { name: "運営メニュー" });
       await nav.getByRole("link", { name: "払込管理", exact: true }).click();

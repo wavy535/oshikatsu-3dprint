@@ -22,7 +22,7 @@ export default async function AccountLayout({
     {
       label: "アカウント",
       items: [
-        { href: "/mypage", label: "プロフィール" },
+        { href: "/mypage", label: "マイページ" },
         { href: "/mypage/orders", label: "購入履歴" },
         { href: "/mypage/notifications", label: "通知", badge: shell.unreadCount },
         { href: "/mypage/favorites", label: "お気に入り" },
@@ -43,7 +43,7 @@ export default async function AccountLayout({
             { href: "/studio/revisions", label: "修正依頼" },
             { href: "/studio/payouts", label: "売上の受け取り" },
           ]
-        : [{ href: "/creator/apply", label: "クリエイター登録" }],
+        : [{ href: "/creator/apply", label: "出品について" }],
     },
     ...(shell.isAdmin
       ? [
@@ -63,16 +63,13 @@ export default async function AccountLayout({
   return (
     <>
       <SiteHeader />
-      <main className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6 lg:flex-row">
-        <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:w-56">
-          <SideNav groups={groups} />
-          <form action={signOutAction}>
-            <Button type="submit" variant="ghost" size="sm" className="w-full">
-              ログアウト
-            </Button>
-          </form>
+      <main id="main-content" tabIndex={-1} className="page-shell workspace">
+        <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:w-60">
+          <SideNav groups={groups} footer={<form action={signOutAction}>
+            <Button type="submit" variant="ghost" size="sm" className="w-full justify-start">ログアウト</Button>
+          </form>} />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-5">{children}</div>
+        <div className="flex w-full min-w-0 flex-1 flex-col gap-6">{children}</div>
       </main>
       <SiteFooter />
     </>

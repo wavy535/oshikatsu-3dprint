@@ -16,44 +16,44 @@ export function WorkCard({ item, eager = false }: { item: WorkCardItem; eager?: 
     <Link
       prefetch={false}
       href={`/works/${item.id}`}
-      className="group flex flex-col overflow-hidden rounded-xl border border-line bg-white transition-shadow hover:shadow-md"
+      className="group flex flex-col overflow-hidden rounded-2xl border border-line bg-white hover:border-brand hover:shadow-sm"
     >
-      <div className="flex aspect-square items-center justify-center overflow-hidden bg-ground">
+      <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-ground">
         {image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             loading={eager ? "eager" : "lazy"}
             src={image}
             alt=""
-            className="size-full object-cover transition-transform group-hover:scale-[1.02]"
+            className="size-full object-cover"
           />
         ) : (
-          <ImageIcon className="size-6 text-line" aria-hidden />
+          <ImageIcon className="size-10 text-muted-foreground" aria-hidden />
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-1.5 p-3">
-        <p className="line-clamp-2 text-[13px] leading-5 font-semibold text-ink">{item.title}</p>
-        <p className="truncate text-[11px] text-muted-foreground">{item.creatorName}</p>
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <p className="line-clamp-2 text-base leading-6 font-semibold text-ink">{item.title}</p>
+        <p className="truncate text-sm text-muted-foreground">{item.creatorName}</p>
 
         <div className="mt-auto flex items-center gap-2 pt-1">
-          <span className="num text-sm font-bold text-ink">
+          <span className="num text-lg font-bold text-ink">
             {yen(item.minPrice)}
-            {item.hasRange && <span className="text-[11px] font-medium">〜</span>}
+            {item.hasRange && <span className="text-sm font-medium">〜</span>}
           </span>
           {item.isPriceDropped && (
-            <span className="rounded bg-danger-bg px-1.5 py-0.5 text-[10px] font-semibold text-danger">
+            <span className="rounded bg-danger-bg px-1.5 py-0.5 text-sm font-semibold text-danger">
               値下げ中
             </span>
           )}
           {!item.hasStock && (
-            <span className="rounded bg-ground px-1.5 py-0.5 text-[10px] text-muted-foreground">
+            <span className="rounded bg-ground px-1.5 py-0.5 text-sm text-muted-foreground">
               在庫なし
             </span>
           )}
         </div>
 
-        <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+        <div className="flex items-center gap-3 text-sm text-muted-foreground">
           <span className="flex items-center gap-1">
             <Heart className="size-3.5" aria-hidden />
             <span className="num">{item.favoriteCount}</span>

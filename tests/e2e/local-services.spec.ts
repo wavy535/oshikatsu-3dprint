@@ -44,9 +44,9 @@ test("unverified signup persists a session and keeps creator applications closed
   const session = await page.request.get("/api/auth/get-session");
   expect((await session.json()).user.emailVerified).toBe(false);
   await page.goto("/mypage");
-  await expect(page.getByText("表示名：E2E 会員", { exact: true })).toBeVisible();
+  await expect(page.getByText("E2E 会員", { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("表示名：E2E 会員", { exact: true })).toBeVisible();
+  await expect(page.getByText("E2E 会員", { exact: true })).toBeVisible();
   await page.goto("/creator/apply");
   await expect(page.getByRole("heading", { name: "クリエイター申請は準備中です" })).toBeVisible();
   await expect(page.getByRole("button", { name: "クリエイター申請を送信する" })).toHaveCount(0);

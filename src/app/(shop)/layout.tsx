@@ -5,7 +5,7 @@ export default function ShopLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <SiteHeader />
-      <main className="flex flex-1 flex-col">{children}</main>
+      <main id="main-content" tabIndex={-1} className="flex flex-1 flex-col">{children}</main>
       <SiteFooter />
     </>
   );

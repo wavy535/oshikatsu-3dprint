@@ -14,15 +14,26 @@ export type NavGroup = {
  * Figma ①購入フロー「マイページ 61:235」の左サイドナビ。
  * 「アカウント」と「クリエイター」の 2 グループで、ここからクリエイター管理へ入る。
  */
-export function SideNav({ groups }: { groups: NavGroup[] }) {
+export function SideNav({
+  groups,
+  footer,
+  label = "マイページメニュー",
+}: {
+  groups: NavGroup[];
+  footer?: React.ReactNode;
+  label?: string;
+}) {
   const pathname = usePathname();
 
   return (
-    <ResponsiveSidebar key={pathname} label="マイページメニュー">
-      <nav aria-label="アカウント・クリエイター" className="flex w-full shrink-0 flex-col gap-4 rounded-xl border-0 border-line bg-white p-3 lg:w-56 lg:border">
+    <ResponsiveSidebar key={pathname} label={label}>
+      <nav
+        aria-label="アカウント・クリエイター"
+        className="flex w-full shrink-0 flex-col gap-5 rounded-2xl border-0 border-line bg-white p-3 lg:w-60 lg:border"
+      >
         {groups.map((group) => (
           <div key={group.label} className="flex flex-col gap-1">
-            <p className="px-2 py-1 text-[10.5px] font-semibold tracking-wide text-muted-foreground">
+            <p className="px-2 py-1 text-sm font-semibold  text-muted-foreground">
               {group.label}
             </p>
             {group.items.map((item) => {
@@ -37,15 +48,15 @@ export function SideNav({ groups }: { groups: NavGroup[] }) {
                   href={item.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex min-h-11 items-center gap-2 rounded-lg px-2.5 py-1.5 lg:min-h-0 text-[12.5px] transition-colors",
+                    "flex min-h-11 items-center gap-2 rounded-lg px-3 py-2.5 text-sm transition-colors",
                     active
-                      ? "bg-brand-soft font-semibold text-accent-foreground"
-                      : "text-ink hover:bg-ground"
+                      ? "border-l-4 border-brand bg-brand-soft font-semibold text-accent-foreground"
+                      : "border-l-4 border-transparent text-ink hover:bg-ground",
                   )}
                 >
                   {item.label}
                   {item.badge ? (
-                    <span className="ml-auto rounded-full bg-danger px-1.5 text-[10px] font-semibold text-white">
+                    <span className="ml-auto rounded-full bg-danger px-1.5 text-sm font-semibold text-white">
                       {item.badge > 99 ? "99+" : item.badge}
                     </span>
                   ) : null}
@@ -54,6 +65,7 @@ export function SideNav({ groups }: { groups: NavGroup[] }) {
             })}
           </div>
         ))}
+        {footer && <div className="border-t border-line pt-3">{footer}</div>}
       </nav>
     </ResponsiveSidebar>
   );

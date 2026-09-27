@@ -13,19 +13,19 @@ export function LoginForm({ redirectTo }: { redirectTo?: string }) {
   const [state, formAction, pending] = useActionState(signInAction, initialState);
 
   return (
-    <form action={formAction} className="flex flex-col gap-4">
+    <form action={formAction} className="flex flex-col gap-5">
       {redirectTo ? <input type="hidden" name="redirect" value={redirectTo} /> : null}
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="email">メールアドレス</Label>
-        <Input id="email" name="email" type="email" placeholder="you@example.com" required />
+        <Input id="email" name="email" type="email" autoComplete="email" placeholder="you@example.com" required />
       </div>
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="password">パスワード</Label>
-        <Input id="password" name="password" type="password" required />
+        <Input id="password" name="password" type="password" autoComplete="current-password" required />
       </div>
 
-      {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+      {state.error && <p role="alert" className="rounded-lg bg-danger-bg p-3 text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="mt-2">
         {pending ? "ログイン中..." : "ログイン"}

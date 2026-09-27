@@ -1,36 +1,37 @@
 import Link from "next/link";
-
-const LINKS = [
-  { href: "/works", label: "作品をさがす" },
-  { href: "/creator/apply", label: "クリエイター登録" },
-];
+import { Brand } from "./site-header";
 
 export function SiteFooter() {
   return (
-    <footer className="mt-auto border-t border-line bg-white">
-      <div className="mx-auto flex w-full max-w-[1270px] flex-col gap-3 px-6 py-8 sm:flex-row sm:items-center">
-        <div className="flex flex-col gap-1">
-          <span className="text-base font-bold text-brand">OshiNest</span>
-          <p className="text-xs text-muted-foreground">
-            推し活のための、3Dプリント作品マーケット
+    <footer className="mobile-nav-space mt-auto border-t border-line bg-white">
+      <div className="page-shell flex flex-col gap-6 sm:flex-row sm:items-center">
+        <div>
+          <Brand compact />
+          <p className="mt-3 text-sm text-muted-foreground">
+            推しぬいと暮らす、小さな居場所。
           </p>
         </div>
-        <nav className="flex flex-wrap gap-4 sm:ml-auto">
-          {LINKS.map((l) => (
+        <nav
+          aria-label="フッターメニュー"
+          className="flex flex-wrap gap-x-6 gap-y-1 sm:ml-auto"
+        >
+          {[
+            { href: "/works", label: "作品をさがす" },
+            { href: "/mypage/nuis", label: "マイぬい" },
+            { href: "/creator/apply", label: "出品について" },
+          ].map(({ href, label }) => (
             <Link
-              key={l.href}
-              href={l.href}
-              className="text-xs text-muted-foreground hover:text-ink"
+              key={href}
+              href={href}
+              className="flex min-h-11 items-center text-sm text-muted-foreground hover:text-brand hover:underline"
             >
-              {l.label}
+              {label}
             </Link>
           ))}
         </nav>
       </div>
-      <div className="border-t border-line px-6 py-3">
-        <p className="mx-auto w-full max-w-[1270px] text-[11px] text-muted-foreground">
-          © {new Date().getFullYear()} OshiNest
-        </p>
+      <div className="mx-auto max-w-[1270px] px-4 pb-6 text-sm text-muted-foreground sm:px-6">
+        © {new Date().getFullYear()} OshiNest
       </div>
     </footer>
   );
