@@ -7,7 +7,7 @@
 - 非公開R2 `oshinest-files` を作成済み。`ar-cache/` は7日で削除する。
 - 非公開Geometry Worker・Containersは配備済み。バージョン `23555a3f-7f25-4669-be8c-bc013477c4af`、application ID `a03c3435-2afe-4a00-b33f-9431f949aa28`。
 - D1 `oshinest`（`f0c7b9d1-1af4-4553-a2ef-bb42e65036ca`）をAPACに作成済み。`0001`〜`0008`を適用し、外部キーの整合性と会員・作品・注文が空の状態を確認した。
-- Web Worker `oshinest` を配備済み。バージョン `7b18ab57-5a12-430d-b7a2-a1a56e6fc7f5`、deployment `1de9cc20-736a-4eba-a817-87f3aec058dc`、100%配信。`AUTH_SECRET` はコードと同時にsecretとして登録し、一時ファイルは削除済み。
+- Web Worker `oshinest` を配備済み。バージョン `60a79cde-5532-4247-90c8-93d017c7241b`、deployment `fceb057e-6450-4d79-97ac-620ee50eee7a`、100%配信。`AUTH_SECRET` はコードと同時にsecretとして登録し、一時ファイルは削除済み。
 - PostgreSQL・Hyperdrive・Neonの新規作成は行わない。AWSの停止・削除も行わない。
 
 公開条件は **メール未確認でも一般会員登録を許可し、クリエイター申請は停止する**。`email_verified` を偽装しない。メール・SMSを送らず、メールによるパスワード再設定も提供しない。実決済・送金は未実装。初期DBに開発用会員・作品・管理者を投入しない。
@@ -109,7 +109,7 @@ D1初回公開時に型・lint・Vitest 258件・互換性15項目・ビルド�
 
 実機ARの寸法誤差、80MiB最大入力時のメモリ、負荷・料金の測定は未実施。肉厚等の検査は近似であり、造形成功を保証しない。`/dev/ar` のホストフォルダ読み取りはWorkersでは利用できず、CLI解析または作品のARファイル投稿を使う。
 
-UI再設計後は260件のVitest、本番ビルドのブラウザ14件、公開先のUI試験3件を確認済み（隔離ゲスト2件対象外）。変更理由と比較結果は [UI再設計](../../docs/ui-redesign.md) を参照。今回の再配備ではDBとsecretを変更していない。
+LCP改善・UI再評価後は266件のVitest、本番ビルドのブラウザ14件、公開先のUI試験3件を確認済み（隔離ゲスト2件対象外）。変更理由は [UI再設計](../../docs/ui-redesign.md)、計測結果は [LCP改善記録](../../docs/performance-2026-09-28.md) を参照。今回の再配備ではDBとsecretを変更していない。
 
 ## 一次資料
 
