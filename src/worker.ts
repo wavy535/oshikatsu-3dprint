@@ -64,7 +64,8 @@ export default {
     // compression can see the entire document without intermediate flushes.
     const html = await optimized.text();
     // Cloudflare normalizes Accept-Encoding before invoking the Worker. Use
-    // the original client capabilities when available, including explicit q=0.
+    // its client capability list; quality parameters are honored when present.
+    // The edge can strip q values (see the performance report's limitation).
     const accepted = typeof request.cf?.clientAcceptEncoding === "string"
       ? request.cf.clientAcceptEncoding : request.headers.get("accept-encoding");
     headers.append("vary", "Accept-Encoding");

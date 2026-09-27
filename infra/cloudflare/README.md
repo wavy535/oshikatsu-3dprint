@@ -7,7 +7,8 @@
 - 非公開R2 `oshinest-files` を作成済み。`ar-cache/` は7日で削除する。
 - 非公開Geometry Worker・Containersは配備済み。バージョン `23555a3f-7f25-4669-be8c-bc013477c4af`、application ID `a03c3435-2afe-4a00-b33f-9431f949aa28`。
 - D1 `oshinest`（`f0c7b9d1-1af4-4553-a2ef-bb42e65036ca`）をAPACに作成済み。`0001`〜`0008`を適用し、外部キーの整合性と会員・作品・注文が空の状態を確認した。
-- Web Worker `oshinest` を配備済み。バージョン `88e558ee-1a94-4d7e-8399-f0f7291bdd3a`、deployment `6fd3b5c5-ddb3-44d3-8d03-5dbb063f39d6`、100%配信。`AUTH_SECRET` は登録済みで、再配備時には変更していない。
+- Web Worker `oshinest` を配備済み。バージョン `6eb0f51f-28f5-4b53-b010-b7363ce44c52`、100%配信。`AUTH_SECRET` は登録済みで、再配備時には変更していない。
+- D1 primaryのSINへ近づける配置ヒント `placement.region = "aws:ap-southeast-1"` を使用。AWSリソースは不要。Smart Placementは呼び出し数不足で働いていなかったため変更した。静的assetsは入口のエッジで配信する。
 - PostgreSQL・Hyperdrive・Neonの新規作成は行わない。AWSの停止・削除も行わない。
 
 公開条件は **メール未確認でも一般会員登録を許可し、クリエイター申請は停止する**。`email_verified` を偽装しない。メール・SMSを送らず、メールによるパスワード再設定も提供しない。実決済・送金は未実装。初期DBに開発用会員・作品・管理者を投入しない。
@@ -38,6 +39,8 @@ npm run dev
 このWSLではContainersのネイティブなローカル起動が止まったため、同じDockerイメージをComposeで起動し、ローカルservice bindingから転送する。`infra/local/geometry` は配備しない。終了時はdevプロセスを終了し `docker compose stop geometry`。データのボリュームは削除しない。通常のContainers開発環境では `npm run dev:geometry` を利用できる。
 
 Viteは `dist/server/.dev.vars` にローカルsecretをコピーする。`dist` 全体を共有・公開しない。配備はWranglerから行い、公開assetsは `dist/client` だけにする。
+
+本番は必ず `npm run build` を使う。Viteの後に必要CSSの抽出プランをWorkerへ組み込む工程がある。`src/worker.ts` は成功した小さいHTMLだけを最適化し、API・RSC・ファイル配信はそのままvinextへ委ねる。詳細は[1秒未満への改善記録](../../docs/performance-subsecond-2026-09-28.md)。
 
 ## D1を用意する
 
@@ -109,7 +112,7 @@ D1初回公開時に型・lint・Vitest 258件・互換性15項目・ビルド�
 
 実機ARの寸法誤差、80MiB最大入力時のメモリ、負荷・料金の測定は未実施。肉厚等の検査は近似であり、造形成功を保証しない。`/dev/ar` のホストフォルダ読み取りはWorkersでは利用できず、CLI解析または作品のARファイル投稿を使う。
 
-会員ページのLCP改善後は273件のVitest、本番ビルドのブラウザ15件、公開先のUI試験3件を確認済み（隔離ゲスト2件対象外）。変更理由は [UI再設計](../../docs/ui-redesign.md)、計測結果は [匿名ページ](../../docs/performance-2026-09-28.md)・[会員の通知設定](../../docs/performance-member-2026-09-28.md) を参照。通知設定のスマホLCP中央値は7140→2484ms（同じ会員・通信条件、3回）。DBスキーマ・secretは未変更。公開計測用の会員1件は作成後に削除し、関連セッション等の残数ゼロを確認した。
+最新の性能改善ではVitest279件成功（外部サービス7件対象外）、本番ビルドのブラウザ12件、公開先UI3件を確認。会員6画面・未ログイン3画面のLCP中央値は764〜972ms（同じCPU・通信条件、各3回）。[最新の全試行・条件・制約](../../docs/performance-subsecond-2026-09-28.md)を参照。これは全アクセスが1秒未満という保証ではない。以前の検証は[UI再設計](../../docs/ui-redesign.md)、[匿名ページ](../../docs/performance-2026-09-28.md)、[会員の通知設定](../../docs/performance-member-2026-09-28.md)に記録している。DBスキーマ・secretは未変更。
 
 ## 一次資料
 

@@ -1,3 +1,16 @@
+# 2026-09-28: 主要画面のLCP中央値1秒未満を達成
+
+- ユーザーの「1秒切ってください」に対し、会員6画面・未ログイン3画面でLCP中央値764〜972msを確認。通知設定2212→960ms、会員の作品一覧3292→972ms、マイページ2780→928ms。同じCPU 4倍・下り1.6Mbps・latency 150ms・新規コンテキスト・キャッシュ無効、各3回。単発では1384msもあり、全アクセス1秒未満の保証ではない。
+- 画面内移動も計測し、通知設定2024→856ms、購入履歴1424→572ms、カート1443→542ms、作品一覧1226→574ms。通常のブラウザキャッシュありの別指標。詳しい条件・全試行・中間版は[最新の性能記録](docs/performance-subsecond-2026-09-28.md)。
+- Smart Placementが呼び出し数不足で働いていなかったため、D1 primaryのSINに近い `placement.region = "aws:ap-southeast-1"` を指定。Cloudflare内の配置ヒントで、AWSリソースの作成・利用ではない。
+- `experimental.inlineCss` と、ビルド時のBeastiesプラン＋実行時の必要CSS抽出を追加。小さい成功HTMLだけが対象。API/RSC/Server Action/ファイルは通常処理、256KiB超はストリームを維持。初回に不要な全CSSのHTTP preloadを除去し、Brotli圧縮と `no-transform` でエッジの再圧縮も防いだ。`npm run build` の後処理を省略しない。
+- CSS抽出器0.5.4の `@property` と単独擬似クラスの扱いを補正。6画面をスマホ/PC・JavaScript無効で完全CSSと比較する試験を維持する。CloudflareのAccept-Encoding正規化でq値が失われる制約は性能記録に記載。認証DB検証・失効確認・スキーマ照合・青の配色を維持した。
+- 型・lint・本番ビルド成功。Vitest279件成功（外部サービス7件対象外）、本番ビルドのブラウザ12件、公開UI3件成功。最終LCP27試行・画面内移動15試行でブラウザエラーなし。
+- Web version `6eb0f51f-28f5-4b53-b010-b7363ce44c52`、100%配信。公開URL: https://oshinest.yumaboda-official.workers.dev 。D1スキーマ・secret・Geometry・既存会員データは未変更。
+- 配置、インラインCSS、必要CSS抽出、先読み除去、HTML圧縮、配信時の圧縮維持、計測ツールを分割してコミット済み。Cloudflareへの実配備まで実施。GitHubへのpushは未実施。
+- 自分で作った計測会員1件を限定削除。関連セッション・認証アカウント・プロフィール0件、DBコンテキストが `app_guest`、削除済みセッションのログイン誘導を確認。Cookie・生ログを削除し、自分のWranglerプレビュー・tailを停止。既存stash、`refactoring`、他のDockerサービスは保持。
+- メール未確認の一般会員登録、クリエイター申請停止、デモ決済、AIモデリング未実装の公開条件は維持。以下は過去の記録。
+
 # 2026-09-28: 会員の通知設定のLCP改善・青の配色を公開
 
 - ユーザーの報告は公開サイトの `/mypage/notification-settings`。匿名ページの前回計測では対象外だった。認証済みの同じ会員で再現し、スマホでは報告と同じ説明文がLCP対象となった。

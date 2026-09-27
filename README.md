@@ -84,6 +84,7 @@ D1・R2・Containers・secret・dry runは[Cloudflare配備手順](infra/cloudfl
 - [UI再設計・読みやすさの検証](docs/ui-redesign.md)
 - [LCPの実測・改善と再現手順](docs/performance-2026-09-28.md)
 - [会員の通知設定：LCP改善と青の配色](docs/performance-member-2026-09-28.md)
+- [主要画面のLCPを1秒未満へ：最新の計測・構成](docs/performance-subsecond-2026-09-28.md)
 - [以前の画面デザイン資料](docs/design.md)
 - [開発引継ぎ](HANDOFF.md)
 - [旧AWS構成の記録](infra/aws/README.md)
