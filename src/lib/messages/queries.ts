@@ -1,5 +1,5 @@
 import { idSchema } from "@/lib/validation";
-import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/sqlite";
 import { queryResult, readPage } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
@@ -48,7 +48,7 @@ export async function listThreads(requestedPage?: unknown, unreadOnly = false) {
           sql<number>`row_number() over (partition by counterpart_id order by created_at desc, id desc)`.as(
             "rank",
           ),
-          sql<number>`count(*) filter (where recipient_id = ${user.id}::uuid and read_at is null) over (partition by counterpart_id)`.as(
+          sql<number>`count(*) filter (where recipient_id = ${user.id} and read_at is null) over (partition by counterpart_id)`.as(
             "unread",
           ),
         ]),
@@ -63,7 +63,7 @@ export async function listThreads(requestedPage?: unknown, unreadOnly = false) {
       "profiles.role",
       "ranked.created_at as lastAt",
       "ranked.unread",
-      sql<string>`left(ranked.body, 120)`.as("lastBody"),
+      sql<string>`substr(ranked.body, 1, 120)`.as("lastBody"),
     ])
     .where("ranked.rank", "=", 1);
   if (unreadOnly) query = query.where("ranked.unread", ">", 0);
@@ -161,7 +161,7 @@ export async function getThread(counterpartId: string, before?: string) {
                 .whereRef("r0.order_id", "=", "orders.id"),
             ).as("order_items"),
           ])
-          .where(sql<boolean>`${sql.ref("orders.id")} = any(${orderIds})`)
+          .where("orders.id", "in", orderIds)
           .execute(),
       )
     : { data: [] };

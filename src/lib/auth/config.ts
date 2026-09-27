@@ -3,7 +3,6 @@ import { betterAuth, APIError } from "better-auth";
 import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { anonymous, emailOTP, phoneNumber } from "better-auth/plugins";
-import { getPool } from "@/lib/db/pool";
 import { sendMail } from "@/lib/mail/send";
 import { siteUrl } from "@/lib/site";
 import { developmentTrustedOrigins } from "./dev-origins";
@@ -23,7 +22,7 @@ function createAuth() {
     // 開発中は、同じ LAN の端末（QR コードから開いたスマホなど）からのログインも受け付ける
     trustedOrigins: developmentTrustedOrigins,
     secret,
-    database: getPool("auth"),
+    database: { db: serviceDatabase(), type: "sqlite", transaction: false },
     advanced: {
       database: { generateId: "uuid" },
       ipAddress: { ipAddressHeaders: ["x-forwarded-for"] },

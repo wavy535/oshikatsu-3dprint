@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { pageNumber } from "@/lib/pagination";
-import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/sqlite";
 import { queryResult, pageResult, readPage } from "@/lib/db/result";
 import { call } from "@/lib/db/functions";
 import "server-only";
@@ -77,7 +77,7 @@ export async function listWorks(filters: WorkFilters) {
     );
   }
   if (filters.q)
-    query = query.where("work_list_items.title", "ilike", `%${filters.q}%`);
+    query = query.where("work_list_items.title", "like", `%${filters.q}%`);
   if (filters.creatorId)
     query = query.where("work_list_items.creator_id", "=", filters.creatorId);
   // 価格帯の絞り込みも、画面に出している「支払額」で行う

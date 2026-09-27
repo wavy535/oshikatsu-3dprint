@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { sql } from "kysely";
-import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import "server-only";
 import { getUserProfile } from "@/lib/auth/guards";
 import type { UserRole } from "@/types/db";
@@ -40,13 +40,13 @@ export const getShellContext = cache(async (): Promise<ShellContext> => {
         .selectFrom("cart_items")
         .innerJoin("carts", "carts.id", "cart_items.cart_id")
         .select(
-          sql<number>`coalesce(sum(cart_items.quantity), 0)::integer`.as(
+          sql<number>`coalesce(sum(cart_items.quantity), 0)`.as(
             "count",
           ),
         )
         .where("carts.user_id", "=", user.id)
         .as("cartCount"),
-      sql<number>`public.unread_notification_count()`.as("unreadCount"),
+      eb.selectFrom("notifications").select(eb=>eb.fn.countAll<number>().as("count")).where("user_id","=",user.id).where("read_at","is",null).as("unreadCount"),
       jsonObjectFrom(
         eb
           .selectFrom("nui_profiles")
@@ -65,7 +65,7 @@ export const getShellContext = cache(async (): Promise<ShellContext> => {
     isCreator: role === "creator" || role === "admin",
     isAdmin: role === "admin",
     cartCount: counts.cartCount ?? 0,
-    unreadCount: counts.unreadCount,
+    unreadCount: counts.unreadCount ?? 0,
     mainNui: counts.mainNui,
   };
 });

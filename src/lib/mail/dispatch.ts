@@ -1,6 +1,5 @@
 import { queryResult } from "@/lib/db/result";
 import { call } from "@/lib/db/functions";
-import { sql } from "kysely";
 import "server-only";
 import { randomUUID } from "node:crypto";
 
@@ -154,7 +153,7 @@ export async function dispatchNotificationEmails(): Promise<DispatchSummary> {
             email_claimed_until: null,
           })
           .where(
-            sql<boolean>`${sql.ref("notifications.id")} = any(${items.map((item) => item.id)})`,
+            "notifications.id", "in", items.map((item) => item.id),
           )
           .where("notifications.email_claim_token", "=", token)
           .returning(["id"])

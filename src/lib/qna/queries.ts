@@ -1,4 +1,4 @@
-import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import { queryResult, readPage } from "@/lib/db/result";
 import "server-only";
 

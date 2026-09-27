@@ -1,5 +1,5 @@
 import { sql } from "kysely";
-import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/sqlite";
 import { readPage } from "@/lib/db/result";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -85,14 +85,14 @@ export async function listShipments(params: ShipmentSearchParams) {
     const like = `%${params.q.trim().replace(/[\\%_]/g, "\\$&")}%`;
     query = query.where((eb) =>
       eb.or([
-        eb("shipments.tracking_number", "ilike", like),
+        eb("shipments.tracking_number", "like", like),
         eb.exists(
           eb
             .selectFrom("orders")
             .innerJoin("profiles", "profiles.id", "orders.buyer_id")
             .select("orders.id")
             .whereRef("orders.id", "=", "shipments.order_id")
-            .where("profiles.display_name", "ilike", like),
+            .where("profiles.display_name", "like", like),
         ),
         eb.exists(
           eb
@@ -100,7 +100,7 @@ export async function listShipments(params: ShipmentSearchParams) {
             .innerJoin("works", "works.id", "order_items.work_id")
             .select("order_items.id")
             .whereRef("order_items.order_id", "=", "shipments.order_id")
-            .where("works.title", "ilike", like),
+            .where("works.title", "like", like),
         ),
       ]),
     );
@@ -121,24 +121,24 @@ export type ShipmentRow = Awaited<
 /** 出荷済みの上の4枚。リードタイムは受注から発送までの日数。 */
 export async function getShipmentSummary() {
   const { db } = await requireAdmin();
-  const dayStart = sql`(date_trunc('day', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo')`;
+  const dayStart = sql`strftime('%Y-%m-%dT%H:%M:%fZ','now','+9 hours','start of day','-9 hours')`;
   return db
     .selectFrom("shipments")
     .innerJoin("orders", "orders.id", "shipments.order_id")
     .select([
-      sql<number>`count(*) filter (where shipments.shipped_at >= ${dayStart})::integer`.as(
+      sql<number>`count(*) filter (where shipments.shipped_at >= ${dayStart})`.as(
         "today",
       ),
-      sql<number>`count(*) filter (where shipments.shipped_at >= ${dayStart} - interval '6 days')::integer`.as(
+      sql<number>`count(*) filter (where shipments.shipped_at >= strftime('%Y-%m-%dT%H:%M:%fZ',${dayStart},'-6 days'))`.as(
         "week",
       ),
-      sql<number>`count(*)::integer`.as("total"),
+      sql<number>`count(*)`.as("total"),
       sql<
         number | null
-      >`avg(extract(epoch from shipments.shipped_at - orders.created_at) / 86400)::float8`.as(
+      >`avg(julianday(shipments.shipped_at) - julianday(orders.created_at))`.as(
         "avgLeadDays",
       ),
-      sql<number>`coalesce(sum(orders.shipping_fee_amount - coalesce(shipments.shipping_fee_jpy, 0)), 0)::float8`.as(
+      sql<number>`coalesce(sum(orders.shipping_fee_amount - coalesce(shipments.shipping_fee_jpy, 0)), 0)`.as(
         "shippingBalance",
       ),
     ])

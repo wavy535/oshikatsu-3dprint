@@ -1,5 +1,6 @@
 "use server";
 
+import { atomicBatch } from "@/lib/db/client";
 import { queryResult } from "@/lib/db/result";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -121,32 +122,12 @@ export async function createFilamentAction(
   const v = parsed.data;
 
   const { db, user } = await requireAdmin();
-  const { error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      const filament = await tx
-        .insertInto("filaments")
-        .values({
-          material: v.material,
-          color_name: v.colorName,
-          color_hex: v.colorHex.toUpperCase(),
-          price_per_gram: v.pricePerGram,
-          stock_grams: 0,
-        })
-        .returning("id")
-        .executeTakeFirstOrThrow();
-      if (v.stockGrams > 0) {
-        await tx
-          .insertInto("filament_ledger")
-          .values({
-            filament_id: filament.id,
-            delta_grams: v.stockGrams,
-            reason: "restock",
-            actor_id: user.id,
-          })
-          .execute();
-      }
-    }),
-  );
+  const filamentId = crypto.randomUUID();
+  const { error } = await queryResult(atomicBatch(db, [
+    db.insertInto("filaments").values({id: filamentId, material: v.material, color_name: v.colorName, color_hex: v.colorHex.toUpperCase(), price_per_gram: v.pricePerGram, stock_grams: 0}),
+    ...(v.stockGrams > 0 ? [db.insertInto("filament_ledger").values({filament_id: filamentId, delta_grams: v.stockGrams, reason: "restock", actor_id: user.id})] : []),
+  ]));
+
   if (error)
     return {
       error:

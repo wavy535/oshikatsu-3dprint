@@ -1,6 +1,6 @@
 import type { ExpressionBuilder } from "kysely";
 import type { Database } from "@/types/database";
-import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/sqlite";
 import { readPage, queryResult } from "@/lib/db/result";
 import "server-only";
 import { requireCreator } from "@/lib/auth/guards";

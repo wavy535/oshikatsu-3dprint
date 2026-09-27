@@ -1,4 +1,4 @@
-import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/sqlite";
 import { queryResult, readPage } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
@@ -66,7 +66,7 @@ export async function listOrders(params: OrderSearchParams) {
     ORDER_STATUS_FILTERS[0];
   if (filter.statuses.length > 0) {
     query = query.where(
-      sql<boolean>`${sql.ref("orders.status")} = any(${filter.statuses as unknown as OrderStatus[]})`,
+      "orders.status", "in", filter.statuses as unknown as OrderStatus[],
     );
   }
 
@@ -75,13 +75,13 @@ export async function listOrders(params: OrderSearchParams) {
     const like = `%${term}%`;
     query = query.where((eb) =>
       eb.or([
-        sql<boolean>`orders.id::text ilike ${term + "%"}`,
+        sql<boolean>`orders.id like ${term + "%"}`,
         eb.exists(
           eb
             .selectFrom("profiles")
             .select("id")
             .whereRef("profiles.id", "=", "orders.buyer_id")
-            .where("display_name", "ilike", like),
+            .where("display_name", "like", like),
         ),
         eb.exists(
           eb
@@ -89,14 +89,14 @@ export async function listOrders(params: OrderSearchParams) {
             .innerJoin("works", "works.id", "order_items.work_id")
             .select("order_items.id")
             .whereRef("order_items.order_id", "=", "orders.id")
-            .where("works.title", "ilike", like),
+            .where("works.title", "like", like),
         ),
         eb.exists(
           eb
             .selectFrom("print_jobs")
             .select("id")
             .whereRef("print_jobs.order_id", "=", "orders.id")
-            .where("job_no", "ilike", like),
+            .where("job_no", "like", like),
         ),
       ]),
     );
@@ -116,16 +116,16 @@ export async function getOrderSummary() {
   return db
     .selectFrom("orders")
     .select([
-      sql<number>`count(*) filter (where status in ('paid','printing_queued','printing','packaging'))::integer`.as(
+      sql<number>`count(*) filter (where status in ('paid','printing_queued','printing','packaging'))`.as(
         "open",
       ),
-      sql<number>`count(*) filter (where status = 'packaging')::integer`.as(
+      sql<number>`count(*) filter (where status = 'packaging')`.as(
         "packaging",
       ),
-      sql<number>`count(*) filter (where status in ('paid','printing_queued','printing','packaging') and ship_due_at < now())::integer`.as(
+      sql<number>`count(*) filter (where status in ('paid','printing_queued','printing','packaging') and ship_due_at < strftime('%Y-%m-%dT%H:%M:%fZ','now'))`.as(
         "overdue",
       ),
-      sql<number>`count(*) filter (where created_at >= (date_trunc('day', now() at time zone 'Asia/Tokyo') at time zone 'Asia/Tokyo'))::integer`.as(
+      sql<number>`count(*) filter (where created_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','+9 hours','start of day','-9 hours'))`.as(
         "today",
       ),
     ])

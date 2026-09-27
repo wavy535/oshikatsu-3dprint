@@ -20,5 +20,5 @@ export function shiftMonth(month: string, offset: number) {
 
 export function monthStart(month: string) {
   if (!isSalesMonth(month)) throw new Error("売上の対象月が不正です");
-  return `${month}-01T00:00:00+09:00`;
+  return new Date(`${month}-01T00:00:00+09:00`).toISOString();
 }

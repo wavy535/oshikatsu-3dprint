@@ -1,5 +1,5 @@
 import { readPage } from "@/lib/db/result";
-import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import { sql } from "kysely";
 import "server-only";
 
@@ -18,7 +18,7 @@ export async function getCreatorDashboard(month: string) {
   const [monthly, recent, balance, account, followers] = await Promise.all([
     itemsQuery
       .select([
-        sql<string>`to_char(ordered_at at time zone 'Asia/Tokyo', 'YYYY-MM')`.as(
+        sql<string>`strftime('%Y-%m',ordered_at,'+9 hours')`.as(
           "key",
         ),
         sql<number>`coalesce(sum(goods_amount), 0)`.as("goods"),

@@ -1,7 +1,6 @@
 "use server";
 
 import { queryResult } from "@/lib/db/result";
-import { sql } from "kysely";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -33,7 +32,7 @@ export async function processPayoutAction(
       })
       .where("payout_requests.id", "=", id)
       .where(
-        sql<boolean>`${sql.ref("payout_requests.status")} = any(${["requested", "processing"]})`,
+        "payout_requests.status", "in", ["requested", "processing"],
       )
       .returning(["id"])
       .execute(),

@@ -1,7 +1,6 @@
-import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import { readPage, queryResult, firstResult } from "@/lib/db/result";
 import { call } from "@/lib/db/functions";
-import { sql } from "kysely";
 import "server-only";
 
 import { getDatabase, getOptionalUser } from "@/lib/auth/guards";
@@ -29,7 +28,7 @@ export async function getCreatorProfile(creatorId: string) {
           ])
           .where("profiles.id", "=", creatorId)
           .where(
-            sql<boolean>`${sql.ref("profiles.role")} = any(${["creator", "admin"]})`,
+            "profiles.role", "in", ["creator", "admin"],
           )
           .executeTakeFirst(),
       ),

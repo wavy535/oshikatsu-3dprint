@@ -1,5 +1,5 @@
 "use server";
-import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import { queryResult } from "@/lib/db/result";
 
 import { revalidatePath } from "next/cache";

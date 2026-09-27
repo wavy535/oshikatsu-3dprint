@@ -1,4 +1,9 @@
-import { Kysely, PostgresDialect, type PostgresPoolClient } from "kysely";
+import {
+  Kysely,
+  SqliteAdapter,
+  SqliteIntrospector,
+  SqliteQueryCompiler,
+} from "kysely";
 import { vi } from "vitest";
 import type { Database } from "@/types/database";
 
@@ -14,25 +19,36 @@ export function mockDatabase() {
     >()
     .mockResolvedValue({ rows: [] });
   const db = new Kysely<Database>({
-    dialect: new PostgresDialect({
-      pool: {
-        options: {},
-        async connect() {
+    dialect: {
+      createAdapter: () => new SqliteAdapter(),
+      createQueryCompiler: () => new SqliteQueryCompiler(),
+      createIntrospector: (db) => new SqliteIntrospector(db),
+      createDriver: () => ({
+        async init() {},
+        async destroy() {},
+        async releaseConnection() {},
+        async beginTransaction() {},
+        async commitTransaction() {},
+        async rollbackTransaction() {},
+        async acquireConnection() {
           return {
-            query: (async <R>(text: string, parameters: readonly unknown[]) => {
-              const response = await query(text, parameters);
+            async executeQuery<R>(compiled: {
+              sql: string;
+              parameters: readonly unknown[];
+            }) {
+              const response = await query(compiled.sql, compiled.parameters);
               return {
                 rows: response.rows as R[],
-                command: "SELECT",
-                rowCount: response.rows.length,
+                numAffectedRows: BigInt(response.rows.length),
               };
-            }) as PostgresPoolClient["query"],
-            release() {},
+            },
+            async *streamQuery<R>(): AsyncIterableIterator<{ rows: R[] }> {
+              throw new Error("No streaming in test driver");
+            },
           };
         },
-        async end() {},
-      },
-    }),
+      }),
+    },
   });
   return { db, query };
 }

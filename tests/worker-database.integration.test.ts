@@ -1,86 +1,123 @@
-import { existsSync } from "node:fs";
-import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  writeFileSync,
+  rmSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterAll, beforeAll, expect, test, vi } from "vitest";
+import { getPlatformProxy, unstable_splitSqlQuery } from "wrangler";
 vi.mock("server-only", () => ({}));
-import { scopedPool, sql } from "@/lib/db/client";
-import { Kysely, PostgresDialect } from "kysely";
-const { binding } = vi.hoisted(() => ({ binding: { connectionString: "" } }));
-vi.mock("@/lib/platform", () => ({ platform: () => ({ DATABASE: binding }) }));
-import { getPool } from "@/lib/db/pool";
-
-if (existsSync(".env.local")) process.loadEnvFile(".env.local");
-const enabled = process.env.TEST_DATABASE === "true";
-
-describe.skipIf(!enabled)("Worker database connections", () => {
-  beforeAll(() => {
-    const url = new URL(process.env.DATABASE_URL!);
-    if (!["localhost", "127.0.0.1"].includes(url.hostname))
-      throw new Error("Run these tests against the local database only");
-    binding.connectionString = process.env.DATABASE_URL!;
+import { d1Database, atomicBatch, type Binding } from "@/lib/db/d1/runtime";
+let binding: Binding;
+let dispose: (() => Promise<void>) | undefined;
+const directory = mkdtempSync(join(tmpdir(), "oshinest-worker-test-"));
+beforeAll(async () => {
+  const configPath = join(directory, "wrangler.json");
+  writeFileSync(
+    configPath,
+    JSON.stringify({
+      name: "oshinest-d1-test",
+      compatibility_date: "2026-09-01",
+      d1_databases: [
+        {
+          binding: "DATABASE",
+          database_name: "test",
+          database_id: "00000000-0000-0000-0000-000000000001",
+        },
+      ],
+    }),
+  );
+  const proxy = await getPlatformProxy<{ DATABASE: D1Database }>({
+    configPath,
+    persist: false,
   });
-
-  afterAll(async () => {
-    await Promise.all([getPool("auth").end(), getPool("data").end()]);
-    vi.unstubAllEnvs();
-  });
-
-  test("a transaction keeps one connection, then closes the socket before another Worker invocation", async () => {
-    const removed = vi.fn();
-    const pool = getPool("data");
-    const actor = (role: "app_user" | "app_service" | "app_guest", userId?: string) => new Kysely({ dialect: new PostgresDialect({ pool: scopedPool(pool, { role, userId }) }) });
-    pool.on("remove", removed);
-    try {
-      await actor("app_user", "11111111-1111-1111-1111-111111111111")
-        .transaction()
-        .execute(async (db) => {
-          const query = sql<{ pid: number; id: string; role: string }>`
-            select pg_backend_pid() as pid, app.user_id() as id, current_user as role
-          `;
-          const first = (await query.execute(db)).rows[0];
-          const second = (await query.execute(db)).rows[0];
-          expect(first).toEqual(second);
-          expect(first).toMatchObject({
-            id: "11111111-1111-1111-1111-111111111111",
-            role: "app_user",
-          });
-          expect(removed).not.toHaveBeenCalled();
-        });
-      // pg emits remove after the connection has actually ended.
-      await vi.waitFor(() => expect(removed).toHaveBeenCalledTimes(1));
-      expect(pool.totalCount).toBe(0);
-
-      await expect(
-        actor("app_service").transaction().execute(async (db) => {
-          await sql`select 1 / 0`.execute(db);
-        }),
-      ).rejects.toThrow();
-      await vi.waitFor(() => expect(removed).toHaveBeenCalledTimes(2));
-      const guest = await sql<{ role: string; id: string | null }>`
-        select current_user as role, app.user_id() as id
-      `.execute(actor("app_guest"));
-      expect(guest.rows[0]).toEqual({ role: "app_guest", id: null });
-      await vi.waitFor(() => expect(removed).toHaveBeenCalledTimes(3));
-      expect(pool.totalCount).toBe(0);
-    } finally {
-      pool.off("remove", removed);
-      await pool.end();
-    }
-  });
-
-  test("the auth pool also closes released connections and can connect again", async () => {
-    const pool = getPool("auth");
-    const removed = vi.fn();
-    pool.on("remove", removed);
-    try {
-      const first = await pool.query("select pg_backend_pid() as pid");
-      await vi.waitFor(() => expect(removed).toHaveBeenCalledTimes(1));
-      expect(pool.totalCount).toBe(0);
-      const second = await pool.query("select pg_backend_pid() as pid");
-      expect(second.rows[0].pid).not.toBe(first.rows[0].pid);
-      await vi.waitFor(() => expect(removed).toHaveBeenCalledTimes(2));
-      expect(pool.totalCount).toBe(0);
-    } finally {
-      pool.off("remove", removed);
-      await pool.end();
-    }
-  });
+  dispose = proxy.dispose;
+  binding = proxy.env.DATABASE;
+  for (const file of readdirSync("db/d1")
+    .filter((f) => f.endsWith(".sql"))
+    .sort()) {
+    await binding.batch(
+      unstable_splitSqlQuery(readFileSync(`db/d1/${file}`, "utf8")).map((sql) =>
+        binding.prepare(sql),
+      ),
+    );
+  }
+}, 60000);
+afterAll(async () => {
+  await dispose?.();
+  rmSync(directory, { recursive: true, force: true });
 });
+test("workerd D1 executes migrations, isolates concurrent identities and rolls back a failed batch", async () => {
+  const service = d1Database(binding, { role: "app_service" });
+  const actor = (id: string) =>
+    d1Database(binding, { role: "app_user", userId: id });
+  await service
+    .insertInto("app_users")
+    .values(
+      ["a", "b"].map((id) => ({ id, email: `${id}@test.invalid`, name: id })),
+    )
+    .execute();
+  await service
+    .insertInto("addresses")
+    .values(
+      ["a", "b"].map((id) => ({
+        id,
+        user_id: id,
+        recipient_name: id,
+        postal_code: "1234567",
+        prefecture: "東京都",
+        city: "千代田区",
+        address_line: "1",
+        phone: "000",
+      })),
+    )
+    .execute();
+  const results = await Promise.all(
+    Array.from({ length: 12 }, (_, i) =>
+      actor(i % 2 ? "a" : "b")
+        .selectFrom("addresses")
+        .select("id")
+        .execute(),
+    ),
+  );
+  results.forEach((rows, i) =>
+    expect(rows).toEqual([{ id: i % 2 ? "a" : "b" }]),
+  );
+  const a = actor("a");
+  await expect(
+    atomicBatch(a, [
+      a
+        .updateTable("addresses")
+        .set({ recipient_name: "changed" })
+        .where("id", "=", "a"),
+      a
+        .insertInto("addresses")
+        .values({
+          user_id: "b",
+          recipient_name: "forged",
+          postal_code: "1234567",
+          prefecture: "東京都",
+          city: "千代田区",
+          address_line: "1",
+          phone: "000",
+        }),
+    ]),
+  ).rejects.toThrow("permission denied");
+  expect(
+    (
+      await a
+        .selectFrom("addresses")
+        .select("recipient_name")
+        .executeTakeFirstOrThrow()
+    ).recipient_name,
+  ).toBe("a");
+  const context = await binding.batch([
+    binding.prepare("SELECT role,user_id,internal_depth FROM _request_context"),
+  ]);
+  expect(context[0].results).toEqual([
+    { role: "app_guest", user_id: null, internal_depth: 0 },
+  ]);
+}, 30000);

@@ -8,10 +8,9 @@ import {
   vi,
 } from "vitest";
 import { randomUUID } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import pg from "pg";
-import { Kysely, PostgresDialect, type PostgresPoolClient } from "kysely";
-import type { Database } from "@/types/database";
+import { readFileSync } from "node:fs";
+import { d1Database } from "@/lib/db/d1/runtime";
+import { localD1 } from "./helpers/d1";
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -33,7 +32,7 @@ vi.mock("@/lib/db/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/db/client")>()),
   serviceDatabase: vi.fn(),
 }));
-import { scopedPool, serviceDatabase } from "@/lib/db/client";
+import { serviceDatabase } from "@/lib/db/client";
 import { requireAdmin, requireCreator, getOptionalUser } from "@/lib/auth/guards";
 import { readModel } from "@/lib/files/storage";
 import { advanceBatchAction, finishPrintJobAction, submitQcAction } from "@/lib/ops/printing-actions";
@@ -44,43 +43,13 @@ import { getArWorkSource } from "@/lib/ar/queries";
 import { getAnalysisDraft, getInstructionsDraft, getInfoDraft, getPublishDraft } from "@/lib/works/studio-queries";
 import { validateAndPersistAsset } from "@/lib/works/asset-validation";
 
-if (existsSync(".env.local")) process.loadEnvFile(".env.local");
-const enabled = process.env.TEST_DATABASE === "true";
-const owner = new pg.Pool({
-  connectionString: process.env.MIGRATION_DATABASE_URL,
-});
-const runtime = new pg.Pool({
-  connectionString: process.env.DATABASE_URL,
-  max: 4,
-});
 let failQuery: string | undefined;
 let pricingReads = 0;
-function actor(userId?: string) {
-  const pool = scopedPool(runtime, {
-    role: userId ? "app_user" : "app_service",
-    userId,
-  });
-  return new Kysely<Database>({
-    dialect: new PostgresDialect({
-      pool: {
-        ...pool,
-        async connect() {
-          const client = await pool.connect();
-          return {
-            ...client,
-            query: (async (sql: string, values: readonly unknown[]) => {
-              if (sql.includes('from "print_pricing_rules"')) pricingReads++;
-              // Use real PostgreSQL before and after the failing statement, including rollback.
-              if (failQuery && sql.includes(failQuery))
-                throw new Error("injected database failure");
-              return client.query(sql, values);
-            }) as PostgresPoolClient["query"],
-          };
-        },
-      },
-    }),
-  });
-}
+const owner = localD1(sql => {
+  if (sql.includes('from "visible_print_pricing_rules"')) pricingReads++;
+  if (failQuery && sql.includes(failQuery)) throw new Error("injected database failure");
+});
+function actor(userId?: string) { return d1Database(owner.binding, {role: userId ? "app_user" : "app_service", userId}); }
 let adminId: string,
   creatorId: string,
   workId: string,
@@ -125,18 +94,10 @@ async function qcInput() {
 }
 
 afterAll(async () => {
-  await Promise.all([owner.end(), runtime.end()]);
+  owner.close();
 });
-describe.skipIf(!enabled)("atomic backend operations", () => {
+describe("atomic backend operations", () => {
   beforeEach(async () => {
-    const target = new URL(process.env.MIGRATION_DATABASE_URL!);
-    if (
-      !["localhost", "127.0.0.1"].includes(target.hostname) ||
-      target.port !== "55432" ||
-      target.pathname !== "/oshinest"
-    ) {
-      throw new Error("These fixtures require the local Compose database");
-    }
     failQuery = undefined;
     [adminId, creatorId, workId, variantId, orderId, jobId, filamentId] =
       Array.from({ length: 7 }, () => randomUUID());
@@ -150,7 +111,7 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
       ],
     );
     await owner.query(
-      "update profiles set role = case when id=$1 then 'admin'::user_role else 'creator'::user_role end where id=any($2::uuid[])",
+      "update profiles set role = case when id=$1 then 'admin' else 'creator' end where id IN (SELECT value FROM json_each($2))",
       [adminId, [adminId, creatorId]],
     );
     await owner.query(
@@ -196,14 +157,14 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
       filamentId,
     ]);
     await owner.query("delete from filaments where id=$1", [filamentId]);
-    await owner.query("delete from app_users where id=any($1::uuid[])", [
+    await owner.query("delete from app_users where id IN (SELECT value FROM json_each($1))", [
       [adminId, creatorId],
     ]);
   });
 
   test("failed stock recording rolls back completion, order status and event history", async () => {
     const before = await owner.query(
-      "select count(*) from print_job_events where print_job_id=$1",
+      "select count(*) AS count from print_job_events where print_job_id=$1",
       [jobId],
     );
     const result = await finishPrintJobAction(
@@ -227,7 +188,7 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     expect(
       (
         await owner.query(
-          "select count(*) from print_job_events where print_job_id=$1",
+          "select count(*) AS count from print_job_events where print_job_id=$1",
           [jobId],
         )
       ).rows,
@@ -253,11 +214,11 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     expect(
       (
         await owner.query(
-          "select count(*) from filament_ledger where print_job_id=$1",
+          "select count(*) AS count from filament_ledger where print_job_id=$1",
           [jobId],
         )
       ).rows[0].count,
-    ).toBe("1");
+    ).toBe(1);
   });
   test("concurrent batches do not overwrite progress or exceed the total", async () => {
     const results = await Promise.all(
@@ -288,11 +249,11 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     expect(
       (
         await owner.query(
-          "select count(*) from qc_inspections where print_job_id=$1",
+          "select count(*) AS count from qc_inspections where print_job_id=$1",
           [jobId],
         )
       ).rows[0].count,
-    ).toBe("0");
+    ).toBe(0);
   });
   test("QC cannot pass when definitions cannot be loaded", async () => {
     await owner.query("update print_jobs set status='printed' where id=$1", [
@@ -378,9 +339,9 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
       )
     ).rows;
     expect(rows).toEqual([
-      { size_label: "10cm", fit_width_mm: "80.00" },
-      { size_label: "auto", fit_width_mm: "160.00" },
-      { size_label: "manual", fit_width_mm: "55.00" },
+      { size_label: "10cm", fit_width_mm: 80 },
+      { size_label: "auto", fit_width_mm: 160 },
+      { size_label: "manual", fit_width_mm: 55 },
     ]);
   });
   test("failed analysis persistence preserves the previous asset and its parts", async () => {
@@ -424,12 +385,13 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     }) }));
   }
   async function assetSnapshot() {
-    return (await owner.query(`select jsonb_build_object(
-      'assets', (select jsonb_agg(a order by a.id) from work_assets a where a.work_id=$1),
-      'objects', (select jsonb_agg(o order by o.id) from work_asset_objects o join work_assets a on a.id=o.asset_id where a.work_id=$1),
-      'variants', (select jsonb_agg(v order by v.id) from work_variants v where v.work_id=$1),
-      'instructions', (select jsonb_agg(i order by i.id) from work_part_instructions i where i.work_id=$1)
-    ) as snapshot`, [workId])).rows[0].snapshot;
+    const [assets, objects, variants, instructions] = await Promise.all([
+      owner.query("SELECT * FROM work_assets WHERE work_id=$1 ORDER BY id", [workId]),
+      owner.query("SELECT o.* FROM work_asset_objects o JOIN work_assets a ON a.id=o.asset_id WHERE a.work_id=$1 ORDER BY o.id", [workId]),
+      owner.query("SELECT * FROM work_variants WHERE work_id=$1 ORDER BY id", [workId]),
+      owner.query("SELECT * FROM work_part_instructions WHERE work_id=$1 ORDER BY id", [workId]),
+    ]);
+    return {assets: assets.rows, objects: objects.rows, variants: variants.rows, instructions: instructions.rows};
   }
   test("replacement keeps asset and variant references, prices and matching part instructions", async () => {
     vi.mocked(readModel).mockResolvedValue(modelFile);
@@ -441,7 +403,7 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     const after = await assetSnapshot();
     expect(after.assets).toHaveLength(1);
     expect(after.assets[0]).toMatchObject({ id: first.assets[0].id, storage_path: `${creatorId}/${workId}/replacement.stl` });
-    expect(after.variants.find((v: { id: string }) => v.id === variantId)).toMatchObject({ asset_id: first.assets[0].id, price_jpy: 3210, stock: 7, is_listed: true });
+    expect(after.variants.find((v) => v.id === variantId)).toMatchObject({ asset_id: first.assets[0].id, price_jpy: 3210, stock: 7, is_listed: true });
     expect(after.instructions[0]).toMatchObject({ note: "keep this", no_rotate: true });
     expect((await owner.query("select variant_id from print_jobs where id=$1", [jobId])).rows[0].variant_id).toBe(variantId);
   });
@@ -508,19 +470,19 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     expect(first.assets).toHaveLength(2);
     expect(first.objects).toHaveLength(2);
     expect(first.instructions).toHaveLength(2);
-    expect(first.variants.every((v: {part_count: number}) => v.part_count === 2)).toBe(true);
-    expect(first.assets.filter((a: {is_primary: boolean}) => a.is_primary)).toHaveLength(1);
+    expect(first.variants.every((v) => v.part_count === 2)).toBe(true);
+    expect(first.assets.filter((a) => a.is_primary)).toHaveLength(1);
     // Retrying an already registered batch is idempotent.
     pricingReads = 0;
     expect((await registerBatch(["seat", "legs"])).ok).toBe(true);
     expect(pricingReads).toBe(1);
     expect((await assetSnapshot()).assets).toEqual(first.assets);
-    const target = first.assets.find((a: {file_name: string}) => a.file_name === "legs.stl");
-    expect((await registerBatch(["replacement"], target.id)).ok).toBe(true);
+    const target = first.assets.find((a) => a.file_name === "legs.stl");
+    expect((await registerBatch(["replacement"], target!.id)).ok).toBe(true);
     const after = await assetSnapshot();
     expect(after.assets).toHaveLength(2);
-    expect(after.assets.find((a: {id: string}) => a.id !== target.id)).toEqual(first.assets.find((a: {id: string}) => a.id !== target.id));
-    expect(after.variants.find((v: {id: string}) => v.id === variantId)).toMatchObject({ price_jpy: 1000, stock: 10, part_count: 2 });
+    expect(after.assets.find((a) => a.id !== target!.id)).toEqual(first.assets.find((a) => a.id !== target!.id));
+    expect(after.variants.find((v) => v.id === variantId)).toMatchObject({ price_jpy: 1000, stock: 10, part_count: 2 });
   });
   test("invalid files and failed batch persistence leave the entire previous product intact", async () => {
     vi.mocked(readModel).mockResolvedValue(modelFile);
@@ -560,9 +522,9 @@ describe.skipIf(!enabled)("atomic backend operations", () => {
     const inserted = await owner.query(`insert into order_items
       (order_id,work_id,creator_id,variant_id,unit_price,quantity,creator_payout_amount,platform_fee_amount,print_cost_amount,stl_storage_path_snapshot,filament_material_snapshot,filament_color_snapshot)
       values ($1,$2,$3,$4,1000,1,800,200,0,'legacy.stl','PLA','white') returning id, print_assets_snapshot`, [orderId,workId,creatorId,variantId]);
-    const item = inserted.rows[0];
+    const item = (await owner.query("select id,print_assets_snapshot from order_items where id=$1", [inserted.rows[0].id])).rows[0];
     expect(item.print_assets_snapshot).toHaveLength(2);
-    expect(item.print_assets_snapshot.map((a: {file_name: string}) => a.file_name).sort()).toEqual(["legs.stl", "seat.stl"]);
+    expect(item.print_assets_snapshot.map((a: { file_name: string }) => a.file_name).sort()).toEqual(["legs.stl", "seat.stl"]);
     const before = await assetSnapshot();
     expect((await registerBatch(["new-seat"], before.assets[0].id)).ok).toBe(true);
     expect((await owner.query("select print_assets_snapshot from order_items where id=$1", [item.id])).rows[0].print_assets_snapshot).toEqual(item.print_assets_snapshot);

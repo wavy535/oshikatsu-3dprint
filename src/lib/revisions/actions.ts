@@ -1,6 +1,5 @@
 "use server";
 import { queryResult } from "@/lib/db/result";
-import { sql } from "kysely";
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -56,7 +55,7 @@ export async function startRevisionAction(
       .where("revision_requests.id", "=", id)
       .where("revision_requests.creator_id", "=", user.id)
       .where(
-        sql<boolean>`${sql.ref("revision_requests.status")} = any(${["open", "in_progress", "disputed"]})`,
+        "revision_requests.status", "in", ["open", "in_progress", "disputed"],
       )
       .returning(["id"])
       .execute(),
@@ -181,7 +180,7 @@ export async function disputeRevisionAction(
       .where("revision_requests.id", "=", id)
       .where("revision_requests.creator_id", "=", user.id)
       .where(
-        sql<boolean>`${sql.ref("revision_requests.status")} = any(${["open", "in_progress"]})`,
+        "revision_requests.status", "in", ["open", "in_progress"],
       )
       .returning(["id"])
       .execute(),

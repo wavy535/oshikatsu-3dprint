@@ -1,6 +1,5 @@
-import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import { queryResult } from "@/lib/db/result";
-import { sql } from "kysely";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
 
@@ -49,7 +48,7 @@ export async function listFilamentStock() {
           "print_queue.est_filament_grams",
         ])
         .where(
-          sql<boolean>`${sql.ref("print_queue.status")} = any(${["queued", "printing", "reprinting", "qc_failed"]})`,
+          "print_queue.status", "in", ["queued", "printing", "reprinting", "qc_failed"],
         )
         .execute(),
     ),

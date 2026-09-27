@@ -1,7 +1,6 @@
 "use server";
 import { queryResult } from "@/lib/db/result";
 import { call } from "@/lib/db/functions";
-import { sql } from "kysely";
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -281,7 +280,7 @@ export async function declineRequestAction(
       .where("custom_order_requests.id", "=", requestId)
       .where("custom_order_requests.creator_id", "=", user.id)
       .where(
-        sql<boolean>`${sql.ref("custom_order_requests.status")} = any(${["pending", "responded"]})`,
+        "custom_order_requests.status", "in", ["pending", "responded"],
       )
       .returning(["id"])
       .execute(),

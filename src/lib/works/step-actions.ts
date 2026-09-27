@@ -1,4 +1,5 @@
 "use server";
+import { atomicBatch, assertQuery } from "@/lib/db/client";
 import { sql } from "kysely";
 import { checkStoredFile } from "@/lib/files/storage";
 import { queryResult, countResult } from "@/lib/db/result";
@@ -7,7 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 
-import { getOptionalUser } from "@/lib/auth/guards";
+import { requireCreator } from "@/lib/auth/guards";
 import { validateAndPersistAsset } from "@/lib/works/asset-validation";
 import { requireOwnWork } from "./ownership";
 import { idSchema } from "@/lib/validation";
@@ -16,8 +17,7 @@ export type StepActionState = { error: string | null; ok?: boolean };
 
 /** 「作品を投稿する」から呼ぶ。空の下書きを作って STEP1 へ送る。 */
 export async function createDraftWorkAction(): Promise<void> {
-  const { db, user } = await getOptionalUser();
-  if (!user) redirect("/login?redirect=/studio/works");
+  const { db, user } = await requireCreator();
 
   const { data, error } = await queryResult(
     db
@@ -103,15 +103,22 @@ export async function savePrintInstructionsAction(
   const { db } = owned;
 
   const { error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      await tx
-        .selectFrom("works")
-        .select("id")
-        .where("id", "=", parsed.data.workId)
-        .forUpdate()
-        .executeTakeFirstOrThrow();
-      for (const ins of parsed.data.instructions) {
-        await tx
+    atomicBatch(db, [
+      assertQuery(
+        db
+          .selectFrom("works")
+          .select("id")
+          .where("id", "=", parsed.data.workId),
+      ),
+      ...parsed.data.instructions.flatMap((ins) => [
+        assertQuery(
+          db
+            .selectFrom("work_part_instructions")
+            .select("id")
+            .where("id", "=", ins.id)
+            .where("work_id", "=", parsed.data.workId),
+        ),
+        db
           .updateTable("work_part_instructions")
           .set({
             orientation: ins.orientation,
@@ -120,20 +127,23 @@ export async function savePrintInstructionsAction(
             note: ins.note,
           })
           .where("id", "=", ins.id)
-          .where("work_id", "=", parsed.data.workId)
-          .returning("id")
-          .executeTakeFirstOrThrow();
-      }
-      for (const slot of parsed.data.slots) {
-        await tx
+          .where("work_id", "=", parsed.data.workId),
+      ]),
+      ...parsed.data.slots.flatMap((slot) => [
+        assertQuery(
+          db
+            .selectFrom("work_color_slots")
+            .select("id")
+            .where("id", "=", slot.id)
+            .where("work_id", "=", parsed.data.workId),
+        ),
+        db
           .updateTable("work_color_slots")
           .set({ filament_id: slot.filamentId })
           .where("id", "=", slot.id)
-          .where("work_id", "=", parsed.data.workId)
-          .returning("id")
-          .executeTakeFirstOrThrow();
-      }
-    }),
+          .where("work_id", "=", parsed.data.workId),
+      ]),
+    ]),
   );
   if (error) return { error: "印刷指示と色の割り当てを保存できませんでした" };
 
@@ -195,9 +205,11 @@ export async function saveWorkInfoAction(
 
   const v = parsed.data;
   const { error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      // Updating the parent first serializes saves and model-analysis writes for this work.
-      await tx
+    atomicBatch(db, [
+      assertQuery(
+        db.selectFrom("works").select("id").where("id", "=", v.workId),
+      ),
+      db
         .updateTable("works")
         .set({
           title: v.title,
@@ -208,27 +220,21 @@ export async function saveWorkInfoAction(
           accepts_custom_size: v.accepts.customSize,
           accepts_other_request: v.accepts.otherRequest,
         })
-        .where("id", "=", v.workId)
-        .returning("id")
-        .executeTakeFirstOrThrow();
-
-      await tx
-        .deleteFrom("work_tags")
-        .where("work_id", "=", v.workId)
-        .execute();
-      if (v.tagIds.length) {
-        await tx
-          .insertInto("work_tags")
-          .values(
-            [...new Set(v.tagIds)].map((tag_id) => ({
-              work_id: v.workId,
-              tag_id,
-            })),
-          )
-          .execute();
-      }
-
-      await tx
+        .where("id", "=", v.workId),
+      db.deleteFrom("work_tags").where("work_id", "=", v.workId),
+      ...(v.tagIds.length
+        ? [
+            db
+              .insertInto("work_tags")
+              .values(
+                [...new Set(v.tagIds)].map((tag_id) => ({
+                  work_id: v.workId,
+                  tag_id,
+                })),
+              ),
+          ]
+        : []),
+      db
         .updateTable("work_variants")
         .set({
           fit_width_mm: v.fit.widthMm,
@@ -237,16 +243,13 @@ export async function saveWorkInfoAction(
           fit_source: "creator",
         })
         .where("work_id", "=", v.workId)
-        .where("is_base", "=", true)
-        .execute();
-      // Recalculate derived dimensions in one statement; preserve explicitly entered dimensions.
-      // No dummy scale_ratio updates or per-variant reads are needed.
-      await tx
+        .where("is_base", "=", true),
+      db
         .updateTable("work_variants")
         .set({
-          fit_width_mm: sql`round(${v.fit.widthMm}::numeric * scale_ratio, 2)`,
-          fit_height_mm: sql`round(${v.fit.heightMm}::numeric * scale_ratio, 2)`,
-          fit_depth_mm: sql`round(${v.fit.depthMm}::numeric * scale_ratio, 2)`,
+          fit_width_mm: sql`round(${v.fit.widthMm} * scale_ratio, 2)`,
+          fit_height_mm: sql`round(${v.fit.heightMm} * scale_ratio, 2)`,
+          fit_depth_mm: sql`round(${v.fit.depthMm} * scale_ratio, 2)`,
           fit_source: "auto",
         })
         .where("work_id", "=", v.workId)
@@ -256,11 +259,16 @@ export async function saveWorkInfoAction(
             eb("fit_source", "=", "auto"),
             eb("fit_width_mm", "is", null),
           ]),
-        )
-        .execute();
-
-      for (const variant of v.variants) {
-        const saved = await tx
+        ),
+      ...v.variants.flatMap((variant) => [
+        assertQuery(
+          db
+            .selectFrom("work_variants")
+            .select("id")
+            .where("id", "=", variant.id)
+            .where("work_id", "=", v.workId),
+        ),
+        db
           .updateTable("work_variants")
           .set({
             price_jpy: variant.priceJpy,
@@ -268,13 +276,9 @@ export async function saveWorkInfoAction(
             is_listed: variant.isListed,
           })
           .where("id", "=", variant.id)
-          .where("work_id", "=", v.workId)
-          .returning("id")
-          .executeTakeFirst();
-        if (!saved)
-          throw new Error("この作品に含まれないサイズが指定されています");
-      }
-    }),
+          .where("work_id", "=", v.workId),
+      ]),
+    ]),
   );
   if (error)
     return { error: `作品情報を保存できませんでした（${error.message}）` };
@@ -444,7 +448,11 @@ export async function publishWorkAction(
 
   if ((assetsRes.data ?? []).length === 0)
     return { error: "3Dデータをアップロードしてください" };
-  if ((assetsRes.data ?? []).some((a) => !["passed", "warning"].includes(a.validation_status))) {
+  if (
+    (assetsRes.data ?? []).some(
+      (a) => !["passed", "warning"].includes(a.validation_status),
+    )
+  ) {
     return { error: "検証に通っていない3Dデータがあります" };
   }
   if (

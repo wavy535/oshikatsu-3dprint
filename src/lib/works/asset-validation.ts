@@ -1,4 +1,6 @@
-import { jsonArrayFrom } from "kysely/helpers/postgres";
+import { type CompiledQuery } from "kysely";
+import { atomicBatch, assertQuery } from "@/lib/db/client";
+import type { Statement } from "@/lib/db/d1/runtime";
 import { combinedEstimates } from "./combined-estimates";
 import { MAX_PRINT_FILES, MAX_PRINT_UPLOAD_BYTES } from "./asset-limits";
 import { platform } from "@/lib/platform";
@@ -13,12 +15,7 @@ import {
   type PricingRule,
 } from "@/lib/print";
 import { serviceDatabase, type Db } from "@/lib/db/client";
-import type {
-  TablesInsert,
-  Json,
-  PrintOrientation,
-  SupportMode,
-} from "@/types/db";
+import type { Json, PrintOrientation, SupportMode } from "@/types/db";
 
 // STEP1 のアップロード後に走る検証パイプライン。
 //   R2から 3D データを落とす → 解析する → 結果をDBに書く
@@ -87,15 +84,31 @@ type AnalysisResult =
   | { ok: true; analysis: AssetAnalysis; bytes: number }
   | Extract<ValidateAssetResult, { ok: false }>;
 
-async function analyzeFile(rule: PricingRule, asset: AssetFile): Promise<AnalysisResult> {
+async function analyzeFile(
+  rule: PricingRule,
+  asset: AssetFile,
+): Promise<AnalysisResult> {
   if (platform().GEOMETRY) {
     try {
-      return { ok: true, ...await analyzeStoredModel(asset.storage_path, asset.file_name, rule, asset.file_size_bytes) };
+      return {
+        ok: true,
+        ...(await analyzeStoredModel(
+          asset.storage_path,
+          asset.file_name,
+          rule,
+          asset.file_size_bytes,
+        )),
+      };
     } catch (error) {
-      return { ok: false, error: error instanceof Error ? error.message : "解析に失敗しました", stage: "analyze" };
+      return {
+        ok: false,
+        error: error instanceof Error ? error.message : "解析に失敗しました",
+        stage: "analyze",
+      };
     }
   }
-  if (process.env.APP_RUNTIME === "cloudflare") return { ok: false, error: "解析サービスが未設定です", stage: "analyze" };
+  if (process.env.APP_RUNTIME === "cloudflare")
+    return { ok: false, error: "解析サービスが未設定です", stage: "analyze" };
 
   const { data: buffer, error: downloadError } = await queryResult(
     readModel(asset.storage_path),
@@ -130,7 +143,7 @@ async function analyzeFile(rule: PricingRule, asset: AssetFile): Promise<Analysi
   }
 }
 
-/** Caller authorizes the work and upload path. Keep the current asset until parsing succeeds. */
+/** Analyze outside the database, then commit one version-checked D1 batch. */
 export async function replaceAsset(
   workId: string,
   file: AssetFile,
@@ -139,75 +152,51 @@ export async function replaceAsset(
   const db = serviceDatabase();
   const pricing = await pricingForAnalysis(db);
   if (!pricing.ok) return pricing;
-  const rule = pricing.rule;
-  const result = await analyzeFile(rule, file);
+  const result = await analyzeFile(pricing.rule, file);
   if (!result.ok) return result;
-  const { analysis, bytes } = result;
-  const { data: variantIds, error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      await tx
-        .selectFrom("works")
-        .select("id")
-        .where("id", "=", workId)
-        .forUpdate()
-        .executeTakeFirstOrThrow();
-      const previous = await tx.selectFrom("work_assets").select("id")
-        .where("work_id", "=", workId).where("id", "=", assetId).executeTakeFirstOrThrow();
-      const asset = await tx.updateTable("work_assets").set({
-        storage_path: file.storage_path, file_name: file.file_name,
-        file_format: analysis.format, file_size_bytes: bytes,
-      }).where("id", "=", previous.id).returning("id").executeTakeFirstOrThrow();
-      return persistAnalysis(tx, asset.id, workId, bytes, analysis, rule);
-    }),
+  return saveAnalyzed(
+    db,
+    workId,
+    [{ ...result, file, assetId }],
+    pricing.rule,
+    "replace",
   );
-  if (error || !variantIds)
-    return {
-      ok: false,
-      error: "3Dデータを保存できませんでした。もう一度お試しください",
-      stage: "persist",
-    };
-  return { ok: true, analysis, variantIds };
 }
 
-/** Add a batch atomically after every file has been read and analyzed successfully. */
-export async function appendAssets(workId: string, files: AssetFile[]): Promise<ValidateAssetResult> {
-  if (!files.length || files.length > MAX_PRINT_FILES || files.reduce((sum, file) => sum + (file.file_size_bytes ?? 0), 0) > MAX_PRINT_UPLOAD_BYTES)
-    return { ok: false, error: "一度に16ファイル・合計80MiBまで選べます", stage: "input" };
+export async function appendAssets(
+  workId: string,
+  files: AssetFile[],
+): Promise<ValidateAssetResult> {
+  if (
+    !files.length ||
+    files.length > MAX_PRINT_FILES ||
+    files.reduce((sum, file) => sum + (file.file_size_bytes ?? 0), 0) >
+      MAX_PRINT_UPLOAD_BYTES
+  )
+    return {
+      ok: false,
+      error: "一度に16ファイル・合計80MiBまで選べます",
+      stage: "input",
+    };
   const db = serviceDatabase();
   const pricing = await pricingForAnalysis(db);
   if (!pricing.ok) return pricing;
-  const rule = pricing.rule;
-  const analyzed: { file: AssetFile; analysis: AssetAnalysis; bytes: number }[] = [];
+  const analyzed: AnalyzedFile[] = [];
   for (const file of files) {
-    const result = await analyzeFile(rule, file);
-    if (!result.ok) return { ...result, error: `${file.file_name}: ${result.error}` };
-    analyzed.push({ file, analysis: result.analysis, bytes: result.bytes });
+    const result = await analyzeFile(pricing.rule, file);
+    if (!result.ok)
+      return { ...result, error: `${file.file_name}: ${result.error}` };
+    analyzed.push({ ...result, file, assetId: crypto.randomUUID() });
   }
-  const { data: variantIds, error } = await queryResult(db.transaction().execute(async (tx) => {
-    await tx.selectFrom("works").select("id").where("id", "=", workId).forUpdate().executeTakeFirstOrThrow();
-    const existing = await tx.selectFrom("work_assets").select(["id", "storage_path"]).where("work_id", "=", workId).execute();
-    const additions = analyzed.filter(({ file }) => !existing.some((asset) => asset.storage_path === file.storage_path));
-    if (existing.length + additions.length > MAX_PRINT_FILES) throw new Error("1作品に登録できる印刷用ファイルは16個までです");
-    for (const [index, item] of additions.entries()) {
-      const asset = await tx.insertInto("work_assets").values({
-        work_id: workId, ...item.file, file_size_bytes: item.bytes,
-        file_format: item.analysis.format, is_primary: existing.length === 0 && index === 0,
-      }).returning("id").executeTakeFirstOrThrow();
-      await persistAnalysis(tx, asset.id, workId, item.bytes, item.analysis, rule, false);
-    }
-    return updateWorkEstimates(tx, workId, analyzed.at(-1)!.analysis, rule);
-  }));
-  if (error || !variantIds) return { ok: false, error: error?.message ?? "ファイル一式を保存できませんでした", stage: "persist" };
-  return { ok: true, analysis: analyzed.at(-1)!.analysis, variantIds };
+  return saveAnalyzed(db, workId, analyzed, pricing.rule, "append");
 }
 
-/** Reanalyze the authorized asset; reject results if a replacement completed meanwhile. */
 export async function validateAndPersistAsset(
   assetId: string,
   workId: string,
 ): Promise<ValidateAssetResult> {
   const db = serviceDatabase();
-  const { data: asset, error: assetError } = await queryResult(
+  const { data: asset, error } = await queryResult(
     db
       .selectFrom("work_assets")
       .select(["id", "storage_path", "file_name"])
@@ -215,7 +204,7 @@ export async function validateAndPersistAsset(
       .where("work_id", "=", workId)
       .executeTakeFirstOrThrow(),
   );
-  if (assetError || !asset)
+  if (error || !asset)
     return {
       ok: false,
       error: "対象の3Dデータが見つかりません",
@@ -223,18 +212,21 @@ export async function validateAndPersistAsset(
     };
   const pricing = await pricingForAnalysis(db);
   if (!pricing.ok) return pricing;
-  const rule = pricing.rule;
-  const result = await analyzeFile(rule, asset);
+  const result = await analyzeFile(pricing.rule, asset);
   if (!result.ok) {
     if (result.stage !== "analyze") return result;
-    const { error } = await queryResult(
-      db.transaction().execute(async (tx) => {
-        await lockAsset(tx, workId, assetId, asset.storage_path);
-        await tx
-          .deleteFrom("work_validation_issues")
-          .where("asset_id", "=", assetId)
-          .execute();
-        await tx
+    const saved = await queryResult(
+      atomicBatch(db, [
+        assertQuery(
+          db
+            .selectFrom("work_assets")
+            .select("id")
+            .where("id", "=", assetId)
+            .where("work_id", "=", workId)
+            .where("storage_path", "=", asset.storage_path),
+        ),
+        db.deleteFrom("work_validation_issues").where("asset_id", "=", assetId),
+        db
           .insertInto("work_validation_issues")
           .values({
             asset_id: assetId,
@@ -242,314 +234,375 @@ export async function validateAndPersistAsset(
             severity: "error",
             message: result.error,
             detail: { fileName: asset.file_name },
-          })
-          .execute();
-        await tx
+          }),
+        db
           .updateTable("work_assets")
           .set({
             validation_status: "failed",
             validated_at: new Date().toISOString(),
           })
-          .where("id", "=", assetId)
-          .execute();
-      }),
+          .where("id", "=", assetId),
+      ]),
     );
     return {
       ...result,
-      error: error ? "解析エラーを保存できませんでした" : result.error,
+      error: saved.error ? "解析エラーを保存できませんでした" : result.error,
     };
   }
-  const { analysis, bytes } = result;
-  const { data: variantIds, error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      await lockAsset(tx, workId, assetId, asset.storage_path);
-      return persistAnalysis(tx, assetId, workId, bytes, analysis, rule);
-    }),
+  return saveAnalyzed(
+    db,
+    workId,
+    [{ ...result, file: asset, assetId, expectedPath: asset.storage_path }],
+    pricing.rule,
+    "replace",
   );
-  if (error || !variantIds)
-    return {
-      ok: false,
-      error: error?.message ?? "解析結果を保存できませんでした",
-      stage: "persist",
-    };
-  return { ok: true, analysis, variantIds };
 }
 
-async function lockAsset(
-  db: Db,
-  workId: string,
-  assetId: string,
-  storagePath: string,
-) {
-  await db
+type AnalyzedFile = {
+  file: AssetFile;
+  assetId: string;
+  expectedPath?: string;
+  analysis: AssetAnalysis;
+  bytes: number;
+};
+type BatchQuery = Statement | { compile(): CompiledQuery };
+async function workSnapshot(db: Db, workId: string) {
+  // Version is read first; the final batch rejects any intervening edit, including
+  // changes to instructions/materials while the remaining rows are being read.
+  const work = await db
     .selectFrom("works")
-    .select("id")
+    .select(["id", "edit_version"])
     .where("id", "=", workId)
-    .forUpdate()
     .executeTakeFirstOrThrow();
-  const asset = await db
+  const assets = await db
     .selectFrom("work_assets")
-    .select("id")
-    .where("id", "=", assetId)
+    .selectAll()
     .where("work_id", "=", workId)
-    .where("storage_path", "=", storagePath)
-    .forUpdate()
-    .executeTakeFirst();
-  if (!asset)
-    throw new Error("3Dデータが更新されています。画面を読み込み直してください");
+    .orderBy("is_primary", "desc")
+    .orderBy("created_at")
+    .orderBy("id")
+    .execute();
+  const [objects, instructions, slots, variants] = await Promise.all([
+    db
+      .selectFrom("work_asset_objects as o")
+      .innerJoin("work_assets as a", "a.id", "o.asset_id")
+      .selectAll("o")
+      .where("a.work_id", "=", workId)
+      .execute(),
+    db
+      .selectFrom("work_part_instructions")
+      .selectAll()
+      .where("work_id", "=", workId)
+      .execute(),
+    db
+      .selectFrom("work_color_slots")
+      .selectAll()
+      .where("work_id", "=", workId)
+      .execute(),
+    db
+      .selectFrom("work_variants")
+      .selectAll()
+      .where("work_id", "=", workId)
+      .execute(),
+  ]);
+  return { work, assets, objects, instructions, slots, variants };
 }
 
-/** All derived rows are saved together. Query failures must escape this transaction. */
-async function persistAnalysis(
+async function saveAnalyzed(
   db: Db,
-  assetId: string,
   workId: string,
-  bytes: number,
-  analysis: AssetAnalysis,
+  analyzed: AnalyzedFile[],
   rule: PricingRule,
-  updateVariants = true,
-) {
-  await db
-    .updateTable("work_assets")
-    .set({
-      file_size_bytes: bytes,
-      unit: "mm",
-      object_count: analysis.objectCount,
-      triangle_count: analysis.triangleCount,
-      vertex_count: analysis.vertexCount,
-      total_volume_cm3: analysis.totalVolumeCm3,
-      total_surface_area_cm2: analysis.totalSurfaceAreaCm2,
-      bbox_x_mm: analysis.assembledBboxMm[0],
-      bbox_y_mm: analysis.assembledBboxMm[1],
-      bbox_z_mm: analysis.assembledBboxMm[2],
-      validation_status: analysis.status,
-      validated_at: new Date().toISOString(),
-    })
-    .where("id", "=", assetId)
-    .execute();
-
-  // Preserve instructions by part name, and material choices by source color.
-  const previousObjects = await db
-    .selectFrom("work_asset_objects")
-    .select(["id", "name"])
-    .where("asset_id", "=", assetId)
-    .execute();
-  const previousInstructions = await db
-    .selectFrom("work_part_instructions")
-    .select([
-      "object_id",
-      "orientation",
-      "no_rotate",
-      "support",
-      "support_note",
-      "note",
-    ])
-    .where("work_id", "=", workId)
-    .execute();
-  const instructionsById = new Map(
-    previousInstructions.map((i) => [i.object_id, i]),
-  );
-  const instructionsByName = new Map(
-    previousObjects.map((o) => [o.name, instructionsById.get(o.id)]),
-  );
-  const previousSlots = await db
-    .selectFrom("work_color_slots")
-    .select(["slot_index", "source_hex", "filament_id"])
-    .where("asset_id", "=", assetId)
-    .execute();
-
-  await db
-    .deleteFrom("work_asset_objects")
-    .where("asset_id", "=", assetId)
-    .execute();
-  const objectRows: TablesInsert<"work_asset_objects">[] = analysis.objects.map(
-    (o) => ({
-      asset_id: assetId,
-      object_index: o.objectIndex,
-      name: o.name,
-      triangle_count: o.triangleCount,
-      bbox_x_mm: round(o.bboxMm[0], 2),
-      bbox_y_mm: round(o.bboxMm[1], 2),
-      bbox_z_mm: round(o.bboxMm[2], 2),
-      volume_cm3: round(o.volumeCm3, 2),
-      surface_area_cm2: round(o.surfaceAreaCm2, 2),
-      is_manifold: o.isManifold,
-      open_edge_count: o.openEdgeCount,
-      flipped_normal_count: o.flippedNormalCount,
-      self_intersection_count: o.selfIntersectionCount,
-      min_wall_thickness_mm:
-        o.minWallThicknessMm === null ? null : round(o.minWallThicknessMm, 2),
-    }),
-  );
-  const objects = objectRows.length
-    ? await db
-        .insertInto("work_asset_objects")
-        .values(objectRows)
-        .returning(["id", "object_index"])
-        .execute()
-    : [];
-  const objectIdByIndex = new Map(objects.map((o) => [o.object_index, o.id]));
-
-  await db
-    .deleteFrom("work_validation_issues")
-    .where("asset_id", "=", assetId)
-    .execute();
-  if (analysis.issues.length)
-    await db
-      .insertInto("work_validation_issues")
-      .values(
-        analysis.issues.map((i) => ({
+  mode: "append" | "replace",
+): Promise<ValidateAssetResult> {
+  const latest = analyzed.at(-1)!.analysis;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const snapshot = await workSnapshot(db, workId);
+      const additions =
+        mode === "append"
+          ? analyzed.filter(
+              (item) =>
+                !snapshot.assets.some(
+                  (asset) => asset.storage_path === item.file.storage_path,
+                ),
+            )
+          : analyzed;
+      if (
+        mode === "append" &&
+        snapshot.assets.length + additions.length > MAX_PRINT_FILES
+      )
+        throw new Error("1作品に登録できる印刷用ファイルは16個までです");
+      if (
+        mode === "replace" &&
+        additions.some(
+          (item) =>
+            !snapshot.assets.some(
+              (asset) =>
+                asset.id === item.assetId &&
+                (!item.expectedPath ||
+                  asset.storage_path === item.expectedPath),
+            ),
+        )
+      )
+        throw new Error(
+          "3Dデータが更新されています。画面を読み込み直してください",
+        );
+      if (!additions.length)
+        return {
+          ok: true,
+          analysis: latest,
+          variantIds: snapshot.variants.map((v) => v.id),
+        };
+      const queries: BatchQuery[] = [
+        assertQuery(
+          db
+            .selectFrom("works")
+            .select("id")
+            .where("id", "=", workId)
+            .where("edit_version", "=", snapshot.work.edit_version),
+        ),
+      ];
+      for (const [index, item] of additions.entries()) {
+        const { analysis, assetId, file, bytes } = item;
+        const metadata = {
+          storage_path: file.storage_path,
+          file_name: file.file_name,
+          file_format: analysis.format,
+          file_size_bytes: bytes,
+          unit: "mm",
+          object_count: analysis.objectCount,
+          triangle_count: analysis.triangleCount,
+          vertex_count: analysis.vertexCount,
+          total_volume_cm3: round(analysis.totalVolumeCm3, 8),
+          total_surface_area_cm2: round(analysis.totalSurfaceAreaCm2, 8),
+          bbox_x_mm: analysis.assembledBboxMm[0],
+          bbox_y_mm: analysis.assembledBboxMm[1],
+          bbox_z_mm: analysis.assembledBboxMm[2],
+          validation_status: analysis.status,
+          validated_at: new Date().toISOString(),
+        };
+        queries.push(
+          mode === "append"
+            ? db
+                .insertInto("work_assets")
+                .values({
+                  id: assetId,
+                  work_id: workId,
+                  ...metadata,
+                  is_primary: snapshot.assets.length === 0 && index === 0,
+                })
+            : db
+                .updateTable("work_assets")
+                .set(metadata)
+                .where("id", "=", assetId)
+                .where("work_id", "=", workId),
+        );
+        const carried = new Map(
+          snapshot.objects
+            .filter((o) => o.asset_id === assetId)
+            .map((o) => [
+              o.name,
+              snapshot.instructions.find((i) => i.object_id === o.id),
+            ]),
+        );
+        queries.push(
+          db.deleteFrom("work_asset_objects").where("asset_id", "=", assetId),
+          db
+            .deleteFrom("work_validation_issues")
+            .where("asset_id", "=", assetId),
+          db.deleteFrom("work_color_slots").where("asset_id", "=", assetId),
+        );
+        const objects = analysis.objects.map((o) => ({
+          id: crypto.randomUUID(),
           asset_id: assetId,
-          object_id:
-            i.objectIndex === undefined
+          object_index: o.objectIndex,
+          name: o.name,
+          triangle_count: o.triangleCount,
+          bbox_x_mm: round(o.bboxMm[0], 2),
+          bbox_y_mm: round(o.bboxMm[1], 2),
+          bbox_z_mm: round(o.bboxMm[2], 2),
+          volume_cm3: round(o.volumeCm3, 2),
+          surface_area_cm2: round(o.surfaceAreaCm2, 2),
+          is_manifold: o.isManifold,
+          open_edge_count: o.openEdgeCount,
+          flipped_normal_count: o.flippedNormalCount,
+          self_intersection_count: o.selfIntersectionCount,
+          min_wall_thickness_mm:
+            o.minWallThicknessMm === null
               ? null
-              : (objectIdByIndex.get(i.objectIndex) ?? null),
-          code: i.code,
-          severity: i.severity,
-          message: i.message,
-          detail: i.detail as Json,
+              : round(o.minWallThicknessMm, 2),
+        }));
+        if (objects.length)
+          queries.push(db.insertInto("work_asset_objects").values(objects));
+        const ids = new Map(objects.map((o) => [o.object_index, o.id]));
+        if (analysis.issues.length)
+          queries.push(
+            db
+              .insertInto("work_validation_issues")
+              .values(
+                analysis.issues.map((i) => ({
+                  asset_id: assetId,
+                  object_id:
+                    i.objectIndex === undefined
+                      ? null
+                      : (ids.get(i.objectIndex) ?? null),
+                  code: i.code,
+                  severity: i.severity,
+                  message: i.message,
+                  detail: i.detail as Json,
+                })),
+              ),
+          );
+        if (analysis.colorSlots.length)
+          queries.push(
+            db
+              .insertInto("work_color_slots")
+              .values(
+                analysis.colorSlots.map((c) => ({
+                  work_id: workId,
+                  asset_id: assetId,
+                  slot_index: c.slotIndex,
+                  source_name: c.sourceName,
+                  source_hex: c.sourceHex,
+                  face_count: c.faceCount,
+                  filament_id:
+                    snapshot.slots.find(
+                      (p) =>
+                        p.asset_id === assetId &&
+                        p.slot_index === c.slotIndex &&
+                        p.source_hex === c.sourceHex,
+                    )?.filament_id ?? null,
+                })),
+              ),
+          );
+        if (objects.length)
+          queries.push(
+            db.insertInto("work_part_instructions").values(
+              analysis.objects.map((o) => {
+                const previous = carried.get(o.name),
+                  defaults = defaultInstruction(o.bboxMm);
+                return {
+                  work_id: workId,
+                  object_id: ids.get(o.objectIndex)!,
+                  orientation: previous?.orientation ?? defaults.orientation,
+                  no_rotate:
+                    previous?.no_rotate ?? defaults.orientation === "flat",
+                  support: previous?.support ?? defaults.support,
+                  support_note: previous?.support_note ?? null,
+                  note: previous ? previous.note : defaults.note,
+                };
+              }),
+            ),
+          );
+      }
+      const assetRows = snapshot.assets
+        .filter((asset) => !additions.some((item) => item.assetId === asset.id))
+        .map((asset) => ({
+          ...asset,
+          objects: snapshot.objects.filter((o) => o.asset_id === asset.id),
+        }));
+      const combined = [
+        ...assetRows.map((asset) => ({
+          id: asset.id,
+          file_name: asset.file_name,
+          total_volume_cm3: asset.total_volume_cm3,
+          total_surface_area_cm2: asset.total_surface_area_cm2,
+          validation_status: asset.validation_status,
+          objects: asset.objects,
         })),
-      )
-      .execute();
-
-  await db
-    .deleteFrom("work_color_slots")
-    .where("asset_id", "=", assetId)
-    .execute();
-  if (analysis.colorSlots.length)
-    await db
-      .insertInto("work_color_slots")
-      .values(
-        analysis.colorSlots.map((c) => ({
+        ...additions.map((item) => ({
+          id: item.assetId,
+          file_name: item.file.file_name,
+          total_volume_cm3: round(item.analysis.totalVolumeCm3, 8),
+          total_surface_area_cm2: round(item.analysis.totalSurfaceAreaCm2, 8),
+          validation_status: item.analysis.status,
+          objects: item.analysis.objects.map((o) => ({
+            name: o.name,
+            bbox_x_mm: round(o.bboxMm[0], 2),
+            bbox_y_mm: round(o.bboxMm[1], 2),
+            bbox_z_mm: round(o.bboxMm[2], 2),
+          })),
+        })),
+      ];
+      const primaryId = snapshot.assets[0]?.id ?? additions[0].assetId;
+      const estimates =
+        combined.length === 1
+          ? latest.variants
+          : combinedEstimates(combined, latest.variants, rule);
+      const allValid = combined.every(
+        (a) =>
+          a.validation_status === "passed" || a.validation_status === "warning",
+      );
+      const variantIds: string[] = [];
+      for (const v of estimates) {
+        const previous = snapshot.variants.find(
+          (p) => p.size_label === v.sizeLabel,
+        );
+        const id = previous?.id ?? crypto.randomUUID();
+        variantIds.push(id);
+        const row = {
           work_id: workId,
-          asset_id: assetId,
-          slot_index: c.slotIndex,
-          source_name: c.sourceName,
-          source_hex: c.sourceHex,
-          face_count: c.faceCount,
-          filament_id:
-            previousSlots.find(
-              (p) =>
-                p.slot_index === c.slotIndex && p.source_hex === c.sourceHex,
-            )?.filament_id ?? null,
-        })),
-      )
-      .execute();
-
-  const instructions = analysis.objects.map((o) => {
-    const carried = instructionsByName.get(o.name);
-    const defaults = defaultInstruction(o.bboxMm);
-    return {
-      work_id: workId,
-      object_id: objectIdByIndex.get(o.objectIndex)!,
-      orientation: carried?.orientation ?? defaults.orientation,
-      no_rotate: carried?.no_rotate ?? defaults.orientation === "flat",
-      support: carried?.support ?? defaults.support,
-      support_note: carried?.support_note ?? null,
-      note: carried ? carried.note : defaults.note,
-    };
-  });
-  if (instructions.length)
-    await db
-      .insertInto("work_part_instructions")
-      .values(instructions)
-      .execute();
-
-  if (!updateVariants) return [];
-  return updateWorkEstimates(db, workId, analysis, rule);
-}
-
-async function updateWorkEstimates(db: Db, workId: string, latest: AssetAnalysis, rule: PricingRule) {
-  const assets = await db.selectFrom("work_assets as a").select((eb) => [
-    "a.id", "a.file_name", "a.total_volume_cm3", "a.total_surface_area_cm2", "a.validation_status",
-    jsonArrayFrom(eb.selectFrom("work_asset_objects as o")
-      .select(["o.name", "o.bbox_x_mm", "o.bbox_y_mm", "o.bbox_z_mm"])
-      .whereRef("o.asset_id", "=", "a.id")).as("objects"),
-  ]).where("a.work_id", "=", workId).orderBy("a.is_primary", "desc").orderBy("a.created_at").execute();
-  if (!assets.length) throw new Error("印刷用ファイルがありません");
-  const assetId = assets[0].id;
-  const sizes = latest.variants;
-  const estimates = assets.length === 1
-    ? latest.variants
-    : combinedEstimates(assets, sizes, rule);
-  const allValid = assets.every((asset) => asset.validation_status === "passed" || asset.validation_status === "warning");
-  // Prices, stock and publishing choices belong to the creator; retain them on reanalysis.
-  const previousVariants = await db
-    .selectFrom("work_variants")
-    .select([
-      "id",
-      "size_label",
-      "price_jpy",
-      "stock",
-      "is_listed",
-      "batch_count_override",
-    ])
-    .where("work_id", "=", workId)
-    .execute();
-  const variantsBySize = new Map(
-    previousVariants.map((v) => [v.size_label, v]),
-  );
-  const variantIds: string[] = [];
-  for (const v of estimates) {
-    const previous = variantsBySize.get(v.sizeLabel);
-    const row = {
-      work_id: workId,
-      size_label: v.sizeLabel,
-      nui_size_cm: v.nuiSizeCm,
-      scale_ratio: round(v.scaleRatio, 4),
-      is_base: v.scaleRatio === 1,
-      asset_id: assetId,
-      bbox_x_mm: round(v.bboxMm[0], 2),
-      bbox_y_mm: round(v.bboxMm[1], 2),
-      bbox_z_mm: round(v.bboxMm[2], 2),
-      max_part_bbox_x_mm: round(v.maxPartBboxMm[0], 2),
-      max_part_bbox_y_mm: round(v.maxPartBboxMm[1], 2),
-      max_part_bbox_z_mm: round(v.maxPartBboxMm[2], 2),
-      oversized_parts: v.oversizedParts,
-      est_filament_grams: v.grams,
-      est_print_hours: v.hours,
-      part_count: v.partCount,
-      batch_count_override: previous?.batch_count_override ?? null,
-      price_jpy: previous?.price_jpy ?? null,
-      stock: previous?.stock ?? null,
-      is_listed: allValid && v.isPrintable ? (previous?.is_listed ?? false) : false,
-    };
-    const returning = [
-      "id",
-      "print_fee_jpy",
-      "batch_count",
-      "is_printable",
-      "unprintable_reason",
-    ] as const;
-    const saved = previous
-      ? await db
-          .updateTable("work_variants")
-          .set(row)
-          .where("id", "=", previous.id)
-          .returning(returning)
-          .executeTakeFirstOrThrow()
-      : await db
-          .insertInto("work_variants")
-          .values(row)
-          .returning(returning)
-          .executeTakeFirstOrThrow();
-    variantIds.push(saved.id);
-    v.printFeeJpy = saved.print_fee_jpy ?? v.printFeeJpy;
-    v.batchCount = saved.batch_count;
-    v.isPrintable = saved.is_printable;
-    v.unprintableReason = saved.unprintable_reason;
+          size_label: v.sizeLabel,
+          nui_size_cm: v.nuiSizeCm,
+          scale_ratio: round(v.scaleRatio, 4),
+          is_base: v.scaleRatio === 1,
+          asset_id: primaryId,
+          bbox_x_mm: round(v.bboxMm[0], 2),
+          bbox_y_mm: round(v.bboxMm[1], 2),
+          bbox_z_mm: round(v.bboxMm[2], 2),
+          max_part_bbox_x_mm: round(v.maxPartBboxMm[0], 2),
+          max_part_bbox_y_mm: round(v.maxPartBboxMm[1], 2),
+          max_part_bbox_z_mm: round(v.maxPartBboxMm[2], 2),
+          oversized_parts: v.oversizedParts,
+          est_filament_grams: v.grams,
+          est_print_hours: v.hours,
+          part_count: v.partCount,
+          batch_count_override: previous?.batch_count_override ?? null,
+          price_jpy: previous?.price_jpy ?? null,
+          stock: previous?.stock ?? null,
+          is_listed:
+            allValid && v.isPrintable ? (previous?.is_listed ?? false) : false,
+        };
+        queries.push(
+          previous
+            ? db.updateTable("work_variants").set(row).where("id", "=", id)
+            : db.insertInto("work_variants").values({ id, ...row }),
+        );
+      }
+      await atomicBatch(db, queries);
+      return { ok: true, analysis: latest, variantIds };
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "解析結果を保存できませんでした";
+      if (attempt < 2 && message.includes("更新対象が変わりました")) continue;
+      return { ok: false, error: message, stage: "persist" };
+    }
   }
-  return variantIds;
+  return {
+    ok: false,
+    error: "作品が更新されています。再度お試しください",
+    stage: "persist",
+  };
 }
 
 function round(v: number, digits: number): number {
-  const f = 10 ** digits;
-  return Math.round(v * f) / f;
+  const factor = 10 ** digits;
+  return Math.round(v * factor) / factor;
 }
-
-async function pricingForAnalysis(db: Db): Promise<{ ok: true; rule: PricingRule } | Extract<ValidateAssetResult, { ok: false }>> {
+async function pricingForAnalysis(
+  db: Db,
+): Promise<
+  { ok: true; rule: PricingRule } | Extract<ValidateAssetResult, { ok: false }>
+> {
   const { data: rule, error } = await queryResult(loadPricingRule(db));
   return error || !rule
-    ? { ok: false, error: "印刷料金の設定を取得できませんでした", stage: "pricing" }
+    ? {
+        ok: false,
+        error: "印刷料金の設定を取得できませんでした",
+        stage: "pricing",
+      }
     : { ok: true, rule };
 }

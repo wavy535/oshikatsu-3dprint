@@ -1,5 +1,5 @@
 import { readPage } from "@/lib/db/result";
-import { jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import { sql } from "kysely";
 import "server-only";
 import { requireAdmin } from "@/lib/auth/guards";
@@ -151,7 +151,7 @@ export async function getSales(month: string, requestedPage = 1) {
       .execute(),
     allSales
       .select([
-        sql<string>`to_char(ordered_at at time zone 'Asia/Tokyo', 'YYYY-MM')`.as(
+        sql<string>`strftime('%Y-%m',ordered_at,'+9 hours')`.as(
           "key",
         ),
         sql<number>`coalesce(sum(pool_amount), 0)`.as("pool"),
@@ -248,17 +248,17 @@ export async function listPayoutRequests(requestedPage?: unknown) {
     db
       .selectFrom("payout_requests")
       .select([
-        sql<number>`count(*)::integer`.as("total"),
-        sql<number>`count(*) filter (where status in ('requested','processing'))::integer`.as(
+        sql<number>`count(*)`.as("total"),
+        sql<number>`count(*) filter (where status in ('requested','processing'))`.as(
           "open",
         ),
-        sql<number>`coalesce(sum(amount) filter (where status in ('requested','processing')), 0)::float8`.as(
+        sql<number>`coalesce(sum(amount) filter (where status in ('requested','processing')), 0)`.as(
           "openTotal",
         ),
-        sql<number>`coalesce(sum(amount) filter (where status = 'paid'), 0)::float8`.as(
+        sql<number>`coalesce(sum(amount) filter (where status = 'paid'), 0)`.as(
           "paidTotal",
         ),
-        sql<number>`(select coalesce(sum(greatest(available_amount, 0)), 0)::float8 from creator_payout_balances)`.as(
+        sql<number>`(select coalesce(sum(max(available_amount, 0)), 0) from creator_payout_balances)`.as(
           "owed",
         ),
       ])

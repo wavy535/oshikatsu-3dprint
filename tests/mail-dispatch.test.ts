@@ -34,7 +34,7 @@ test("送信が成功してから配信済みにする", async () => {
     return { ok: true, provider: "mailpit" };
   });
   expect(await dispatchNotificationEmails()).toMatchObject({ sent: 1, notified: 1, failed: 0, errors: [] });
-  expect(update).toHaveBeenCalledWith(expect.stringContaining('"emailed_at" = $1'), expect.arrayContaining([["notification"]]));
+  expect(update).toHaveBeenCalledWith(expect.stringContaining('"emailed_at" = ?'), expect.arrayContaining(["notification"]));
 });
 test("送信失敗は配信済みにせず確保を解放する", async () => {
   vi.mocked(sendMail).mockResolvedValueOnce({ ok: false, provider: "mailpit", error: "unavailable" });

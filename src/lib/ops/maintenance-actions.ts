@@ -1,24 +1,25 @@
 "use server";
 
 import { requireAdmin } from "@/lib/auth/guards";
-import { serviceDatabase } from "@/lib/db/client";
+import { serviceDatabase, atomicBatch } from "@/lib/db/client";
 import { call } from "@/lib/db/functions";
-import { getPool } from "@/lib/db/pool";
 import { dispatchNotificationEmails } from "@/lib/mail/dispatch";
 import type { OpsActionState } from "./action-state";
 
 /** Learning deployments do maintenance only when an administrator requests it. */
 export async function runMaintenanceAction(): Promise<OpsActionState> {
-  await requireAdmin();
+  const { db: actorDb } = await requireAdmin();
   try {
     const db = serviceDatabase();
     const expired = await call(db, "expire_custom_quotes", {});
     if (expired.error) throw new Error(expired.error.message);
-    const purged = await call(db, "purge_old_notifications", {});
+    const purged = await call(actorDb, "purge_old_notifications", {});
     if (purged.error) throw new Error(purged.error.message);
-    await getPool("auth").query(
-      "delete from auth_sessions where expires_at < now(); delete from auth_verifications where expires_at < now(); delete from auth_rate_limits where last_request < extract(epoch from now() - interval '1 day') * 1000",
-    );
+    await atomicBatch(db, [
+      db.deleteFrom("auth_sessions").where("expires_at", "<", new Date().toISOString()),
+      db.deleteFrom("auth_verifications").where("expires_at", "<", new Date().toISOString()),
+      db.deleteFrom("auth_rate_limits").where("last_request", "<", Date.now() - 86_400_000),
+    ]);
     const delivery = await dispatchNotificationEmails();
     return {
       error: delivery.errors.length

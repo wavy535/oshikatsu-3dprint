@@ -1,6 +1,7 @@
 "use server";
 
 import { checkStoredFile } from "@/lib/files/storage";
+import { atomicBatch, assertQuery } from "@/lib/db/client";
 import { queryResult } from "@/lib/db/result";
 import { sql } from "kysely";
 import { revalidatePath } from "next/cache";
@@ -139,8 +140,15 @@ export async function finishPrintJobAction(
   const { db, user } = await requireAdmin();
 
   const { error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      const job = await tx
+    atomicBatch(db, [
+      assertQuery(
+        db
+          .selectFrom("print_jobs")
+          .select("id")
+          .where("id", "=", jobId)
+          .where("status", "in", ["printing", "reprinting"]),
+      ),
+      db
         .updateTable("print_jobs")
         .set({
           status: "printed",
@@ -148,24 +156,21 @@ export async function finishPrintJobAction(
           actual_print_hours: actualHours,
           failure_count: failureCount,
         })
-        .where("id", "=", jobId)
-        .where("status", "in", ["printing", "reprinting"])
-        .returning("id")
-        .executeTakeFirst();
-      if (!job) throw new Error("印刷中のジョブだけ完了にできます");
-      if (filamentId && actualGrams > 0) {
-        await tx
-          .insertInto("filament_ledger")
-          .values({
-            filament_id: filamentId,
-            delta_grams: -actualGrams,
-            reason: "print",
-            print_job_id: jobId,
-            actor_id: user.id,
-          })
-          .execute();
-      }
-    }),
+        .where("id", "=", jobId),
+      ...(filamentId && actualGrams > 0
+        ? [
+            db
+              .insertInto("filament_ledger")
+              .values({
+                filament_id: filamentId,
+                delta_grams: -actualGrams,
+                reason: "print",
+                print_job_id: jobId,
+                actor_id: user.id,
+              }),
+          ]
+        : []),
+    ]),
   );
   if (error)
     return { error: `印刷完了を保存できませんでした（${error.message}）` };
@@ -217,7 +222,8 @@ export async function submitQcAction(
     jobId: formData.get("jobId"),
     memo: String(formData.get("memo") ?? "") || undefined,
     reprintCause: (String(formData.get("reprintCause") ?? "") || undefined) as
-      ReprintCause | undefined,
+      | ReprintCause
+      | undefined,
   });
   if (!parsed.success) return { error: "入力内容を確認してください" };
   const { jobId, memo, reprintCause } = parsed.data;
@@ -254,18 +260,8 @@ export async function submitQcAction(
   }
 
   const { data: result, error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      // The lock also serializes the status changes made by the inspection trigger.
-      const current = await tx
-        .selectFrom("print_jobs")
-        .select("status")
-        .where("id", "=", jobId)
-        .forUpdate()
-        .executeTakeFirst();
-      if (!current || !["printed", "qc_failed"].includes(current.status)) {
-        throw new Error("印刷が終わったジョブだけ検品できます");
-      }
-      const definitions = await tx
+    (async () => {
+      const definitions = await db
         .selectFrom("qc_check_definitions")
         .select("code")
         .where("is_active", "=", true)
@@ -286,24 +282,43 @@ export async function submitQcAction(
         : "failed";
       if (result === "failed" && !reprintCause)
         throw new Error("NG があるときは再印刷の原因を選んでください");
-      const inspection = await tx
-        .insertInto("qc_inspections")
-        .values({
-          print_job_id: jobId,
-          inspector_id: user.id,
-          result,
-          memo: memo ?? null,
-          photo_paths: photoPaths,
-          reprint_cause: result === "failed" ? reprintCause! : null,
-        })
-        .returning("id")
-        .executeTakeFirstOrThrow();
-      await tx
-        .insertInto("qc_check_results")
-        .values(results.map((r) => ({ inspection_id: inspection.id, ...r })))
-        .execute();
+      const inspectionId = crypto.randomUUID();
+      await atomicBatch(db, [
+        assertQuery(
+          db
+            .selectFrom("print_jobs")
+            .select("id")
+            .where("id", "=", jobId)
+            .where("status", "in", ["printed", "qc_failed"]),
+        ),
+        {
+          sql: "INSERT INTO _assert(ok) SELECT (SELECT json_group_array(code) FROM (SELECT code FROM qc_check_definitions WHERE is_active ORDER BY code))=?",
+          parameters: [JSON.stringify(definitions.map((d) => d.code).sort())],
+        },
+        db
+          .insertInto("qc_inspections")
+          .values({
+            id: inspectionId,
+            print_job_id: jobId,
+            inspector_id: user.id,
+            result,
+            memo: memo ?? null,
+            photo_paths: photoPaths,
+            reprint_cause: result === "failed" ? reprintCause! : null,
+          }),
+        db
+          .insertInto("qc_check_results")
+          .values(
+            results.map((r) => ({
+              inspection_id: inspectionId,
+              code: r.code,
+              passed: r.passed,
+              note: r.note,
+            })),
+          ),
+      ]);
       return result;
-    }),
+    })(),
   );
   if (error)
     return { error: `検品結果を保存できませんでした（${error.message}）` };
@@ -354,8 +369,8 @@ export async function editActualsAction(
 
   const { db, user } = await requireAdmin();
   const { error } = await queryResult(
-    db.transaction().execute(async (tx) => {
-      const before = await tx
+    (async () => {
+      const before = await db
         .selectFrom("print_jobs")
         .select([
           "status",
@@ -364,7 +379,6 @@ export async function editActualsAction(
           "failure_count",
         ])
         .where("id", "=", v.jobId)
-        .forUpdate()
         .executeTakeFirst();
       if (
         !before ||
@@ -372,30 +386,38 @@ export async function editActualsAction(
       ) {
         throw new Error("実績を直せるのは印刷が終わったジョブだけです");
       }
-      await tx
-        .updateTable("print_jobs")
-        .set({
-          actual_filament_grams: v.actualGrams,
-          actual_print_hours: v.actualHours,
-          failure_count: v.failureCount,
-        })
-        .where("id", "=", v.jobId)
-        .execute();
       const note =
         `実績を修正（${v.reason}）: ` +
         `${before.actual_filament_grams ?? "—"}g→${v.actualGrams}g, ` +
         `${before.actual_print_hours ?? "—"}h→${v.actualHours}h, ` +
         `失敗 ${before.failure_count}→${v.failureCount}`;
-      await tx
-        .insertInto("print_job_events")
-        .values({
+      await atomicBatch(db, [
+        assertQuery(
+          db
+            .selectFrom("print_jobs")
+            .select("id")
+            .where("id", "=", v.jobId)
+            .where("status", "=", before.status)
+            .where("actual_filament_grams", "is", before.actual_filament_grams)
+            .where("actual_print_hours", "is", before.actual_print_hours)
+            .where("failure_count", "=", before.failure_count),
+        ),
+        db
+          .updateTable("print_jobs")
+          .set({
+            actual_filament_grams: v.actualGrams,
+            actual_print_hours: v.actualHours,
+            failure_count: v.failureCount,
+          })
+          .where("id", "=", v.jobId),
+        db.insertInto("print_job_events").values({
           print_job_id: v.jobId,
           status: before.status,
           actor_id: user.id,
           note,
-        })
-        .execute();
-    }),
+        }),
+      ]);
+    })(),
   );
   if (error) return { error: `実績を保存できませんでした（${error.message}）` };
   revalidateJob(v.jobId);

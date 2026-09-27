@@ -1,4 +1,4 @@
-import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/postgres";
+import { jsonObjectFrom, jsonArrayFrom } from "kysely/helpers/sqlite";
 import { queryResult, readPage } from "@/lib/db/result";
 import { sql } from "kysely";
 import "server-only";
@@ -32,7 +32,7 @@ export async function listPrintQueue(params: QueueSearchParams) {
     QUEUE_STATUS_FILTERS[0];
   if (filter.statuses.length > 0) {
     query = query.where(
-      sql<boolean>`${sql.ref("print_queue.status")} = any(${filter.statuses as unknown as PrintJobStatus[]})`,
+      "print_queue.status", "in", filter.statuses as unknown as PrintJobStatus[],
     );
   }
   if (params.material)
@@ -46,7 +46,7 @@ export async function listPrintQueue(params: QueueSearchParams) {
   if (params.q) {
     const like = `%${params.q}%`;
     query = query.where((eb) =>
-      eb.or([eb("job_no", "ilike", like), eb("work_title", "ilike", like)]),
+      eb.or([eb("job_no", "like", like), eb("work_title", "like", like)]),
     );
   }
 
@@ -70,25 +70,25 @@ export async function getQueueSummary() {
   return db
     .selectFrom("print_jobs")
     .select([
-      sql<number>`count(*) filter (where status = 'queued')::integer`.as(
+      sql<number>`count(*) filter (where status = 'queued')`.as(
         "queued",
       ),
-      sql<number>`count(*) filter (where status = 'queued' and due_at < now() + interval '24 hours')::integer`.as(
+      sql<number>`count(*) filter (where status = 'queued' and due_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','+24 hours'))`.as(
         "queuedDueSoon",
       ),
-      sql<number>`count(*) filter (where status in ('printing','reprinting'))::integer`.as(
+      sql<number>`count(*) filter (where status in ('printing','reprinting'))`.as(
         "printing",
       ),
-      sql<number>`coalesce(sum(est_print_hours) filter (where status in ('printing','reprinting')), 0)::float8`.as(
+      sql<number>`coalesce(sum(est_print_hours) filter (where status in ('printing','reprinting')), 0)`.as(
         "printingHours",
       ),
-      sql<number>`count(*) filter (where status = 'printed')::integer`.as(
+      sql<number>`count(*) filter (where status = 'printed')`.as(
         "waitingQc",
       ),
-      sql<number>`count(*) filter (where status = 'printed' and due_at < now() + interval '24 hours')::integer`.as(
+      sql<number>`count(*) filter (where status = 'printed' and due_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','+24 hours'))`.as(
         "waitingQcDueSoon",
       ),
-      sql<number>`count(*) filter (where status in ('queued','printing','reprinting') and due_at < now())::integer`.as(
+      sql<number>`count(*) filter (where status in ('queued','printing','reprinting') and due_at < strftime('%Y-%m-%dT%H:%M:%fZ','now'))`.as(
         "overdue",
       ),
     ])

@@ -1,7 +1,6 @@
 import { signedDownload } from "@/lib/files/storage";
-import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
+import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/sqlite";
 import { readPage, queryResult, countResult } from "@/lib/db/result";
-import { sql } from "kysely";
 import "server-only";
 
 import { requireCreator } from "@/lib/auth/guards";
@@ -219,7 +218,7 @@ export async function getMyRevision(id: string) {
             .selectFrom("print_jobs")
             .where("print_jobs.variant_id", "=", rev.variant_id)
             .where(
-              sql<boolean>`${sql.ref("print_jobs.status")} = any(${["queued", "printing", "printed", "qc_failed", "reprinting"]})`,
+              "print_jobs.status", "in", ["queued", "printing", "printed", "qc_failed", "reprinting"],
             )
             .select((eb) => eb.fn.countAll<number>().as("count"))
             .executeTakeFirstOrThrow(),
