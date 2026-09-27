@@ -10,7 +10,10 @@
   ],
   "main": "vinext/server/fetch-handler",
   "observability": { "enabled": true, "head_sampling_rate": 1 },
-  "placement": { "mode": "smart" },
+  // D1's primary is in SIN. Smart Placement had INSUFFICIENT_INVOCATIONS,
+  // leaving every database round trip to cross regions on low-traffic pages.
+  // This is a Cloudflare placement hint; it does not create/use AWS resources.
+  "placement": { "region": "aws:ap-southeast-1" },
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "oshinest-files" }],
   "d1_databases": [{
     "binding": "DATABASE",
