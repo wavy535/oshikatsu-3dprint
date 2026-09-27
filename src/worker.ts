@@ -77,6 +77,12 @@ export default {
     }
     if (!compressed) return new Response(html, { status: response.status, headers });
     headers.set("content-encoding", "br");
+    // The edge otherwise decodes this body and recompresses it as Zstandard,
+    // undoing the size benefit and adding another compression step.
+    const cacheControl = headers.get("cache-control");
+    if (!cacheControl?.split(",").some((directive) => directive.trim().toLowerCase() === "no-transform")) {
+      headers.set("cache-control", cacheControl ? `${cacheControl}, no-transform` : "no-transform");
+    }
     return new Response(compressed, { status: response.status, headers, encodeBody: "manual" });
   },
 } satisfies ExportedHandler<CloudflareEnv>;
