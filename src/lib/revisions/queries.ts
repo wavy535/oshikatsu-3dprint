@@ -1,4 +1,4 @@
-import { signedDownload } from "@/lib/files/s3";
+import { signedDownload } from "@/lib/files/storage";
 import { jsonArrayFrom, jsonObjectFrom } from "kysely/helpers/postgres";
 import { readPage, queryResult, countResult } from "@/lib/db/result";
 import { sql } from "kysely";

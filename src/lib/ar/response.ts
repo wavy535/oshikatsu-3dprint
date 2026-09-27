@@ -1,4 +1,4 @@
-import { storeArModel } from "@/lib/files/s3";
+import { storeArModel } from "@/lib/files/storage";
 import { encodeGlb } from "./glb.ts";
 import { encodeUsdz } from "./usdz.ts";
 import type { ArMesh } from "./mesh.ts";
@@ -17,7 +17,7 @@ const CONTENT_TYPES: Record<ModelFormat, string> = {
  */
 export async function modelResponse(meshes: ArMesh[], format: ModelFormat, cacheable: boolean, cachePath?: string) {
   const bytes = format === "usdz" ? encodeUsdz(meshes) : encodeGlb(meshes);
-  if (process.env.AR_MODEL_STORAGE === "s3") {
+  if (process.env.AR_MODEL_STORAGE === "r2") {
     const location = cachePath
       ? await storeArModel(bytes, format, CONTENT_TYPES[format], cachePath)
       : await storeArModel(bytes, format, CONTENT_TYPES[format]);

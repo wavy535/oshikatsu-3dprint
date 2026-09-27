@@ -6,7 +6,7 @@ import { isUnconvertibleModelError } from "@/lib/ar/work-model";
 
 /**
  * 開発用：手元のフォルダにある 3MF / STL / .blend を AR 用のモデルにして返す。本番では 404。
- * DB や S3 に登録していない実データを、実寸テストページの QR コードから iPhone で確かめるために使う。
+ * DB や R2 に登録していない実データを、実寸テストページの QR コードから iPhone で確かめるために使う。
  * .blend は ?exclude= のオブジェクトを外す。ファイルは置き換わるので、キャッシュさせない。
  */
 export async function GET(

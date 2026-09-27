@@ -1,4 +1,4 @@
-/** Stable app URL; the server signs the S3 object URL at request time. */
+/** Stable app URL; the server signs the R2 object URL at request time. */
 export function publicUrl(
   bucket: "work-images" | "avatars",
   path: string | null | undefined,

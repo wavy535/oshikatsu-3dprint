@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   description: "推し活のための、3Dプリント作品マーケット",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja" className="h-full antialiased">
       <body className="min-h-full flex flex-col">{children}</body>

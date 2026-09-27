@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/ar/queries", () => ({ getArWorkSource: vi.fn() }));
-vi.mock("@/lib/files/s3", () => ({ readModel: vi.fn(), storeArModel: vi.fn(), findArModel: vi.fn() }));
+vi.mock("@/lib/files/storage", () => ({ readModel: vi.fn(), storeArModel: vi.fn(), findArModel: vi.fn() }));
 vi.mock("@/lib/ar/local-models", () => ({ readLocalModel: vi.fn() }));
 import { GET as getCalibration } from "@/app/api/ar/calibration/[file]/route";
 import { GET as getLocalModel } from "@/app/api/ar/dev/local-models/[file]/route";
@@ -15,7 +15,7 @@ import { localModelPath } from "@/lib/ar/params";
 import { getArWorkSource } from "@/lib/ar/queries";
 import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
-import { readModel, storeArModel, findArModel } from "@/lib/files/s3";
+import { readModel, storeArModel, findArModel } from "@/lib/files/storage";
 import { buildTestBlend, cubeMesh } from "./helpers/blend-files";
 import { bambuStylePackage, basematerialsXml, modelXml, modelZip, tetrahedronMeshWith } from "./helpers/model-files";
 
@@ -254,7 +254,7 @@ test("the work route answers 422 when the stored model cannot be converted", asy
 
 
 test("deployed AR redirects generated models to S3 without a large Lambda response", async () => {
-  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  vi.stubEnv("AR_MODEL_STORAGE", "r2");
   vi.mocked(storeArModel).mockResolvedValue("https://storage.example/converted.usdz?signed=1");
   try {
     const response = await calibrationRequest("a4-plate.usdz");
@@ -267,7 +267,7 @@ test("deployed AR redirects generated models to S3 without a large Lambda respon
 
 
 test("cached work models skip reading and conversion, but still require publication", async () => {
-  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  vi.stubEnv("AR_MODEL_STORAGE", "r2");
   vi.mocked(getArWorkSource).mockResolvedValue(source);
   vi.mocked(findArModel).mockResolvedValue("https://storage.example/cached.glb");
   try {
@@ -284,7 +284,7 @@ test("cached work models skip reading and conversion, but still require publicat
 });
 
 test("a missing converted model is regenerated and keyed by source, scale, format and revision", async () => {
-  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  vi.stubEnv("AR_MODEL_STORAGE", "r2");
   vi.mocked(getArWorkSource).mockResolvedValue(source);
   vi.mocked(findArModel).mockResolvedValue(null);
   vi.mocked(readModel).mockResolvedValue(stl);
@@ -317,7 +317,7 @@ test("colored dedicated AR assets preserve materials when converted into the S3 
   )));
   vi.mocked(findArModel).mockResolvedValue(null);
   vi.mocked(storeArModel).mockResolvedValue("https://storage.example/colored.glb");
-  vi.stubEnv("AR_MODEL_STORAGE", "s3");
+  vi.stubEnv("AR_MODEL_STORAGE", "r2");
   try {
     const response = await getWork(workRequest(assetVersion(colored.storagePath), modelRevision()), context({ workId, file: `${variantId}.glb` }));
     expect(response.status).toBe(307);

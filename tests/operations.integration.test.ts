@@ -25,7 +25,7 @@ vi.mock("@/lib/auth/guards", () => ({
   requireCreator: vi.fn(),
   getOptionalUser: vi.fn(),
 }));
-vi.mock("@/lib/files/s3", () => ({
+vi.mock("@/lib/files/storage", () => ({
   readModel: vi.fn(),
   checkStoredFile: vi.fn(),
 }));
@@ -35,7 +35,7 @@ vi.mock("@/lib/db/client", async (importOriginal) => ({
 }));
 import { scopedPool, serviceDatabase } from "@/lib/db/client";
 import { requireAdmin, requireCreator, getOptionalUser } from "@/lib/auth/guards";
-import { readModel } from "@/lib/files/s3";
+import { readModel } from "@/lib/files/storage";
 import { advanceBatchAction, finishPrintJobAction, submitQcAction } from "@/lib/ops/printing-actions";
 import { saveWorkInfoAction } from "@/lib/works/step-actions";
 import { registerPrintAssetsAction } from "@/lib/works/asset-actions";

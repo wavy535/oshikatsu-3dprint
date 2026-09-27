@@ -1,26 +1,16 @@
 import { connectionOptions } from "../src/lib/db/connection.mjs";
-/** Create sample images in the local S3 emulator. No AWS resources are modified. */
+/** Create sample images in local Wrangler R2 only; no remote resources are modified. */
 import { deflateSync } from "node:zlib";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import pg from "pg";
-import {
-  S3Client,
-  CreateBucketCommand,
-  PutObjectCommand,
-} from "@aws-sdk/client-s3";
 import { requiredEnv } from "./env.mjs";
-const endpoint = requiredEnv("S3_ENDPOINT");
-if (endpoint !== "http://127.0.0.1:59000")
-  throw new Error("Storage fixtures require the local compose S3 endpoint");
-const s3 = new S3Client({
-  endpoint,
-  forcePathStyle: true,
-  region: requiredEnv("AWS_REGION"),
-  credentials: {
-    accessKeyId: requiredEnv("S3_ACCESS_KEY_ID"),
-    secretAccessKey: requiredEnv("S3_SECRET_ACCESS_KEY"),
-  },
-});
-const Bucket = requiredEnv("S3_BUCKET");
+const target = new URL(requiredEnv("MIGRATION_DATABASE_URL"));
+if (!["localhost", "127.0.0.1"].includes(target.hostname) || target.port !== "55432" || target.pathname !== "/oshinest")
+  throw new Error("Storage fixtures require the local compose database");
+const temp = mkdtempSync(join(tmpdir(), "oshinest-r2-seed-"));
 const db = new pg.Client(connectionOptions(requiredEnv("MIGRATION_DATABASE_URL")));
 // ───────── PNG を組み立てる ─────────
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
@@ -106,29 +96,17 @@ function placeholder(seed, variant) {
 
 await db.connect();
 try {
-  try {
-    await s3.send(new CreateBucketCommand({ Bucket }));
-  } catch (error) {
-    if (
-      !["BucketAlreadyOwnedByYou", "BucketAlreadyExists"].includes(error.name)
-    )
-      throw error;
-  }
-  // MinIO supplies CORS itself; AWS CORS is configured by the bucket owner.
   const { rows } = await db.query(
     "select work_id, storage_path, sort_order from work_images",
   );
-  for (const row of rows)
-    await s3.send(
-      new PutObjectCommand({
-        Bucket,
-        Key: `work-images/${row.storage_path}`,
-        Body: placeholder(row.work_id, row.sort_order ?? 0),
-        ContentType: "image/png",
-      }),
-    );
+  for (const row of rows) {
+    const file = join(temp, "image.png");
+    writeFileSync(file, placeholder(row.work_id, row.sort_order ?? 0));
+    execFileSync("node_modules/.bin/wrangler", ["r2", "object", "put", `oshinest-files/work-images/${row.storage_path}`,
+      "--file", file, "--content-type", "image/png", "--local", "--persist-to", ".wrangler/state"], { stdio: "pipe" });
+  }
   console.log(`Created ${rows.length} local sample images`);
 } finally {
   await db.end();
-  s3.destroy();
+  rmSync(temp, { recursive: true, force: true });
 }

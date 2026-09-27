@@ -1,20 +1,12 @@
 import "server-only";
 import { isIP } from "node:net";
 
-/** Lambda Web Adapter overwrites this context with the Function URL event.
- * Use its source IP for auth limits, ignoring caller-provided forwarding headers. */
+/** Cloudflare supplies the connecting IP. Never trust a caller's X-Forwarded-For. */
 export function authHeaders(incoming: Headers) {
   const headers = new Headers(incoming);
-  if (process.env.AWS_LAMBDA_FUNCTION_NAME) {
-    let ip = "127.0.0.1";
-    try {
-      const context = JSON.parse(headers.get("x-amzn-request-context") ?? "{}");
-      const source = context?.http?.sourceIp;
-      if (typeof source === "string" && isIP(source)) ip = source;
-    } catch {
-      // Missing or malformed context shares one limiter instead of trusting input.
-    }
-    headers.set("x-forwarded-for", ip);
+  if (process.env.APP_RUNTIME === "cloudflare") {
+    const source = headers.get("cf-connecting-ip") ?? "";
+    headers.set("x-forwarded-for", isIP(source) ? source : "127.0.0.1");
     return headers;
   }
   // Local Node / Next development server appends the directly connected client.

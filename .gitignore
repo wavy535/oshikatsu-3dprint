@@ -44,7 +44,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+**/.wrangler/
+.dev.vars*
+!.dev.vars.example
+/worker-configuration.d.ts
+/infra/cloudflare/geometry/worker-configuration.d.ts
 
 # supabase CLI の作業ファイル（ローカル鍵やブランチ状態が入る）
 supabase/.temp/
 supabase/.branches/
+/dist/
+.vinext/
+.wrangler/

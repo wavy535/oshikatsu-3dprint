@@ -1,13 +1,11 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { S3Client } from "@aws-sdk/client-s3";
+const { get } = vi.hoisted(() => ({ get: vi.fn() }));
+vi.mock("@/lib/platform", () => ({ platform: () => ({ FILES: { get } }) }));
 vi.mock("server-only", () => ({}));
-import { readModel } from "@/lib/files/s3";
+import { readModel } from "@/lib/files/storage";
 import { MODEL_LIMITS } from "@/lib/print/limits";
 
-beforeEach(() => {
-  vi.stubEnv("AWS_REGION", "us-east-1");
-  vi.stubEnv("S3_BUCKET", "local-fixture");
-});
+beforeEach(() => get.mockReset());
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllEnvs();
@@ -25,10 +23,7 @@ function response(chunks: number[], declaredSize: number, error = false) {
     },
     cancel,
   });
-  vi.spyOn(S3Client.prototype, "send").mockResolvedValue({
-    ContentLength: declaredSize,
-    Body: { transformToWebStream: () => stream },
-  } as never);
+  get.mockResolvedValue({ size: declaredSize, body: stream });
   return { cancel, stream };
 }
 

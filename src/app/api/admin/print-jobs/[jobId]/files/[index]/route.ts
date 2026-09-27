@@ -1,5 +1,5 @@
 import { getUserProfile } from "@/lib/auth/guards";
-import { signedDownload } from "@/lib/files/s3";
+import { signedDownload } from "@/lib/files/storage";
 import { printFilesFromSnapshot } from "@/lib/ops/print-files";
 import { idSchema } from "@/lib/validation";
 

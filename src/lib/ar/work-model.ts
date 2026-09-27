@@ -28,7 +28,7 @@ export function workModelExtension(fileName: string): WorkModelExtension | null 
   return WORK_MODEL_EXTENSIONS.find((candidate) => candidate === extension) ?? null;
 }
 
-// 3Dデータの中身が原因で変換できないもの。サーバーの障害（S3・DB）とは分けて扱う
+// 3Dデータの中身が原因で変換できないもの。サーバーの障害（R2・DB）とは分けて扱う
 const MODEL_ERRORS = [ArInputError, ModelLimitError, StlParseError, ThreeMfParseError, ZipError, BlendParseError];
 
 /** 3Dデータの中身が原因で変換できなかったときのエラーか */

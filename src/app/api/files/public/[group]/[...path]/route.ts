@@ -1,4 +1,4 @@
-import { signedDownload } from "@/lib/files/s3";
+import { signedDownload } from "@/lib/files/storage";
 
 export async function GET(
   _request: Request,

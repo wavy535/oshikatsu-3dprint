@@ -1,7 +1,7 @@
 import { jsonArrayFrom } from "kysely/helpers/postgres";
 import { combinedEstimates } from "./combined-estimates";
 import { MAX_PRINT_FILES, MAX_PRINT_UPLOAD_BYTES } from "./asset-limits";
-import { readModel } from "@/lib/files/s3";
+import { readModel } from "@/lib/files/storage";
 import { queryResult } from "@/lib/db/result";
 import "server-only";
 
@@ -19,7 +19,7 @@ import type {
 } from "@/types/db";
 
 // STEP1 のアップロード後に走る検証パイプライン。
-//   S3から 3D データを落とす → 解析する → 結果をDBに書く
+//   R2から 3D データを落とす → 解析する → 結果をDBに書く
 // までを1本にまとめている。再実行しても同じ結果になるよう、
 // 解析由来の行は毎回作り直し、クリエイターが手で決めた値（色の割り当て・
 // 価格・在庫・公開設定）は残す。

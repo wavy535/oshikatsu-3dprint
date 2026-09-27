@@ -48,7 +48,7 @@ try {
       }
     }
     // This is deliberately restricted to the checked-in local compose endpoint.
-    // AWS login/password provisioning is separate from schema migrations.
+    // Production login/password provisioning is separate from schema migrations.
     const target = new URL(requiredEnv("MIGRATION_DATABASE_URL"));
     if (
       ["127.0.0.1", "localhost"].includes(target.hostname) &&

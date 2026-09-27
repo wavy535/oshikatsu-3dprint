@@ -1,6 +1,6 @@
 "use server";
 
-import { checkStoredFile } from "@/lib/files/s3";
+import { checkStoredFile } from "@/lib/files/storage";
 import { queryResult } from "@/lib/db/result";
 import { sql } from "kysely";
 import { revalidatePath } from "next/cache";

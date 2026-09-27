@@ -9,6 +9,6 @@ export async function requestPhoneOrigin() {
   return phoneReachableOrigin({
     host: requestHeaders.get("host"),
     forwardedProto: requestHeaders.get("x-forwarded-proto"),
-    lanAddresses: lanIPv4Addresses(networkInterfaces()),
+    lanAddresses: process.env.APP_RUNTIME === "cloudflare" ? [] : lanIPv4Addresses(networkInterfaces()),
   });
 }

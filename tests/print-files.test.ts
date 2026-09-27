@@ -1,9 +1,9 @@
 import { beforeEach, expect, test, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/auth/guards", () => ({ getUserProfile: vi.fn() }));
-vi.mock("@/lib/files/s3", () => ({ signedDownload: vi.fn() }));
+vi.mock("@/lib/files/storage", () => ({ signedDownload: vi.fn() }));
 import { getUserProfile } from "@/lib/auth/guards";
-import { signedDownload } from "@/lib/files/s3";
+import { signedDownload } from "@/lib/files/storage";
 import { GET } from "@/app/api/admin/print-jobs/[jobId]/files/[index]/route";
 import { mockDatabase } from "./helpers/database";
 const jobId = "10000000-0000-4000-8000-000000000001";

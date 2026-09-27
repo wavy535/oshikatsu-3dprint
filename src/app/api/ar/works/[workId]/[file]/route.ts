@@ -5,7 +5,7 @@ import { modelResponse, modelRedirect } from "@/lib/ar/response";
 import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
 import { buildWorkMeshes, isUnconvertibleModelError, readModelObjects } from "@/lib/ar/work-model";
-import { readModel, findArModel } from "@/lib/files/s3";
+import { readModel, findArModel } from "@/lib/files/storage";
 import { AnalysisBudget } from "@/lib/print/limits";
 
 /**
@@ -34,7 +34,7 @@ export async function GET(
     "work-v1", source.storagePath, source.fileName, source.scaleRatio, revision, work.format,
   ])).digest("hex")}.${work.format}`;
   // Always check publication and asset version above, even on a cache hit.
-  if (process.env.AR_MODEL_STORAGE === "s3") {
+  if (process.env.AR_MODEL_STORAGE === "r2") {
     const location = await findArModel(cachePath);
     if (location) return modelRedirect(location, current);
   }
@@ -45,7 +45,7 @@ export async function GET(
     const { meshes } = buildWorkMeshes(objects, source.scaleRatio, budget);
     return modelResponse(meshes, work.format, current, cachePath);
   } catch (error) {
-    // 3Dデータの中身が原因のものは、サーバーの障害（S3・DB）と分けて 422 にする
+    // 3Dデータの中身が原因のものは、サーバーの障害（R2・DB）と分けて 422 にする
     if (isUnconvertibleModelError(error)) return new Response(null, { status: 422 });
     throw error;
   }

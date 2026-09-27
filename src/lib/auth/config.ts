@@ -155,7 +155,7 @@ function createAuth() {
   });
 }
 
-let instance: ReturnType<typeof createAuth> | undefined;
 export function getAuth() {
-  return (instance ??= createAuth());
+  // A Worker isolate serves many requests. Do not retain a request's pg sockets.
+  return createAuth();
 }

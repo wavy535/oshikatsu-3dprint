@@ -1,5 +1,5 @@
 import "server-only";
-import { Kysely, PostgresDialect, type PostgresPool, sql } from "kysely";
+import { Kysely, PostgresDialect, type PostgresPool, type PostgresCursor, type PostgresQueryResult, sql } from "kysely";
 import type { Pool } from "pg";
 import type { Database } from "@/types/database";
 import { getPool } from "./pool";
@@ -10,45 +10,62 @@ type Actor = {
   userId?: string;
 };
 
-/** Every reservation gets an immutable, server-verified actor. A connection is
- * never returned to the shared pool until its role and identity are cleared. */
+/** Hyperdrive pools at transaction boundaries. Identity must be transaction-local:
+ * never SET a role in an autocommit statement before the actual business query. */
 export function scopedPool(pool: Pool, actor: Actor): PostgresPool {
   return {
     options: pool.options,
     async connect() {
       const client = await pool.connect();
-      try {
-        await client.query(
-          "select set_config('role', $1, false), set_config('app.role', $1, false), set_config('app.user_id', $2, false)",
-          [actor.role, actor.userId ?? ""],
-        );
-      } catch (error) {
-        client.release(
-          error instanceof Error ? error : new Error("Database context failed"),
-        );
-        throw error;
+      let explicitTransaction = false;
+      let broken = false;
+      const identify = () => client.query(
+        "select set_config('role', $1, true), set_config('app.role', $1, true), set_config('app.user_id', $2, true)",
+        [actor.role, actor.userId ?? ""],
+      );
+      async function runQuery(text: string, parameters: readonly unknown[]) {
+          if (typeof text !== "string") throw new Error("Actor-scoped cursors are unsupported");
+          const command = text.trim().toLowerCase();
+          if (/^(begin|start transaction)\b/.test(command)) {
+            explicitTransaction = true;
+            const result = await client.query(text, [...parameters]);
+            await identify();
+            return result;
+          }
+          if (explicitTransaction) {
+            const result = await client.query(text, [...parameters]);
+            if (/^(commit|rollback)\s*;?$/.test(command)) explicitTransaction = false;
+            return result;
+          }
+          await client.query("begin");
+          try {
+            await identify();
+            const result = await client.query(text, [...parameters]);
+            await client.query("commit");
+            return result;
+          } catch (error) {
+            try { await client.query("rollback"); } catch { broken = true; }
+            throw error;
+          }
+      }
+      function query<R>(text: string, parameters: readonly unknown[]): Promise<PostgresQueryResult<R>>;
+      function query<R>(cursor: PostgresCursor<R>): PostgresCursor<R>;
+      function query<R>(input: string | PostgresCursor<R>, parameters: readonly unknown[] = []): Promise<PostgresQueryResult<R>> | PostgresCursor<R> {
+        if (typeof input !== "string") throw new Error("Actor-scoped cursors are unsupported");
+        return runQuery(input, parameters).then((result) => ({
+          rows: result.rows as R[], rowCount: result.rowCount ?? 0,
+          command: result.command as PostgresQueryResult<R>["command"],
+        }));
       }
       return {
-        query: client.query.bind(client),
+        query,
         release() {
-          if (pool.options.maxUses === 1) {
-            client.release(true);
-            return;
-          }
-          // Kysely's pool contract has a synchronous release. Reserve the raw
-          // client until cleanup finishes; destroy it if cleanup cannot succeed.
-          void client
-            .query("reset role; reset app.role; reset app.user_id")
-            .then(
-              () => client.release(),
-              (error: Error) => client.release(error),
-            );
+          // If a caller abandons a transaction, destroy the socket; never reuse it.
+          client.release(broken || explicitTransaction || pool.options.maxUses === 1);
         },
       };
     },
-    async end() {
-      /* The process owns the shared pool, not an individual actor. */
-    },
+    async end() { /* Owned by the local process or the current Worker request. */ },
   };
 }
 

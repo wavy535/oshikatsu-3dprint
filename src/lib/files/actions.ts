@@ -2,7 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { getOptionalUser, getUserProfile } from "@/lib/auth/guards";
-import { uploadPolicy } from "./s3";
+import { uploadPolicy } from "./storage";
 import { MODEL_LIMITS } from "@/lib/print/limits";
 
 const uploadSchema = z.object({
@@ -73,7 +73,7 @@ export async function prepareUpload(input: z.input<typeof uploadSchema>) {
     };
   } catch (error) {
     console.error(
-      "S3 upload preparation failed",
+      "R2 upload preparation failed",
       error instanceof Error ? error.message : "unknown error",
     );
     return { error: "アップロード先を準備できませんでした" };

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireOwnWork } from "./ownership";
 import type { StepActionState } from "./step-actions";
 import { idSchema } from "@/lib/validation";
-import { readModel } from "@/lib/files/s3";
+import { readModel } from "@/lib/files/storage";
 import { MODEL_LIMITS, AnalysisBudget } from "@/lib/print/limits";
 import { buildWorkMeshes, readModelObjects, workModelExtension } from "@/lib/ar/work-model";
 

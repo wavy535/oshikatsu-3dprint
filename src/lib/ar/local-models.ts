@@ -5,7 +5,7 @@ import { AR_DEV_PAGE } from "./config.ts";
 import { localModelVersion, sortLocalNames } from "./dev.ts";
 import { workModelExtension } from "./work-model.ts";
 
-// 開発用の実寸テストで、手元のフォルダに置いた 3MF / STL / .blend を読む（DB・S3 は使わない）
+// 開発用の実寸テストで、手元のフォルダに置いた 3MF / STL / .blend を読む（DB・R2 は使わない）
 
 // フォルダ名とファイル名の区切り。一覧の名前（"roomfile/room.3mf"）と URL の name に使う
 const FOLDER_SEPARATOR = "/";

@@ -17,13 +17,10 @@ export async function uploadFile(
   });
   if (!("path" in policy))
     throw new Error(policy.error ?? "アップロードを開始できませんでした");
-  const body = new FormData();
-  for (const [key, value] of Object.entries(policy.fields))
-    body.set(key, value);
-  body.set("file", file);
   const response = await fetch(policy.url, {
-    method: "POST",
-    body,
+    method: policy.method,
+    headers: policy.headers,
+    body: file,
     signal: AbortSignal.timeout(120_000),
   });
   if (!response.ok) throw new Error("ファイルの送信に失敗しました");
