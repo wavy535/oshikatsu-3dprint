@@ -3,10 +3,12 @@
 - 最新の合意は **Cloudflare完結、既存データ移行なし、メール未確認の一般会員登録を許可、クリエイター申請停止**。以前のNeon・Resend・Twilioの準備は不要。
 - Workers / D1 / 非公開R2 / 非公開Containers。AI生成は設計まで、実決済・送金なし。
 - D1の移植と検証は [移行記録](docs/d1-migration.md)、配備状況と操作は [Cloudflare配備手順](infra/cloudflare/README.md) を正本とする。
-- 対象アカウントは `yumaboda.official@gmail.com` / `1c93af48e1a5c2e163edc9030cff4647`。R2とGeometryは配備済み。WebとD1は追加OAuth権限の認証待ち。
+- 対象アカウントは `yumaboda.official@gmail.com` / `1c93af48e1a5c2e163edc9030cff4647`。Web・D1・R2・Geometryすべて配備済み。公開URLは https://oshinest.yumaboda-official.workers.dev 。Webバージョン `a62adbe1-adce-4211-953a-122ba1791097`。AUTH_SECRET登録済み。認証のやり直しやDB再作成は不要。
 - DBの更新は `atomicBatch`。対話的なtransaction・FOR UPDATEを使わない。読み取り可視性と書込みトリガーを維持し、任意SQLをブラウザへ公開しない。
 - 通常開発はローカルD1。PostgreSQLは固定した旧実装との比較用のみ。既存のPostgreSQL/S3ボリューム、stash、`refactoring` ブランチは保持する。
 - 型・lint・Vitest 258件・互換性15項目・ビルド・dry run、本番ビルドでブラウザ11件が成功。隔離ゲスト2件は今回対象外。依存監査0件。
+- リモートD1は全8マイグレーション適用済み。CASE/ENDのSQL分割対策を追加し、D1関連43件と新規2件、型・lintを再確認。公開先で登録・再ログイン・申請停止など実ブラウザ9項目とHTTPのアクセス制限を確認し、確認用会員は削除済み。
+- GitHubの既定ブランチは `main` ではなく `master`。`origin/master` の最新 `85f3dea` から論理単位でコミット済み。今回の変更はローカルコミットとCloudflare実配備までで、GitHubへのpushはしていない。
 - 以下は移行前の履歴。構成・公開条件・検証結果は上記の最新資料を優先する。
 
 # 2026-09-27: Cloudflare向け構成への変更
@@ -17,7 +19,7 @@
 - `npm run dev:geometry`と`npm run dev`を別プロセスで起動。DBは既存のDocker Compose。
 - [構成選定・AI制作の設計](docs/product-architecture.md)、[配備手順](infra/cloudflare/README.md)を現在の正本とする。
 - AI生成は設計まで。コードは論理単位でコミット済み。Web WorkerとDBは未配備。既存データ移行・AWS停止は実施しない。
-- 追加依頼の配備先は`yumaboda.official@gmail.com`（`1c93af48e1a5c2e163edc9030cff4647`）。通常会員向けの新環境・既存データ移行なし。非公開R2 `oshinest-files`とARキャッシュの7日ライフサイクルを作成済み。Cloudflare追加認証は完了し、非公開のGeometry Worker・Containerを配備済み。実際のCloudflare Containerへの一致テスト5件が成功。Neon認証は期限切れ、Resend/Twilio設定は未提供。[配備の進捗](infra/cloudflare/README.md#今回の配備先と進捗2026-09-27)を参照。
+- 追加依頼の配備先は`yumaboda.official@gmail.com`（`1c93af48e1a5c2e163edc9030cff4647`）。通常会員向けの新環境・既存データ移行なし。非公開R2 `oshinest-files`とARキャッシュの7日ライフサイクルを作成済み。Cloudflare追加認証は完了し、非公開のGeometry Worker・Containerを配備済み。実際のCloudflare Containerへの一致テスト5件が成功。Neon認証は期限切れ、Resend/Twilio設定は未提供。[配備の進捗](infra/cloudflare/README.md#今回の配備先と進捗2026-09-28)を参照。
 - 型・lint・250件のVitest・117件のSQL・本番ビルドでの10件のブラウザ試験・Wrangler dry runを確認。[検証範囲](infra/cloudflare/README.md#検証範囲)を参照。
 - このWSLではContainersのネイティブなローカル起動が停止するため、手順書のDocker代替経路を使用。`/dev/ar`のホストフォルダ読み取りもWorkersでは利用できず、CLI解析またはARファイル投稿で確認する。
 - GitHub同期前のREADME変更は既存のstash、未pushコミットは`refactoring`に残す。この変更では適用しない。

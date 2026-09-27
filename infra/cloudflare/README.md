@@ -1,12 +1,13 @@
 # Cloudflareへの配備
 
-## 今回の配備先と進捗（2026-09-27）
+## 今回の配備先と進捗（2026-09-28）
 
-2026-09-28更新。対象は `yumaboda.official@gmail.com` のアカウント `1c93af48e1a5c2e163edc9030cff4647`。通常会員向けの新環境を作り、既存データは移行しない。公開予定URLは `https://oshinest.yumaboda-official.workers.dev`。
+2026-09-28更新。対象は `yumaboda.official@gmail.com` のアカウント `1c93af48e1a5c2e163edc9030cff4647`。通常会員向けの新環境を作り、既存データは移行しない。公開URLは https://oshinest.yumaboda-official.workers.dev 。
 
 - 非公開R2 `oshinest-files` を作成済み。`ar-cache/` は7日で削除する。
 - 非公開Geometry Worker・Containersは配備済み。バージョン `23555a3f-7f25-4669-be8c-bc013477c4af`、application ID `a03c3435-2afe-4a00-b33f-9431f949aa28`。
-- D1とWeb Workerは未配備。D1作成権限を追加するOAuth認証が必要。期限切れのデバイスコードは再利用しない。
+- D1 `oshinest`（`f0c7b9d1-1af4-4553-a2ef-bb42e65036ca`）をAPACに作成済み。`0001`〜`0008`を適用し、外部キーの整合性と会員・作品・注文が空の状態を確認した。
+- Web Worker `oshinest` を配備済み。バージョン `a62adbe1-adce-4211-953a-122ba1791097`、deployment `9f3884e0-252a-496b-b831-fb58185403db`、100%配信。`AUTH_SECRET` はコードと同時にsecretとして登録し、一時ファイルは削除済み。
 - PostgreSQL・Hyperdrive・Neonの新規作成は行わない。AWSの停止・削除も行わない。
 
 公開条件は **メール未確認でも一般会員登録を許可し、クリエイター申請は停止する**。`email_verified` を偽装しない。メール・SMSを送らず、メールによるパスワード再設定も提供しない。実決済・送金は未実装。初期DBに開発用会員・作品・管理者を投入しない。
@@ -39,6 +40,8 @@ npm run dev
 Viteは `dist/server/.dev.vars` にローカルsecretをコピーする。`dist` 全体を共有・公開しない。配備はWranglerから行い、公開assetsは `dist/client` だけにする。
 
 ## D1を用意する
+
+今回のDBは作成済み。以下は別環境を新設する場合の手順であり、同じDBを再作成しない。
 
 ```bash
 npx wrangler login --device --browser=false --scopes user:read account:read workers:write workers_scripts:write workers_tail:read d1:write containers:write cloudchamber:write artifacts:write
@@ -85,7 +88,7 @@ npx wrangler deploy --config dist/server/wrangler.json --dry-run
 npm run deploy
 ```
 
-`deploy` は仮のD1 IDとSITE_URL、および今回と異なる公開条件を拒否する。secretの存在やリモートDBの初期化までは保証しない。配備後に公開ページ、一般会員登録・セッション維持、申請停止、privateファイル拒否を確認する。公開URLは検証後に報告する。
+`deploy` は仮のD1 IDとSITE_URL、および今回と異なる公開条件を拒否する。secretの存在やリモートDBの初期化までは保証しない。配備後に公開ページ、一般会員登録・セッション維持、申請停止、privateファイル拒否を確認する。初回配備はWranglerの `--secrets-file` でコードとsecretを同時に登録できる。ファイルは0600の一時ファイルとし、成功・失敗にかかわらず削除する。
 
 ## 検証範囲
 
@@ -100,7 +103,9 @@ npm run check:compat
 
 D1のマイグレーション・認証情報分離・rollbackは実際のworkerdでも実行する。ブラウザは登録、注文、非公開データの拒否、複数STL/3MF投稿、GLB/USDZ変換、R2保存、スマホ幅での操作を確認する。隔離ゲスト環境の2件は今回対象外。
 
-2026-09-28時点で型・lint・Vitest 258件・互換性15項目・ビルド・Wrangler dry runが成功。本番ビルドのローカルブラウザ試験11件が成功し、隔離ゲスト用2件は対象外。npm監査は0件。Web WorkerとD1の実配備成功を意味しない。公開先の確認結果は配備時に追記する。
+2026-09-28時点で型・lint・Vitest 258件・互換性15項目・ビルド・Wrangler dry runが成功。本番ビルドのローカルブラウザ試験11件が成功し、隔離ゲスト用2件は対象外。npm監査は0件。リモートD1への適用時にCASE式とトリガーのENDを誤認する分割エラーが発生したため、生成時にCASE式を括弧で囲む修正を追加した。D1関連43件を再実行し、新規のSQL互換性テスト2件、型・lintも成功。
+
+公開先ではhealth・トップ・登録画面が200、未ログインの会員/制作/管理画面がログインへ誘導され、privateファイルは404、不正な転送トークンは403となることを確認した。実ブラウザでは、一般会員登録、未確認フラグ維持、再読込後のセッション、申請停止、制作/管理の拒否、メール/SMS/パスワード再設定/匿名登録の停止、320px幅、パスワード再ログイン、実行時例外なしの9項目が成功。最初の試験では検索・ログアウト用フォームまで申請フォームとして数えたため検証側の条件を修正し、全項目を再実行した。2回分の確認用会員はそれぞれ完全一致のメールアドレスで削除し、リクエスト権限をguestへ戻した。R2の公開URL無効も再確認済み。
 
 実機ARの寸法誤差、80MiB最大入力時のメモリ、負荷・料金の測定は未実施。肉厚等の検査は近似であり、造形成功を保証しない。`/dev/ar` のホストフォルダ読み取りはWorkersでは利用できず、CLI解析または作品のARファイル投稿を使う。
 

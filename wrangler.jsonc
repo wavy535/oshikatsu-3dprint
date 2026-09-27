@@ -15,7 +15,7 @@
   "d1_databases": [{
     "binding": "DATABASE",
     "database_name": "oshinest",
-    "database_id": "00000000-0000-0000-0000-000000000000",
+    "database_id": "f0c7b9d1-1af4-4553-a2ef-bb42e65036ca",
     "migrations_dir": "db/d1"
   }],
   "services": [{ "binding": "GEOMETRY", "service": "oshinest-geometry" }],
