@@ -15,7 +15,7 @@ AI編集機能の追加設計と構成選定は[制作基盤の設計](../../doc
 - Resendの送信元・APIキー、Twilioの接続情報は未設定。通常会員向けの公開前に設定する。
 - アカウントと公開予定URLを設定した状態でビルドとWrangler dry runは成功。実配備の完了を意味しない。
 
-Geometry Workerの配備バージョンは`1a890663-8e9c-4a0e-891f-46b0e11fa48b`、Container application IDは`a03c3435-2afe-4a00-b33f-9431f949aa28`。配備イメージのdigestは`sha256:c484ce9fcd951726c76357412da36b2e620882a9e9c379d7aa66fe626d8a7d85`。最大2インスタンス、4GiB、非公開ネットワークで配備した。
+Geometry Workerの配備バージョンは`23555a3f-7f25-4669-be8c-bc013477c4af`、Container application IDは`a03c3435-2afe-4a00-b33f-9431f949aa28`。配備イメージのdigestは`sha256:bb7a388aefa51f6a33351cfcefe59a0452b97697e6b9c4404c1e69de92121f64`。最大2インスタンス、4GiB、非公開ネットワークで配備した。
 
 初回のイメージ送信は接続リセットで失敗した。転送がWranglerの通常の一時認証期限（15分）を超えていたため、公式の`containers registries credentials`で60分の一時認証を発行し、同じイメージを再送して成功した。再送用の認証情報は専用の一時ディレクトリだけで使用し、送信後に削除した。再配備時はリモートの同じイメージが再利用され、転送は不要だった。
 
@@ -161,6 +161,8 @@ npm run deploy
 250件のVitestとブラウザ試験では、Geometryに前述のWSL向けDocker経路を使用。本番相当ビルドで、投稿・公開・GLB/USDZ変換・R2キャッシュ・デモ注文・スマートフォン幅の操作を確認した。未設定のHyperdrive IDを配備前チェックが拒否することも確認した。
 
 その後、Geometryのみ実配備し、ローカルWranglerのservice bindingに`remote: true`を指定して検証した。確認用Workerはlocalhostだけで起動し、Cloudflareへ公開していない。最初の検証リクエストは起動待ちを含み約18秒、解析の初回応答は約5.1秒でローカルテストの5秒上限を超えた。起動後に以下を実行し、5件すべて成功した。これは小さなfixtureでの結果であり、負荷試験や応答時間の保証ではない。
+
+停止確認では、NodeをPID 1で動かす初配備のイメージがSIGTERMで終了せず、ローカルDockerでも強制終了（exit 137）になることを再現した。SIGTERM/SIGINTを処理してHTTP serverを閉じるよう修正し、通常停止はexit 0、処理途中でSIGTERMを送ってもリクエストはHTTP 200で完了してからexit 0になることを確認した。修正版を再配備し、2台ともContainer version 2へのrollout完了後に一致テスト5件が再度成功。確認用Workerの停止後、2台とも`inactive`になることをAPIで確認した。
 
 ```bash
 # localhost:8790で、配備済みoshinest-geometryへのremote service bindingを起動した状態
