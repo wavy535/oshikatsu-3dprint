@@ -8,7 +8,7 @@
   "compatibility_flags": [
     "nodejs_compat"
   ],
-  "main": "vinext/server/fetch-handler",
+  "main": "src/worker.ts",
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   // D1's primary is in SIN. Smart Placement had INSUFFICIENT_INVOCATIONS,
   // leaving every database round trip to cross regions on low-traffic pages.

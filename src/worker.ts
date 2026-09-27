@@ -1,0 +1,53 @@
+import handler from "vinext/server/fetch-handler";
+import { createProcessor, type CompactPlan } from "beasties/runtime";
+import { readBoundedHtml } from "./lib/render/bounded-html";
+export * from "vinext/server/fetch-handler";
+
+declare global {
+  var __OSHINEST_CSS_PLANS__: CompactPlan[] | undefined;
+}
+
+// Only immutable build data and a selector evaluator are shared. No request,
+// HTML, identity or document-shape cache survives between invocations.
+let processor: ReturnType<typeof createProcessor> | undefined;
+
+export default {
+  async fetch(request, env, ctx) {
+    const response = await handler.fetch(request, env, ctx);
+    if (
+      request.method !== "GET" || response.status !== 200 || !response.body ||
+      !response.headers.get("content-type")?.startsWith("text/html") ||
+      !globalThis.__OSHINEST_CSS_PLANS__
+    ) return response;
+
+    const body = await readBoundedHtml(response.body, 256 * 1024);
+    if ("stream" in body) return new Response(body.stream, response);
+    if (!body.html.includes("data-vinext-inline-css")) return new Response(body.html, response);
+
+    let css: string;
+    try {
+      processor ??= createProcessor(globalThis.__OSHINEST_CSS_PLANS__, { cache: false });
+      css = processor.extract(body.html).css;
+    } catch {
+      // Optimizing styles must never turn a successful page into an error.
+      console.warn("Critical CSS extraction failed; serving complete styles");
+      return new Response(body.html, response);
+    }
+    if (!css) return new Response(body.html, response);
+    const headers = new Headers(response.headers);
+    headers.delete("content-length");
+    headers.delete("etag");
+    // The initial DOM gets all matching rules, not a viewport approximation.
+    // Keep the normal RSC stylesheet loader for new components and later routes.
+    // This subset must not claim to replace the complete stylesheet in React.
+    return new HTMLRewriter().on("head > style[data-vinext-inline-css]", {
+      element(element) {
+        element.removeAttribute("data-vinext-inline-css");
+        element.removeAttribute("data-href");
+        element.removeAttribute("data-precedence");
+        element.setAttribute("data-oshinest-critical", "");
+        element.setInnerContent(css.replace(/<\/style/gi, "<\\/style"), { html: true });
+      },
+    }).transform(new Response(body.html, { status: response.status, headers }));
+  },
+} satisfies ExportedHandler<CloudflareEnv>;
