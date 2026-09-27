@@ -1,16 +1,15 @@
 import "server-only";
-import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 
 export type Mail = { to: string; subject: string; text: string; html?: string };
-export type MailProvider = "ses" | "mailpit" | "none";
+export type MailProvider = "resend" | "mailpit" | "none";
 export type SendResult =
   | { ok: true; provider: Exclude<MailProvider, "none"> }
   | { ok: false; provider: MailProvider; error: string };
 
-/** 配信先は明示する。未設定のAWS環境で外部送信やローカルへの接続を始めない。 */
+/** 配信先は明示する。未設定の環境で外部送信やローカルへの接続を始めない。 */
 export function mailProvider(): MailProvider {
   const provider = process.env.MAIL_PROVIDER;
-  return provider === "ses" || provider === "mailpit" ? provider : "none";
+  return provider === "resend" || provider === "mailpit" ? provider : "none";
 }
 
 export async function sendMail(mail: Mail): Promise<SendResult> {
@@ -20,40 +19,18 @@ export async function sendMail(mail: Mail): Promise<SendResult> {
     return { ok: false, provider, error: "MAIL_PROVIDER is not configured" };
 
   try {
-    if (provider === "ses") {
-      const region = process.env.AWS_REGION?.trim();
-      if (!region || !from)
-        return {
-          ok: false,
-          provider,
-          error: "AWS_REGION and MAIL_FROM are required for SES",
-        };
-      // 認証はLambdaの実行ロールなど、SDKの標準認証経路を使う。
-      // 応答喪失時の自動再送を避け、再試行は通知の配信処理へ戻す。
-      const ses = new SESv2Client({ region, maxAttempts: 1 });
-      try {
-        await ses.send(
-          new SendEmailCommand({
-            FromEmailAddress: from,
-            Destination: { ToAddresses: [mail.to] },
-            Content: {
-              Simple: {
-                Subject: { Data: mail.subject, Charset: "UTF-8" },
-                Body: {
-                  Text: { Data: mail.text, Charset: "UTF-8" },
-                  ...(mail.html
-                    ? { Html: { Data: mail.html, Charset: "UTF-8" } }
-                    : {}),
-                },
-              },
-            },
-          }),
-          { abortSignal: AbortSignal.timeout(5_000) },
-        );
-      } finally {
-        ses.destroy();
-      }
-      return { ok: true, provider };
+    if (provider === "resend") {
+      const token = process.env.RESEND_API_KEY?.trim();
+      if (!token || !from)
+        return { ok: false, provider, error: "RESEND_API_KEY and MAIL_FROM are required" };
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ from, to: [mail.to], subject: mail.subject, text: mail.text, ...(mail.html ? { html: mail.html } : {}) }),
+        signal: AbortSignal.timeout(5_000),
+      });
+      await response.body?.cancel();
+      return response.ok ? { ok: true, provider } : { ok: false, provider, error: `Resend returned ${response.status}` };
     }
 
     const url = process.env.MAILPIT_URL?.trim();

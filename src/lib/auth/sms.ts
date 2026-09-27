@@ -1,5 +1,4 @@
 import "server-only";
-import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
 import { sendMail } from "@/lib/mail/send";
 
 export async function sendPhoneOtp(phone: string, code: string) {
@@ -16,27 +15,19 @@ export async function sendPhoneOtp(phone: string, code: string) {
     if (!result.ok) throw new Error("開発用SMSを保存できませんでした");
     return;
   }
-  if (process.env.SMS_PROVIDER !== "sns" || !process.env.AWS_REGION)
-    throw new Error("SMS_PROVIDER and AWS_REGION are required for SMS");
-  const client = new SNSClient({
-    region: process.env.AWS_REGION,
-    maxAttempts: 1,
+  const account = process.env.TWILIO_ACCOUNT_SID?.trim();
+  const key = process.env.TWILIO_API_KEY_SID?.trim();
+  const secret = process.env.TWILIO_API_KEY_SECRET?.trim();
+  const service = process.env.TWILIO_MESSAGING_SERVICE_SID?.trim();
+  if (process.env.SMS_PROVIDER !== "twilio" || !account || !key || !secret || !service)
+    throw new Error("Twilio SMS credentials and messaging service are required");
+  if (!/^AC[0-9a-f]{32}$/i.test(account)) throw new Error("Invalid Twilio account SID");
+  const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${account}/Messages.json`, {
+    method: "POST",
+    headers: { Authorization: `Basic ${btoa(`${key}:${secret}`)}`, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ To: phone, MessagingServiceSid: service, Body: `OshiNest 確認コード: ${code}（10分間有効）` }),
+    signal: AbortSignal.timeout(5_000),
   });
-  try {
-    await client.send(
-      new PublishCommand({
-        PhoneNumber: phone,
-        Message: `OshiNest 確認コード: ${code}（10分間有効）`,
-        MessageAttributes: {
-          "AWS.SNS.SMS.SMSType": {
-            DataType: "String",
-            StringValue: "Transactional",
-          },
-        },
-      }),
-      { abortSignal: AbortSignal.timeout(5_000) },
-    );
-  } finally {
-    client.destroy();
-  }
+  await response.body?.cancel();
+  if (!response.ok) throw new Error(`SMS delivery failed (${response.status})`);
 }

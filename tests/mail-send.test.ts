@@ -1,49 +1,37 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-const { send, destroy } = vi.hoisted(() => ({ send: vi.fn(), destroy: vi.fn() }));
 vi.mock("server-only", () => ({}));
-vi.mock("@aws-sdk/client-sesv2", () => ({
-  SESv2Client: class { send = send; destroy = destroy; },
-  SendEmailCommand: class { constructor(public input: unknown) {} },
-}));
 import { mailProvider, sendMail } from "@/lib/mail/send";
 const mail = { to: "buyer@example.invalid", subject: "発送のお知らせ", text: "発送しました", html: "<p>発送しました</p>" };
+const fetchMock = vi.fn();
 beforeEach(() => {
-  vi.stubEnv("MAIL_PROVIDER", "ses");
-  vi.stubEnv("AWS_REGION", "ap-northeast-1");
+  vi.stubEnv("MAIL_PROVIDER", "resend"); vi.stubEnv("RESEND_API_KEY", "test-token");
   vi.stubEnv("MAIL_FROM", "OshiNest <sender@example.invalid>");
-  send.mockResolvedValue({ MessageId: "test" });
+  vi.stubGlobal("fetch", fetchMock);
+  fetchMock.mockResolvedValue(new Response("{}"));
 });
 afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 test("未設定なら外部送信しない", async () => {
-  vi.stubEnv("MAIL_PROVIDER", "");
-  expect(mailProvider()).toBe("none");
+  vi.stubEnv("MAIL_PROVIDER", ""); expect(mailProvider()).toBe("none");
+  expect((await sendMail(mail)).ok).toBe(false); expect(fetchMock).not.toHaveBeenCalled();
+});
+test("Resendの鍵と差出人が必要", async () => {
+  vi.stubEnv("RESEND_API_KEY", "");
+  expect((await sendMail(mail)).ok).toBe(false); expect(fetchMock).not.toHaveBeenCalled();
+});
+test("Resendへ本文を送る", async () => {
+  expect(await sendMail(mail)).toEqual({ ok: true, provider: "resend" });
+  expect(fetchMock.mock.calls[0][0]).toBe("https://api.resend.com/emails");
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ to: [mail.to], text: mail.text, html: mail.html });
+});
+test("配信拒否や通信障害を成功と扱わず自動再送しない", async () => {
+  fetchMock.mockResolvedValueOnce(new Response("rejected", { status: 429 }));
+  expect(await sendMail(mail)).toMatchObject({ ok: false, provider: "resend" });
+  expect(fetchMock).toHaveBeenCalledTimes(1);
+  fetchMock.mockRejectedValueOnce(new Error("timeout"));
   expect((await sendMail(mail)).ok).toBe(false);
-  expect(send).not.toHaveBeenCalled();
-});
-test("SESのリージョンと差出人が必要", async () => {
-  vi.stubEnv("AWS_REGION", "");
-  expect((await sendMail(mail)).ok).toBe(false);
-  expect(send).not.toHaveBeenCalled();
-});
-test("SESへUTF-8の本文を送り、成功後は接続を閉じる", async () => {
-  expect(await sendMail(mail)).toEqual({ ok: true, provider: "ses" });
-  expect(send.mock.calls[0][0].input).toMatchObject({
-    FromEmailAddress: "OshiNest <sender@example.invalid>", Destination: { ToAddresses: [mail.to] },
-    Content: { Simple: { Subject: { Data: mail.subject, Charset: "UTF-8" }, Body: { Text: { Data: mail.text }, Html: { Data: mail.html } } } },
-  });
-  expect(destroy).toHaveBeenCalledOnce();
-});
-test("SES拒否を成功として扱わず、失敗時も接続を閉じる", async () => {
-  send.mockRejectedValueOnce(new Error("MessageRejected"));
-  expect(await sendMail(mail)).toEqual({ ok: false, provider: "ses", error: "MessageRejected" });
-  expect(destroy).toHaveBeenCalledOnce();
 });
 test("ローカル配信は指定したMailpitだけに送る", async () => {
-  vi.stubEnv("MAIL_PROVIDER", "mailpit");
-  vi.stubEnv("MAILPIT_URL", "http://127.0.0.1:54424/");
-  const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubEnv("MAIL_PROVIDER", "mailpit"); vi.stubEnv("MAILPIT_URL", "http://127.0.0.1:58025/");
   expect(await sendMail(mail)).toEqual({ ok: true, provider: "mailpit" });
-  expect(fetchMock.mock.calls[0][0]).toBe("http://127.0.0.1:54424/api/v1/send");
-  expect(send).not.toHaveBeenCalled();
+  expect(fetchMock.mock.calls[0][0]).toBe("http://127.0.0.1:58025/api/v1/send");
 });
