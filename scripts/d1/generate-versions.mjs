@@ -1,5 +1,5 @@
 import catalog from "../../db/oracle/postgres.json" with { type: "json" };
-import { writeFile } from "node:fs/promises";
+import { writeD1Migration as writeFile } from "./remote-sql.mjs";
 const statements = [
   "-- Monotonic versions detect edits while geometry analysis runs outside D1.",
   "ALTER TABLE works ADD COLUMN edit_version INTEGER NOT NULL DEFAULT 0;",

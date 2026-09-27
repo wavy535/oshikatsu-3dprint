@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { writeD1Migration as writeFile } from "./remote-sql.mjs";
 import { now } from "./generate-schema.mjs";
 const user = "(SELECT user_id FROM _request_context WHERE id=1)";
 const service = "(SELECT role FROM _request_context WHERE id=1)='app_service'";

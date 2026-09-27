@@ -1,7 +1,7 @@
 // Compile the pinned, trusted policy catalog to SQLite views and write guards.
 // Request identity is installed/cleared inside the SAME atomic D1 batch as queries.
 import catalog from "../../db/oracle/postgres.json" with { type: "json" };
-import { writeFile } from "node:fs/promises";
+import { writeD1Migration as writeFile } from "./remote-sql.mjs";
 import { expression } from "./generate-schema.mjs";
 
 const tables = [

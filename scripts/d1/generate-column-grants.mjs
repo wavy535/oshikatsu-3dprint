@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { writeD1Migration as writeFile } from "./remote-sql.mjs";
 import catalog from "../../db/oracle/postgres.json" with { type: "json" };
 const grants = catalog.columnPrivileges;
 if (

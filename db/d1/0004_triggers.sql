@@ -16,12 +16,12 @@ UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER guard_profile_role BEFORE UPDATE OF role ON profiles BEGIN
-SELECT CASE WHEN NEW.role IS NOT OLD.role AND NOT ((SELECT role FROM _request_context WHERE id=1)='app_service' OR (SELECT internal_depth FROM _request_context WHERE id=1)>0 OR EXISTS(SELECT 1 FROM profiles WHERE id=(SELECT user_id FROM _request_context WHERE id=1) AND role='admin')) THEN RAISE(ABORT,'permission denied: role は運営だけが変更できます') END;
+SELECT (CASE WHEN NEW.role IS NOT OLD.role AND NOT ((SELECT role FROM _request_context WHERE id=1)='app_service' OR (SELECT internal_depth FROM _request_context WHERE id=1)>0 OR EXISTS(SELECT 1 FROM profiles WHERE id=(SELECT user_id FROM _request_context WHERE id=1) AND role='admin')) THEN RAISE(ABORT,'permission denied: role は運営だけが変更できます') END);
 END;
 
 CREATE TRIGGER creator_application_email_check BEFORE INSERT ON creator_applications BEGIN
-SELECT CASE WHEN NEW.terms_version IS NULL OR length(trim(NEW.terms_version))=0 THEN RAISE(ABORT,'terms_not_agreed') END;
-SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM app_users WHERE id=NEW.user_id AND email_verified=1) THEN RAISE(ABORT,'email_not_verified') END;
+SELECT (CASE WHEN NEW.terms_version IS NULL OR length(trim(NEW.terms_version))=0 THEN RAISE(ABORT,'terms_not_agreed') END);
+SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM app_users WHERE id=NEW.user_id AND email_verified=1) THEN RAISE(ABORT,'email_not_verified') END);
 END;
 
 CREATE TRIGGER creator_application_consent AFTER INSERT ON creator_applications BEGIN
@@ -35,7 +35,7 @@ UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 
 UPDATE profiles SET role='creator' WHERE id=NEW.user_id AND role='buyer' AND NEW.status='approved';
 UPDATE creator_applications SET reviewed_at=coalesce(NEW.reviewed_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE id=NEW.id AND NEW.status IN ('approved','rejected');
-INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.user_id,'creator',CASE NEW.status WHEN 'approved' THEN 'クリエイター登録が承認されました' ELSE 'クリエイター申請は承認されませんでした' END,CASE NEW.status WHEN 'approved' THEN '作品の投稿ができるようになりました。まずは作品管理から3Dデータを登録してください。' ELSE coalesce('運営より：'||nullif(trim(NEW.admin_note),''),'内容を見直して、あらためて申請できます。') END,CASE NEW.status WHEN 'approved' THEN '/studio/works' ELSE '/creator/apply' END,'creator_applications',NEW.id  WHERE NEW.status IN ('approved','rejected');
+INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.user_id,'creator',(CASE NEW.status WHEN 'approved' THEN 'クリエイター登録が承認されました' ELSE 'クリエイター申請は承認されませんでした' END),(CASE NEW.status WHEN 'approved' THEN '作品の投稿ができるようになりました。まずは作品管理から3Dデータを登録してください。' ELSE coalesce('運営より：'||nullif(trim(NEW.admin_note),''),'内容を見直して、あらためて申請できます。') END),(CASE NEW.status WHEN 'approved' THEN '/studio/works' ELSE '/creator/apply' END),'creator_applications',NEW.id  WHERE NEW.status IN ('approved','rejected');
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -65,13 +65,13 @@ END;
 
 CREATE TRIGGER nui_size_insert AFTER INSERT ON nui_profiles BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE nui_profiles SET nui_size_cm=CASE WHEN NEW.height_mm<125 THEN 10 WHEN NEW.height_mm<175 THEN 15 ELSE 20 END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
+UPDATE nui_profiles SET nui_size_cm=(CASE WHEN NEW.height_mm<125 THEN 10 WHEN NEW.height_mm<175 THEN 15 ELSE 20 END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER nui_size_update AFTER UPDATE OF height_mm ON nui_profiles BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE nui_profiles SET nui_size_cm=CASE WHEN NEW.height_mm<125 THEN 10 WHEN NEW.height_mm<175 THEN 15 ELSE 20 END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
+UPDATE nui_profiles SET nui_size_cm=(CASE WHEN NEW.height_mm<125 THEN 10 WHEN NEW.height_mm<175 THEN 15 ELSE 20 END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -103,23 +103,23 @@ UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER variant_validate_insert BEFORE INSERT ON work_variants BEGIN
-SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM print_pricing_rules WHERE is_active) THEN RAISE(ABORT,'有効な print_pricing_rules がありません') END;
-SELECT CASE WHEN NEW.is_listed AND NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) AND NEW.price_jpy IS NOT NULL AND NEW.price_jpy < (SELECT CASE WHEN fee_billing='bundled' THEN ceil((SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1)/(1-platform_fee_rate)) ELSE 100 END FROM print_pricing_rules WHERE is_active LIMIT 1) THEN RAISE(ABORT,'販売価格が下限を下回っています') END;
+SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM print_pricing_rules WHERE is_active) THEN RAISE(ABORT,'有効な print_pricing_rules がありません') END);
+SELECT (CASE WHEN NEW.is_listed AND NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) AND NEW.price_jpy IS NOT NULL AND NEW.price_jpy < (SELECT (CASE WHEN fee_billing='bundled' THEN ceil((SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1)/(1-platform_fee_rate)) ELSE 100 END) FROM print_pricing_rules WHERE is_active LIMIT 1) THEN RAISE(ABORT,'販売価格が下限を下回っています') END);
 END;
 
 CREATE TRIGGER variant_validate_update BEFORE UPDATE ON work_variants BEGIN
-SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM print_pricing_rules WHERE is_active) THEN RAISE(ABORT,'有効な print_pricing_rules がありません') END;
-SELECT CASE WHEN NEW.is_listed AND NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) AND NEW.price_jpy IS NOT NULL AND NEW.price_jpy < (SELECT CASE WHEN fee_billing='bundled' THEN ceil((SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1)/(1-platform_fee_rate)) ELSE 100 END FROM print_pricing_rules WHERE is_active LIMIT 1) THEN RAISE(ABORT,'販売価格が下限を下回っています') END;
+SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM print_pricing_rules WHERE is_active) THEN RAISE(ABORT,'有効な print_pricing_rules がありません') END);
+SELECT (CASE WHEN NEW.is_listed AND NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) AND NEW.price_jpy IS NOT NULL AND NEW.price_jpy < (SELECT (CASE WHEN fee_billing='bundled' THEN ceil((SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1)/(1-platform_fee_rate)) ELSE 100 END) FROM print_pricing_rules WHERE is_active LIMIT 1) THEN RAISE(ABORT,'販売価格が下限を下回っています') END);
 END;
 
 CREATE TRIGGER variant_calculate_insert AFTER INSERT ON work_variants BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 
 UPDATE work_variants SET print_fee_jpy=(SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1),
- is_printable=CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) ELSE NEW.is_printable END,
- is_listed=CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL AND (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) THEN 0 ELSE NEW.is_listed END,
- unprintable_reason=CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN CASE WHEN EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm)) THEN '造形サイズがベッド上限を超過しています' END ELSE NEW.unprintable_reason END,
- batch_count=CASE WHEN NEW.batch_count_override IS NOT NULL THEN max(NEW.batch_count_override,1) WHEN NEW.est_print_hours IS NOT NULL THEN max(ceil(NEW.est_print_hours/(SELECT max_batch_hours FROM print_pricing_rules WHERE is_active LIMIT 1)),1) ELSE NEW.batch_count END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
+ is_printable=(CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) ELSE NEW.is_printable END),
+ is_listed=(CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL AND (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) THEN 0 ELSE NEW.is_listed END),
+ unprintable_reason=(CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN (CASE WHEN EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm)) THEN '造形サイズがベッド上限を超過しています' END) ELSE NEW.unprintable_reason END),
+ batch_count=(CASE WHEN NEW.batch_count_override IS NOT NULL THEN max(NEW.batch_count_override,1) WHEN NEW.est_print_hours IS NOT NULL THEN max(ceil(NEW.est_print_hours/(SELECT max_batch_hours FROM print_pricing_rules WHERE is_active LIMIT 1)),1) ELSE NEW.batch_count END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -127,10 +127,10 @@ CREATE TRIGGER variant_calculate_update AFTER UPDATE OF est_filament_grams,est_p
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 
 UPDATE work_variants SET print_fee_jpy=(SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1),
- is_printable=CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) ELSE NEW.is_printable END,
- is_listed=CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL AND (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) THEN 0 ELSE NEW.is_listed END,
- unprintable_reason=CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN CASE WHEN EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm)) THEN '造形サイズがベッド上限を超過しています' END ELSE NEW.unprintable_reason END,
- batch_count=CASE WHEN NEW.batch_count_override IS NOT NULL THEN max(NEW.batch_count_override,1) WHEN NEW.est_print_hours IS NOT NULL THEN max(ceil(NEW.est_print_hours/(SELECT max_batch_hours FROM print_pricing_rules WHERE is_active LIMIT 1)),1) ELSE NEW.batch_count END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
+ is_printable=(CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN NOT (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) ELSE NEW.is_printable END),
+ is_listed=(CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL AND (EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm))) THEN 0 ELSE NEW.is_listed END),
+ unprintable_reason=(CASE WHEN coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm) IS NOT NULL AND coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm) IS NOT NULL THEN (CASE WHEN EXISTS(SELECT 1 FROM print_pricing_rules r WHERE r.is_active AND (max(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>max(r.bed_x_mm,r.bed_y_mm) OR min(coalesce(NEW.max_part_bbox_x_mm,NEW.bbox_x_mm),coalesce(NEW.max_part_bbox_y_mm,NEW.bbox_y_mm))>min(r.bed_x_mm,r.bed_y_mm) OR coalesce(coalesce(NEW.max_part_bbox_z_mm,NEW.bbox_z_mm),0)>r.bed_z_mm)) THEN '造形サイズがベッド上限を超過しています' END) ELSE NEW.unprintable_reason END),
+ batch_count=(CASE WHEN NEW.batch_count_override IS NOT NULL THEN max(NEW.batch_count_override,1) WHEN NEW.est_print_hours IS NOT NULL THEN max(ceil(NEW.est_print_hours/(SELECT max_batch_hours FROM print_pricing_rules WHERE is_active LIMIT 1)),1) ELSE NEW.batch_count END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -160,19 +160,19 @@ END;
 
 CREATE TRIGGER variant_min_price_insert AFTER INSERT ON work_variants BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE works SET previous_min_price_jpy=CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN min_price_jpy ELSE previous_min_price_jpy END,price_changed_at=CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE price_changed_at END,min_price_jpy=(SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL),min_buyer_total_jpy=(SELECT min(buyer_total_jpy) FROM work_variant_pricing WHERE work_id=NEW.work_id AND is_listed AND buyer_total_jpy IS NOT NULL) WHERE id=NEW.work_id;
+UPDATE works SET previous_min_price_jpy=(CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN min_price_jpy ELSE previous_min_price_jpy END),price_changed_at=(CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE price_changed_at END),min_price_jpy=(SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL),min_buyer_total_jpy=(SELECT min(buyer_total_jpy) FROM work_variant_pricing WHERE work_id=NEW.work_id AND is_listed AND buyer_total_jpy IS NOT NULL) WHERE id=NEW.work_id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER variant_min_price_update AFTER UPDATE OF price_jpy,is_listed,print_fee_jpy ON work_variants BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE works SET previous_min_price_jpy=CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN min_price_jpy ELSE previous_min_price_jpy END,price_changed_at=CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE price_changed_at END,min_price_jpy=(SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL),min_buyer_total_jpy=(SELECT min(buyer_total_jpy) FROM work_variant_pricing WHERE work_id=NEW.work_id AND is_listed AND buyer_total_jpy IS NOT NULL) WHERE id=NEW.work_id;
+UPDATE works SET previous_min_price_jpy=(CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN min_price_jpy ELSE previous_min_price_jpy END),price_changed_at=(CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL) THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE price_changed_at END),min_price_jpy=(SELECT min(price_jpy) FROM work_variants WHERE work_id=NEW.work_id AND is_listed AND price_jpy IS NOT NULL),min_buyer_total_jpy=(SELECT min(buyer_total_jpy) FROM work_variant_pricing WHERE work_id=NEW.work_id AND is_listed AND buyer_total_jpy IS NOT NULL) WHERE id=NEW.work_id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER variant_min_price_delete AFTER DELETE ON work_variants BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE works SET previous_min_price_jpy=CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=OLD.work_id AND is_listed AND price_jpy IS NOT NULL) THEN min_price_jpy ELSE previous_min_price_jpy END,price_changed_at=CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=OLD.work_id AND is_listed AND price_jpy IS NOT NULL) THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE price_changed_at END,min_price_jpy=(SELECT min(price_jpy) FROM work_variants WHERE work_id=OLD.work_id AND is_listed AND price_jpy IS NOT NULL),min_buyer_total_jpy=(SELECT min(buyer_total_jpy) FROM work_variant_pricing WHERE work_id=OLD.work_id AND is_listed AND buyer_total_jpy IS NOT NULL) WHERE id=OLD.work_id;
+UPDATE works SET previous_min_price_jpy=(CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=OLD.work_id AND is_listed AND price_jpy IS NOT NULL) THEN min_price_jpy ELSE previous_min_price_jpy END),price_changed_at=(CASE WHEN min_price_jpy IS NOT (SELECT min(price_jpy) FROM work_variants WHERE work_id=OLD.work_id AND is_listed AND price_jpy IS NOT NULL) THEN strftime('%Y-%m-%dT%H:%M:%fZ','now') ELSE price_changed_at END),min_price_jpy=(SELECT min(price_jpy) FROM work_variants WHERE work_id=OLD.work_id AND is_listed AND price_jpy IS NOT NULL),min_buyer_total_jpy=(SELECT min(buyer_total_jpy) FROM work_variant_pricing WHERE work_id=OLD.work_id AND is_listed AND buyer_total_jpy IS NOT NULL) WHERE id=OLD.work_id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -185,9 +185,9 @@ END;
 CREATE TRIGGER order_print_files_snapshot AFTER INSERT ON order_items BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 
-UPDATE order_items SET print_assets_snapshot=CASE WHEN EXISTS(SELECT 1 FROM work_assets WHERE work_id=NEW.work_id) THEN
+UPDATE order_items SET print_assets_snapshot=(CASE WHEN EXISTS(SELECT 1 FROM work_assets WHERE work_id=NEW.work_id) THEN
 (SELECT json_group_array(json_object('file_name',a.file_name,'storage_path',a.storage_path,'file_format',a.file_format,'scale_ratio',v.scale_ratio)) FROM (SELECT * FROM work_assets WHERE work_id=NEW.work_id ORDER BY is_primary DESC,created_at,id) a JOIN work_variants v ON v.id=NEW.variant_id)
-WHEN NEW.stl_storage_path_snapshot<>'' THEN json_array(json_object('file_name','印刷データ','storage_path',NEW.stl_storage_path_snapshot)) ELSE '[]' END WHERE id=NEW.id;
+WHEN NEW.stl_storage_path_snapshot<>'' THEN json_array(json_object('file_name','印刷データ','storage_path',NEW.stl_storage_path_snapshot)) ELSE '[]' END) WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -223,13 +223,13 @@ END;
 
 CREATE TRIGGER quote_calculate_insert AFTER INSERT ON custom_order_quotes BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE custom_order_quotes SET print_fee_jpy=CASE WHEN NEW.est_filament_grams IS NOT NULL AND NEW.est_print_hours IS NOT NULL THEN (SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1) ELSE NEW.print_fee_jpy END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
+UPDATE custom_order_quotes SET print_fee_jpy=(CASE WHEN NEW.est_filament_grams IS NOT NULL AND NEW.est_print_hours IS NOT NULL THEN (SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1) ELSE NEW.print_fee_jpy END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER quote_calculate_update AFTER UPDATE OF est_filament_grams,est_print_hours,part_count ON custom_order_quotes BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE custom_order_quotes SET print_fee_jpy=CASE WHEN NEW.est_filament_grams IS NOT NULL AND NEW.est_print_hours IS NOT NULL THEN (SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1) ELSE NEW.print_fee_jpy END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
+UPDATE custom_order_quotes SET print_fee_jpy=(CASE WHEN NEW.est_filament_grams IS NOT NULL AND NEW.est_print_hours IS NOT NULL THEN (SELECT round(coalesce(NEW.est_filament_grams,0)*material_yen_per_gram)+round(coalesce(NEW.est_print_hours,0)*machine_yen_per_hour)+handling_base_yen+handling_per_part_yen*max(coalesce(NEW.part_count,1),1) FROM print_pricing_rules WHERE is_active LIMIT 1) ELSE NEW.print_fee_jpy END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -259,28 +259,28 @@ END;
 
 CREATE TRIGGER print_job_touch AFTER UPDATE OF status ON print_jobs BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-UPDATE print_jobs SET started_at=CASE WHEN NEW.status='printing' AND OLD.status IS NOT 'printing' THEN coalesce(NEW.started_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')) ELSE NEW.started_at END,finished_at=CASE WHEN NEW.status IN ('printed','qc_passed') THEN coalesce(NEW.finished_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')) ELSE NEW.finished_at END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
+UPDATE print_jobs SET started_at=(CASE WHEN NEW.status='printing' AND OLD.status IS NOT 'printing' THEN coalesce(NEW.started_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')) ELSE NEW.started_at END),finished_at=(CASE WHEN NEW.status IN ('printed','qc_passed') THEN coalesce(NEW.finished_at,strftime('%Y-%m-%dT%H:%M:%fZ','now')) ELSE NEW.finished_at END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.id;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER print_job_event_insert AFTER INSERT ON print_jobs BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 INSERT INTO print_job_events(print_job_id,status) VALUES(NEW.id,NEW.status);
-UPDATE orders SET status=CASE WHEN (SELECT count(*)=sum(status='qc_passed') FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled') THEN 'packaging' WHEN EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status IN ('printing','reprinting','printed','qc_failed')) THEN 'printing' ELSE 'printing_queued' END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.order_id AND status IN ('paid','printing_queued','printing','packaging') AND EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled');
+UPDATE orders SET status=(CASE WHEN (SELECT count(*)=sum(status='qc_passed') FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled') THEN 'packaging' WHEN EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status IN ('printing','reprinting','printed','qc_failed')) THEN 'printing' ELSE 'printing_queued' END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.order_id AND status IN ('paid','printing_queued','printing','packaging') AND EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled');
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER print_job_event_update AFTER UPDATE OF status ON print_jobs WHEN NEW.status IS NOT OLD.status BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 INSERT INTO print_job_events(print_job_id,status) VALUES(NEW.id,NEW.status);
-UPDATE orders SET status=CASE WHEN (SELECT count(*)=sum(status='qc_passed') FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled') THEN 'packaging' WHEN EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status IN ('printing','reprinting','printed','qc_failed')) THEN 'printing' ELSE 'printing_queued' END,updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.order_id AND status IN ('paid','printing_queued','printing','packaging') AND EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled');
+UPDATE orders SET status=(CASE WHEN (SELECT count(*)=sum(status='qc_passed') FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled') THEN 'packaging' WHEN EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status IN ('printing','reprinting','printed','qc_failed')) THEN 'printing' ELSE 'printing_queued' END),updated_at=strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id=NEW.order_id AND status IN ('paid','printing_queued','printing','packaging') AND EXISTS(SELECT 1 FROM print_jobs WHERE order_id=NEW.order_id AND status<>'cancelled');
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER qc_result_apply AFTER INSERT ON qc_inspections BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 
-UPDATE print_jobs SET status=CASE NEW.result WHEN 'passed' THEN 'qc_passed' ELSE 'qc_failed' END,failure_count=failure_count+CASE WHEN NEW.result='failed' THEN 1 ELSE 0 END WHERE id=NEW.print_job_id;
+UPDATE print_jobs SET status=(CASE NEW.result WHEN 'passed' THEN 'qc_passed' ELSE 'qc_failed' END),failure_count=failure_count+(CASE WHEN NEW.result='failed' THEN 1 ELSE 0 END) WHERE id=NEW.print_job_id;
 INSERT INTO revision_requests(work_id,variant_id,creator_id,inspection_id,print_job_id,cause,message,photo_paths,reprint_fee_jpy,created_by)
 SELECT w.id,v.id,w.creator_id,NEW.id,j.id,NEW.reprint_cause,coalesce(NEW.memo,'検品で不合格になりました'),NEW.photo_paths,coalesce(j.print_fee_snapshot,v.print_fee_jpy,0),NEW.inspector_id
 FROM print_jobs j JOIN work_variants v ON v.id=j.variant_id JOIN works w ON w.id=v.work_id
@@ -289,9 +289,9 @@ UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
 CREATE TRIGGER payout_request_check BEFORE INSERT ON payout_requests BEGIN
-SELECT CASE WHEN NOT EXISTS(SELECT 1 FROM payout_accounts WHERE creator_id=NEW.creator_id) THEN RAISE(ABORT,'振込先口座が登録されていません') END;
-SELECT CASE WHEN NEW.amount>coalesce((SELECT available_amount FROM creator_payout_balances WHERE creator_id=NEW.creator_id),0) THEN RAISE(ABORT,'申請額が受取可能額を超えています') END;
-SELECT CASE WHEN NEW.amount<1000 THEN RAISE(ABORT,'振込の申請は ¥1,000 から受け付けています') END;
+SELECT (CASE WHEN NOT EXISTS(SELECT 1 FROM payout_accounts WHERE creator_id=NEW.creator_id) THEN RAISE(ABORT,'振込先口座が登録されていません') END);
+SELECT (CASE WHEN NEW.amount>coalesce((SELECT available_amount FROM creator_payout_balances WHERE creator_id=NEW.creator_id),0) THEN RAISE(ABORT,'申請額が受取可能額を超えています') END);
+SELECT (CASE WHEN NEW.amount<1000 THEN RAISE(ABORT,'振込の申請は ¥1,000 から受け付けています') END);
 END;
 
 CREATE TRIGGER message_notify AFTER INSERT ON messages BEGIN
@@ -332,7 +332,7 @@ END;
 
 CREATE TRIGGER shipment_notify AFTER INSERT ON shipments BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT (SELECT buyer_id FROM orders WHERE id=NEW.order_id),'order_shipping','ご注文の商品を発送しました',coalesce(NEW.service_name,'宅配便')||CASE WHEN NEW.tracking_number IS NOT NULL THEN ' ／ 追跡番号 '||NEW.tracking_number ELSE '' END,'/mypage/orders/'||NEW.order_id,'shipments',NEW.id  WHERE 1;
+INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT (SELECT buyer_id FROM orders WHERE id=NEW.order_id),'order_shipping','ご注文の商品を発送しました',coalesce(NEW.service_name,'宅配便')||(CASE WHEN NEW.tracking_number IS NOT NULL THEN ' ／ 追跡番号 '||NEW.tracking_number ELSE '' END),'/mypage/orders/'||NEW.order_id,'shipments',NEW.id  WHERE 1;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -350,7 +350,7 @@ END;
 
 CREATE TRIGGER payout_notify AFTER UPDATE OF status ON payout_requests WHEN NEW.status IS NOT OLD.status AND NEW.status IN ('paid','rejected') BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
-INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.creator_id,'creator',CASE NEW.status WHEN 'paid' THEN '振込が完了しました' ELSE '振込の申請が差し戻されました' END,'¥'||printf('%,d',NEW.amount)||CASE NEW.status WHEN 'paid' THEN ' を振り込みました' ELSE ' の申請を確認してください' END,'/studio/payouts','payout_requests',NEW.id  WHERE 1;
+INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.creator_id,'creator',(CASE NEW.status WHEN 'paid' THEN '振込が完了しました' ELSE '振込の申請が差し戻されました' END),'¥'||printf('%,d',NEW.amount)||(CASE NEW.status WHEN 'paid' THEN ' を振り込みました' ELSE ' の申請を確認してください' END),'/studio/payouts','payout_requests',NEW.id  WHERE 1;
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;
 END;
 
@@ -363,7 +363,7 @@ END;
 CREATE TRIGGER quote_notify_update AFTER UPDATE OF status ON custom_order_quotes WHEN NEW.status IS NOT OLD.status BEGIN
 UPDATE _request_context SET internal_depth=internal_depth+1 WHERE id=1;
 INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.buyer_id,'message','オーダーメイドの見積りが届きました',coalesce(NEW.quote_no,'見積り')||' ／ 合計 ¥'||printf('%,d',NEW.price_jpy+NEW.print_fee_jpy+NEW.shipping_fee_jpy)||' ／ 有効期限 '||strftime('%m月%d日',NEW.expires_at),'/mypage/custom-orders/'||NEW.request_id,'custom_order_quotes',NEW.id  WHERE NEW.status='sent';
-INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.creator_id,'creator',CASE NEW.status WHEN 'accepted' THEN '見積りが承認されました' WHEN 'ordered' THEN 'オーダーメイドが注文されました' ELSE '見積りが辞退されました' END,coalesce(NEW.quote_no,'見積り')||' ／ '||coalesce((SELECT display_name FROM profiles WHERE id=NEW.buyer_id),'購入者')||' さん','/studio/custom-orders/'||NEW.request_id,'custom_order_quotes',NEW.id  WHERE NEW.status IN ('accepted','declined','ordered');
+INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.creator_id,'creator',(CASE NEW.status WHEN 'accepted' THEN '見積りが承認されました' WHEN 'ordered' THEN 'オーダーメイドが注文されました' ELSE '見積りが辞退されました' END),coalesce(NEW.quote_no,'見積り')||' ／ '||coalesce((SELECT display_name FROM profiles WHERE id=NEW.buyer_id),'購入者')||' さん','/studio/custom-orders/'||NEW.request_id,'custom_order_quotes',NEW.id  WHERE NEW.status IN ('accepted','declined','ordered');
 INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.buyer_id,'message','見積りの有効期限が切れました',coalesce(NEW.quote_no,'見積り')||' ／ 続けたい場合は相談から見積りを依頼し直してください','/mypage/custom-orders/'||NEW.request_id,'custom_order_quotes',NEW.id  WHERE NEW.status='expired';
 INSERT INTO _notify(user_id,kind,title,body,link_path,source_table,source_id) SELECT NEW.creator_id,'creator','見積りの有効期限が切れました',coalesce(NEW.quote_no,'見積り')||' ／ 承認されないまま期限を過ぎました','/studio/custom-orders/'||NEW.request_id,'custom_order_quotes',NEW.id  WHERE NEW.status='expired';
 UPDATE _request_context SET internal_depth=internal_depth-1 WHERE id=1;

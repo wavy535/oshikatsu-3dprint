@@ -1,4 +1,5 @@
-import { writeFile, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { writeD1Migration as writeFile } from "./remote-sql.mjs";
 import catalog from "../../db/oracle/postgres.json" with { type: "json" };
 import { now, uuid, expression } from "./generate-schema.mjs";
 const sql = [];
