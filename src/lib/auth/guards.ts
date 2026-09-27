@@ -2,10 +2,11 @@ import "server-only";
 import { cache } from "react";
 import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
+import { getSessionCookie } from "better-auth/cookies";
 import { getAuth } from "./config";
 import { database } from "@/lib/db/client";
 
-/** Guards verify the session in PostgreSQL. RLS enforces the same user identity. */
+/** Guards verify the session in D1. Database authorization uses the verified identity. */
 export async function requireUser(redirectTo?: string) {
   const { db, user } = await getOptionalUser();
   if (!user) {
@@ -23,6 +24,13 @@ export const getOptionalUser = cache(async () => {
   // Resolve the request before initializing runtime-only secrets/connections.
   // This also makes Next.js defer these readers during a credential-free build.
   const requestHeaders = await headers();
+  // No session token means anonymous. Avoid initializing Better Auth and its
+  // database schema check for public visitors. Cookie presence is NEVER proof
+  // of authentication: all supplied tokens still go through getSession below.
+  // Keep these default cookie names aligned with config.ts (including __Secure-).
+  if (!getSessionCookie(requestHeaders)) {
+    return { db: database(), user: null };
+  }
   const session = await getAuth().api.getSession({ headers: requestHeaders });
   const user = session?.user ?? null;
   return { db: database(user?.id), user };
