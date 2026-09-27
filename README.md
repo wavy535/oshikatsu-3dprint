@@ -81,6 +81,7 @@ D1・R2・Containers・secret・dry runは[Cloudflare配備手順](infra/cloudfl
 - [制作機能・AI・造形検証の設計](docs/product-architecture.md)
 - [現在の業務機能と制約](docs/architecture.md)
 - [Cloudflare配備手順](infra/cloudflare/README.md)
-- [画面デザイン資料](docs/design.md)
+- [UI再設計・読みやすさの検証](docs/ui-redesign.md)
+- [以前の画面デザイン資料](docs/design.md)
 - [開発引継ぎ](HANDOFF.md)
 - [旧AWS構成の記録](infra/aws/README.md)
