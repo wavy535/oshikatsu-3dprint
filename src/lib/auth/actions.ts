@@ -6,6 +6,7 @@ import { z } from "zod";
 import { demoGuestEnabled, safeGuestRedirect } from "./demo-mode";
 import { getOptionalUser } from "./guards";
 import { authMutation } from "@/lib/auth/mutation";
+import { emailVerificationRequired } from "./registration-policy";
 
 /** メールとパスワードで登録し、10分間有効の6桁コードで確認する。 */
 const signUpSchema = z
@@ -63,7 +64,7 @@ export async function signUpAction(
     return { error: error.message };
   }
 
-  redirect(`/signup/verify?email=${encodeURIComponent(email)}`);
+  redirect(emailVerificationRequired() ? `/signup/verify?email=${encodeURIComponent(email)}` : "/");
 }
 
 export async function signInAction(
@@ -107,6 +108,7 @@ export async function verifySignUpAction(
   _prevState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  if (!emailVerificationRequired()) return { error: "メール確認は現在停止しています" };
   const parsed = verifySchema.safeParse({
     email: formData.get("email"),
     token: formData.get("token"),
@@ -135,6 +137,7 @@ export async function resendSignUpCodeAction(
   _prevState: AuthActionState,
   formData: FormData,
 ): Promise<AuthActionState> {
+  if (!emailVerificationRequired()) return { error: "メール確認は現在停止しています" };
   const email = formData.get("email");
   if (typeof email !== "string" || !email) {
     return {

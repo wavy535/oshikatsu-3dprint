@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { VerifyForm } from "@/components/auth/verify-form";
+import { emailVerificationRequired } from "@/lib/auth/registration-policy";
 
 export const metadata = { title: "確認コードの入力" };
 
@@ -14,6 +15,7 @@ export default async function VerifySignupPage({
 }: {
   searchParams: Promise<{ email?: string }>;
 }) {
+  if (!emailVerificationRequired()) redirect("/login");
   const { email } = await searchParams;
   if (!email) redirect("/login?mode=signup");
 

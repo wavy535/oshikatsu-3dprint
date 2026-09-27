@@ -13,7 +13,7 @@ const initialState: AuthActionState = { error: null };
  * 新規会員登録。メール＋パスワード2回を送ると、そのアドレスに6桁の確認コードが届く。
  * 登録の完了は /signup/verify で行う。
  */
-export function SignupForm() {
+export function SignupForm({ verifyEmail = true }: { verifyEmail?: boolean }) {
   const [state, formAction, pending] = useActionState(signUpAction, initialState);
 
   return (
@@ -45,10 +45,10 @@ export function SignupForm() {
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="mt-2">
-        {pending ? "送信中..." : "確認コードを送る"}
+        {pending ? "登録中..." : verifyEmail ? "確認コードを送る" : "会員登録する"}
       </Button>
       <p className="text-[11px] leading-4 text-muted-foreground">
-        入力したアドレスに6桁の確認コードを送ります。コードの有効期限は10分です。
+        {verifyEmail ? "入力したアドレスに6桁の確認コードを送ります。コードの有効期限は10分です。" : "登録後、そのままご利用いただけます。現在、メール通知・メールによるパスワード再設定とクリエイター申請は準備中です。"}
       </p>
     </form>
   );

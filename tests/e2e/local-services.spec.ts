@@ -1,56 +1,21 @@
 import { signInFixture } from "./helpers/auth";
-import { randomInt, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { modelXml, modelZip } from "../helpers/model-files";
 import { MODEL_LIMITS } from "../../src/lib/print/limits";
 import {
   expect,
   test,
-  type APIRequestContext,
   type Page,
 } from "@playwright/test";
 
-const mailpit = process.env.E2E_MAILPIT_URL ?? "http://127.0.0.1:58025";
-
 test.beforeEach(async ({ baseURL }) => {
-  // These flows create demo accounts, orders and drafts using the local fixtures.
-  for (const value of [baseURL!, mailpit]) {
-    if (!["localhost", "127.0.0.1"].includes(new URL(value).hostname)) {
-      throw new Error("Run these tests against local services only");
-    }
-  }
+  if (!["localhost", "127.0.0.1"].includes(new URL(baseURL!).hostname)) throw new Error("Use local fixtures only");
 });
 
 async function signIn(page: Page, email: string) {
   await page.goto("/login");
   await signInFixture(page, page.url(), email);
   await page.goto("/");
-}
-
-async function deliveredCode(
-  request: APIRequestContext,
-  recipient: string,
-  subject: string,
-) {
-  let code = "";
-  await expect
-    .poll(async () => {
-      const response = await request.get(`${mailpit}/api/v1/messages`);
-      const { messages } = (await response.json()) as {
-        messages: { ID: string; Subject: string; To: { Address: string }[] }[];
-      };
-      const message = messages.find(
-        (m) =>
-          m.Subject === subject && m.To.some((to) => to.Address === recipient),
-      );
-      if (!message) return false;
-      const detail = await (
-        await request.get(`${mailpit}/api/v1/message/${message.ID}`)
-      ).json();
-      code = String(detail.Text).match(/\b\d{6}\b/)?.[0] ?? "";
-      return code.length === 6;
-    })
-    .toBe(true);
-  return code;
 }
 
 test("the auth HTTP API accepts a request body and persists its session cookie", async ({
@@ -67,58 +32,26 @@ test("the auth HTTP API accepts a request body and persists its session cookie",
   expect((await session.json()).user.email).toBe("buyer@example.com");
 });
 
-test("email verification creates a persistent session; SMS verifies the signed-in account", async ({
-  page,
-  request,
-}) => {
-  const email = `e2e-${randomUUID()}@example.com`;
+test("unverified signup persists a session and keeps creator applications closed", async ({ page }) => {
+  const email = `e2e-${randomUUID()}@example.test`;
   await page.goto("/signup");
   await page.getByLabel("表示名", { exact: true }).fill("E2E 会員");
   await page.getByLabel("メールアドレス", { exact: true }).fill(email);
   await page.getByLabel("パスワード", { exact: true }).fill("password123");
-  await page
-    .getByLabel("パスワード（確認）", { exact: true })
-    .fill("password123");
-  await page
-    .getByRole("button", { name: "確認コードを送る", exact: true })
-    .click();
-  await expect(page).toHaveURL(/\/signup\/verify\?/);
-  await page
-    .getByLabel("確認コード 1文字目")
-    .fill(await deliveredCode(request, email, "OshiNest 確認コード"));
-  await page.getByRole("button", { name: "登録を完了する" }).click();
+  await page.getByLabel("パスワード（確認）", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "会員登録する", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
+  const session = await page.request.get("/api/auth/get-session");
+  expect((await session.json()).user.emailVerified).toBe(false);
   await page.goto("/mypage");
-  await expect(
-    page.getByText("表示名：E2E 会員", { exact: true }),
-  ).toBeVisible();
-
-  await page.goto("/creator/apply");
-  const phone = `090${String(randomInt(100_000_000)).padStart(8, "0")}`;
-  await page.getByLabel("携帯電話の番号").fill(phone);
-  await page
-    .getByRole("button", { name: "認証コードを送る", exact: true })
-    .click();
-  await expect(page.getByLabel("認証コード 1文字目")).toBeVisible();
-  const code = await deliveredCode(
-    request,
-    "sms@oshinest.local",
-    `SMS +81${phone.slice(1)}`,
-  );
-  // Server Actions must pass through the same rate limiter as the auth HTTP API.
-  await page
-    .getByRole("button", { name: "コードを再送する", exact: true })
-    .click();
-  await expect(
-    page.getByText(
-      "送信の間隔が短すぎます。1分ほど待ってからもう一度お試しください",
-    ),
-  ).toBeVisible();
-  await page.getByLabel("認証コード 1文字目").fill(code);
-  await page.getByRole("button", { name: "認証する", exact: true }).click();
-  await expect(page.getByText("認証済み", { exact: true })).toBeVisible();
+  await expect(page.getByText("表示名：E2E 会員", { exact: true })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("認証済み", { exact: true })).toBeVisible();
+  await expect(page.getByText("表示名：E2E 会員", { exact: true })).toBeVisible();
+  await page.goto("/creator/apply");
+  await expect(page.getByRole("heading", { name: "クリエイター申請は準備中です" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "クリエイター申請を送信する" })).toHaveCount(0);
+  await page.goto("/studio/works");
+  await expect(page).not.toHaveURL(/\/studio\/works$/);
 });
 
 test("a buyer places a demo order and can read it after reloading", async ({

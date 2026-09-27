@@ -6,6 +6,7 @@ import { GuestEntry } from "@/components/auth/guest-entry";
 import { LoginForm } from "@/components/auth/login-form";
 import { SignupForm } from "@/components/auth/signup-form";
 import { cn } from "@/lib/utils";
+import { emailVerificationRequired } from "@/lib/auth/registration-policy";
 
 export const metadata = { title: "ログイン・新規登録" };
 
@@ -81,7 +82,7 @@ export default async function LoginPage({
             </Link>
           </div>
 
-          {signup ? <SignupForm /> : <LoginForm redirectTo={nextPath} />}
+          {signup ? <SignupForm verifyEmail={emailVerificationRequired()} /> : <LoginForm redirectTo={nextPath} />}
           </>}
         </div>
       </div>

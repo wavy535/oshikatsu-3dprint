@@ -1,14 +1,14 @@
 import "server-only";
 import { betterAuth, APIError } from "better-auth";
-import { createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
+import { createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { anonymous, emailOTP, phoneNumber } from "better-auth/plugins";
+import { anonymous, emailOTP } from "better-auth/plugins";
 import { sendMail } from "@/lib/mail/send";
 import { siteUrl } from "@/lib/site";
 import { developmentTrustedOrigins } from "./dev-origins";
 import { demoGuestEnabled } from "./demo-mode";
 import { serviceDatabase } from "@/lib/db/client";
-import { sendPhoneOtp } from "./sms";
+import { emailVerificationRequired } from "./registration-policy";
 
 const timestamps = { createdAt: "created_at", updatedAt: "updated_at" };
 
@@ -64,7 +64,6 @@ function createAuth() {
       storage: "database",
       modelName: "auth_rate_limits",
       fields: { lastRequest: "last_request" },
-      customRules: { "/phone-number/send-otp": { window: 60, max: 1 } },
     },
     databaseHooks: {
       user: { create: { after: async (user) => {
@@ -77,16 +76,19 @@ function createAuth() {
     },
     emailAndPassword: {
       enabled: true,
-      requireEmailVerification: true,
+      requireEmailVerification: emailVerificationRequired(),
       minPasswordLength: 8,
       maxPasswordLength: 128,
     },
     emailVerification: {
       autoSignInAfterVerification: true,
-      sendOnSignIn: true,
+      sendOnSignIn: emailVerificationRequired(),
     },
     // These features are not part of the product. Keep the auth HTTP surface small.
     disabledPaths: [
+      "/phone-number/send-otp",
+      "/phone-number/verify",
+      ...(!emailVerificationRequired() ? ["/email-otp/send-verification-otp", "/email-otp/verify-email", "/email-otp/check-verification-otp", "/send-verification-email", "/verify-email", "/request-password-reset", "/forget-password/email-otp", "/email-otp/request-password-reset", "/email-otp/reset-password"] : []),
       "/delete-anonymous-user",
       ...(!demoGuestEnabled() ? ["/sign-in/anonymous"] : []),
       "/sign-in/phone-number",
@@ -99,15 +101,7 @@ function createAuth() {
         if (demoGuestEnabled() && !["/sign-in/anonymous", "/sign-out", "/get-session", "/ok"].includes(ctx.path)) {
           throw new APIError("FORBIDDEN", { message: "このデモではゲストとしてご利用ください" });
         }
-        if (!ctx.path.startsWith("/phone-number/")) return;
-        const session = await getSessionFromCtx(ctx);
-        if (!session || session.session.expiresAt <= new Date())
-          throw new APIError("UNAUTHORIZED");
-        // Phone verification may update the authenticated user's number only.
-        if (ctx.path === "/phone-number/verify") {
-          ctx.body.updatePhoneNumber = true;
-          ctx.body.disableSession = true;
-        }
+
       }),
     },
     plugins: [
@@ -123,7 +117,7 @@ function createAuth() {
         allowedAttempts: 5,
         storeOTP: "hashed",
         overrideDefaultEmailVerification: true,
-        sendVerificationOnSignUp: true,
+        sendVerificationOnSignUp: emailVerificationRequired(),
         rateLimit: { window: 60, max: 1 },
         async sendVerificationOTP({ email, otp }) {
           const result = await sendMail({
@@ -134,27 +128,12 @@ function createAuth() {
           if (!result.ok) throw new Error("確認メールを送信できませんでした");
         },
       }),
-      phoneNumber({
-        otpLength: 6,
-        expiresIn: 600,
-        allowedAttempts: 5,
-        phoneNumberValidator: (phone) => /^\+81[789]0\d{8}$/.test(phone),
-        schema: {
-          user: {
-            fields: {
-              phoneNumber: "phone",
-              phoneNumberVerified: "phone_verified",
-            },
-          },
-        },
-        sendOTP: ({ phoneNumber, code }) => sendPhoneOtp(phoneNumber, code),
-      }),
       nextCookies(),
     ],
   });
 }
 
 export function getAuth() {
-  // A Worker isolate serves many requests. Do not retain a request's pg sockets.
+  // Auth and D1 identity belong to this request.
   return createAuth();
 }

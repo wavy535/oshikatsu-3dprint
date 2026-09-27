@@ -61,11 +61,10 @@ test("filters are usable on mobile and expanded on desktop", async ({ page }) =>
   await expectNoOverflow(page);
 });
 
-test("verification inputs fit and remain readable on a narrow phone", async ({ page }) => {
+test("signup remains usable on a narrow phone and verification redirects to login", async ({ page }) => {
   await page.goto("/signup/verify?email=mobile%40example.com");
-  const first = page.getByLabel("確認コード 1文字目");
-  await first.fill("123456");
-  await expect(page.getByLabel("確認コード 6文字目")).toHaveValue("6");
-  expect(await first.evaluate((input) => parseFloat(getComputedStyle(input).fontSize))).toBeGreaterThanOrEqual(16);
+  await expect(page).toHaveURL(/\/login$/);
+  await page.goto("/signup");
+  await expect(page.getByRole("button", { name: "会員登録する", exact: true })).toBeVisible();
   await expectNoOverflow(page);
 });

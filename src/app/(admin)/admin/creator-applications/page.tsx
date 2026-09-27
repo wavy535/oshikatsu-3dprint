@@ -1,6 +1,5 @@
 import { Pagination } from "@/components/ui/pagination";
 import { queryResult, readPage } from "@/lib/db/result";
-import { sql } from "kysely";
 import { requireAdmin } from "@/lib/auth/guards";
 import { serviceDatabase } from "@/lib/db/client";
 import { ReviewButtons } from "@/components/creator/review-buttons";
@@ -26,6 +25,7 @@ export default async function CreatorApplicationsAdminPage({ searchParams }: { s
   const { items: applications, page, hasNext } = await readPage(
     serviceDb
       .selectFrom("creator_applications")
+      .innerJoin("app_users", "app_users.id", "creator_applications.user_id")
       .select([
         "creator_applications.id",
         "creator_applications.user_id",
@@ -34,8 +34,8 @@ export default async function CreatorApplicationsAdminPage({ searchParams }: { s
         "creator_applications.admin_note",
         "creator_applications.created_at",
         "creator_applications.reviewed_at",
-        "creator_applications.phone",
-        "creator_applications.phone_verified_at",
+        "app_users.email",
+        "app_users.email_verified",
         "creator_applications.terms_version",
         "creator_applications.terms_agreed_at",
       ])
@@ -48,7 +48,7 @@ export default async function CreatorApplicationsAdminPage({ searchParams }: { s
         serviceDb
           .selectFrom("profiles")
           .select(["profiles.id", "profiles.display_name"])
-          .where(sql<boolean>`${sql.ref("profiles.id")} = any(${userIds})`)
+          .where("profiles.id", "in", userIds)
           .execute(),
       )
     : { data: [] as { id: string; display_name: string }[] };
@@ -92,14 +92,9 @@ export default async function CreatorApplicationsAdminPage({ searchParams }: { s
                 {a.message && (
                   <p className="text-sm whitespace-pre-wrap">{a.message}</p>
                 )}
-                {/* 審査に要る本人確認の情報。番号は運営だけが見る（伏せない） */}
                 <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-ground px-3 py-2 text-[12px]">
-                  <dt className="text-muted-foreground">SMS 認証</dt>
-                  <dd className="num text-ink">
-                    {a.phone
-                      ? `${a.phone}（${new Date(a.phone_verified_at ?? a.created_at).toLocaleString("ja-JP")} 認証）`
-                      : "未認証（旧形式の申請）"}
-                  </dd>
+                  <dt className="text-muted-foreground">メール確認</dt>
+                  <dd className="text-ink">{a.email}（{a.email_verified ? "確認済み" : "未確認"}）</dd>
                   <dt className="text-muted-foreground">利用規約</dt>
                   <dd className="num text-ink">
                     {a.terms_version

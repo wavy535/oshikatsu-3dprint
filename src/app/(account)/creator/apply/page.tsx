@@ -2,10 +2,10 @@ import { queryResult } from "@/lib/db/result";
 import Link from "next/link";
 
 import { requireUser } from "@/lib/auth/guards";
-import { maskPhone } from "@/lib/creator/phone";
 import { CreatorApplyForm } from "@/components/creator/apply-form";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { creatorApplicationsEnabled } from "@/lib/auth/registration-policy";
 
 export const metadata = { title: "クリエイター登録" };
 
@@ -16,11 +16,18 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 /**
- * クリエイター登録（申請）。SMS 認証と利用規約への同意だけで出せる。
+ * クリエイター登録（申請）。確認済みメールと利用規約への同意を受け付ける。
  * 判定は DB のトリガーが最終的に行う。
  */
 export default async function CreatorApplyPage() {
   const { db, user } = await requireUser("/creator/apply");
+  if (!creatorApplicationsEnabled()) return (
+    <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
+      <h1 className="text-base font-bold text-ink">クリエイター申請は準備中です</h1>
+      <p className="text-sm text-muted-foreground">一般会員として作品の閲覧やお気に入り登録をご利用いただけます。申請の受付開始はこのページでお知らせします。</p>
+      <Link href="/" className="text-sm text-brand hover:underline">作品を見る</Link>
+    </div>
+  );
 
   const [{ data: profile }, { data: applications }] = await Promise.all([
     queryResult(
@@ -48,9 +55,6 @@ export default async function CreatorApplyPage() {
   ]);
 
   const latestPending = applications?.find((a) => a.status === "pending");
-  const phoneMasked = user.phoneNumberVerified
-    ? maskPhone(user.phoneNumber)
-    : null;
 
   return (
     <>
@@ -58,7 +62,7 @@ export default async function CreatorApplyPage() {
         <h1 className="text-base font-bold text-ink">クリエイター登録</h1>
         {profile?.role === "buyer" && !latestPending && (
           <span className="text-[12px] text-muted-foreground">
-            SMS 認証 → 利用規約に同意 → 運営の審査
+            メール確認 → 利用規約に同意 → 運営の審査
           </span>
         )}
       </div>
@@ -90,7 +94,7 @@ export default async function CreatorApplyPage() {
           </p>
         </div>
       ) : (
-        <CreatorApplyForm initialPhoneMasked={phoneMasked} />
+        <CreatorApplyForm emailVerified={user.emailVerified} />
       )}
 
       {applications && applications.length > 0 && (
