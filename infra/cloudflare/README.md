@@ -8,14 +8,18 @@ AI編集機能の追加設計と構成選定は[制作基盤の設計](../../doc
 
 - 配備先：`yumaboda.official@gmail.com`のCloudflareアカウント（`1c93af48e1a5c2e163edc9030cff4647`）。両Workerの設定に固定済み。
 - 通常会員向けの新環境。`DEMO_GUEST_ENABLED=false`を維持し、既存DB・S3のデータ移行や開発用seedは行わない。
-- 公開予定URL：`https://oshinest.yumaboda-official.workers.dev`。Worker本体は未配備で、このURLは公開済みの成果ではない。
+- 公開予定URL：`https://oshinest.yumaboda-official.workers.dev`。Web Workerは未配備で、このURLは公開済みの成果ではない。
 - `oshinest-files`をAPACの配置ヒントで新規作成。`r2.dev`公開は無効。`ar-cache/`だけに7日で期限切れとなるルール`ar-cache-expiry`を設定済み。
 - PostgreSQLは新規作成が必要。NeonのCLIを準備したがブラウザ認証が時間切れとなり、DBは未作成。Hyperdrive IDも未設定。
-- Cloudflareの既存認証には`containers:write`が不足。追加スコープの認証は時間切れとなり、Geometry Worker・Containerは未配備。
+- Cloudflareの追加認証は完了。Geometry WorkerとContainerを配備済みで、`workers.dev`・プレビューURLは無効。ローカルの非公開service binding経由で、実際のCloudflare Containerに対する解析・変換の一致テスト5件が成功。
 - Resendの送信元・APIキー、Twilioの接続情報は未設定。通常会員向けの公開前に設定する。
 - アカウントと公開予定URLを設定した状態でビルドとWrangler dry runは成功。実配備の完了を意味しない。
 
-再開時は同じ開発環境でCloudflareとNeonへ認証する。以前発行した一時URL・デバイスコードは期限切れのため再利用しない。
+Geometry Workerの配備バージョンは`1a890663-8e9c-4a0e-891f-46b0e11fa48b`、Container application IDは`a03c3435-2afe-4a00-b33f-9431f949aa28`。配備イメージのdigestは`sha256:c484ce9fcd951726c76357412da36b2e620882a9e9c379d7aa66fe626d8a7d85`。最大2インスタンス、4GiB、非公開ネットワークで配備した。
+
+初回のイメージ送信は接続リセットで失敗した。転送がWranglerの通常の一時認証期限（15分）を超えていたため、公式の`containers registries credentials`で60分の一時認証を発行し、同じイメージを再送して成功した。再送用の認証情報は専用の一時ディレクトリだけで使用し、送信後に削除した。再配備時はリモートの同じイメージが再利用され、転送は不要だった。
+
+Cloudflareの認証更新は完了しているため、再認証は期限切れの場合だけ行う。Neon CLIの認証待ちは60秒で終了するため、先にNeonの管理画面へログインし、その後でCLI認証を開始する。以前発行した一時URL・デバイスコードは再利用しない。
 
 ```bash
 npx wrangler login --device --browser=false --scopes user:read account:read workers:write workers_scripts:write workers_tail:read containers:write cloudchamber:write artifacts:write
@@ -141,7 +145,7 @@ npm run deploy
 
 ## 検証範囲
 
-2026-09-27、Node.js 24 / ローカルworkerd / Docker PostgreSQL・Geometryで確認した結果：
+2026-09-27、Node.js 24 / ローカルworkerd / Docker PostgreSQL・Geometryと、配備済みGeometryで確認した結果：
 
 | 検証 | 結果 |
 | --- | --- |
@@ -150,10 +154,19 @@ npm run deploy
 | SQLの境界・権限・業務テスト | 117件成功 |
 | 開発時ブラウザ | 11件成功、隔離ゲスト用2件は対象外 |
 | 本番ビルドのローカルブラウザ | 10件成功。MailpitによるSMSは本番モードで無効なので、メール／SMS確認は開発時に実施 |
-| ビルド・Wrangler dry run | 成功。実配備ではない |
+| ビルド・Wrangler dry run | 成功。Web Workerの実配備ではない |
+| Cloudflare上のGeometry Container | 非公開service binding経由の一致テスト5件成功。STL/3MF解析、GLB/USDZの寸法・色・バイト列、不正入力後の継続動作を確認 |
 | npm依存監査 | 0件（fflate修正版のoverride適用後） |
 
-Geometryは前述のWSL向けDocker経路を使用。本番相当ビルドで、投稿・公開・GLB/USDZ変換・R2キャッシュ・デモ注文・スマートフォン幅の操作を確認した。未設定のHyperdrive IDを配備前チェックが拒否することも確認した。
+250件のVitestとブラウザ試験では、Geometryに前述のWSL向けDocker経路を使用。本番相当ビルドで、投稿・公開・GLB/USDZ変換・R2キャッシュ・デモ注文・スマートフォン幅の操作を確認した。未設定のHyperdrive IDを配備前チェックが拒否することも確認した。
+
+その後、Geometryのみ実配備し、ローカルWranglerのservice bindingに`remote: true`を指定して検証した。確認用Workerはlocalhostだけで起動し、Cloudflareへ公開していない。最初の検証リクエストは起動待ちを含み約18秒、解析の初回応答は約5.1秒でローカルテストの5秒上限を超えた。起動後に以下を実行し、5件すべて成功した。これは小さなfixtureでの結果であり、負荷試験や応答時間の保証ではない。
+
+```bash
+# localhost:8790で、配備済みoshinest-geometryへのremote service bindingを起動した状態
+TEST_GEOMETRY=true GEOMETRY_TEST_URL=http://127.0.0.1:8790 \
+  npx vitest run tests/geometry-service.integration.test.ts --testTimeout 15000
+```
 
 ローカルでの型・lint・SQL・Nodeテスト・ブラウザテストと、本番のHyperdriveや実機ARは別の検証。スマートフォンのAR寸法誤差、最大80MiB入力、同時利用、通知配信の実送信、運用料金は本番相当環境で測る。現在の肉厚等の検査は造形成功を保証しない。
 

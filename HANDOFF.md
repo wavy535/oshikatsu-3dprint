@@ -5,8 +5,8 @@
 - `npm run cf:types`で型を生成。ローカルは`.dev.vars`を必ず用意し、管理用`.env.local`と分離する。
 - `npm run dev:geometry`と`npm run dev`を別プロセスで起動。DBは既存のDocker Compose。
 - [構成選定・AI制作の設計](docs/product-architecture.md)、[配備手順](infra/cloudflare/README.md)を現在の正本とする。
-- AI生成は設計まで。コードは論理単位でコミット済み。CloudflareのWorker配備、DB作成、既存データ移行、AWS停止は未実施。
-- 追加依頼の配備先は`yumaboda.official@gmail.com`（`1c93af48e1a5c2e163edc9030cff4647`）。通常会員向けの新環境・既存データ移行なし。非公開R2 `oshinest-files`とARキャッシュの7日ライフサイクルだけ作成済み。Cloudflare追加認証・Neon認証が期限切れ、Resend/Twilio設定は未提供。[配備の進捗](infra/cloudflare/README.md#今回の配備先と進捗2026-09-27)を参照。
+- AI生成は設計まで。コードは論理単位でコミット済み。Web WorkerとDBは未配備。既存データ移行・AWS停止は実施しない。
+- 追加依頼の配備先は`yumaboda.official@gmail.com`（`1c93af48e1a5c2e163edc9030cff4647`）。通常会員向けの新環境・既存データ移行なし。非公開R2 `oshinest-files`とARキャッシュの7日ライフサイクルを作成済み。Cloudflare追加認証は完了し、非公開のGeometry Worker・Containerを配備済み。実際のCloudflare Containerへの一致テスト5件が成功。Neon認証は期限切れ、Resend/Twilio設定は未提供。[配備の進捗](infra/cloudflare/README.md#今回の配備先と進捗2026-09-27)を参照。
 - 型・lint・250件のVitest・117件のSQL・本番ビルドでの10件のブラウザ試験・Wrangler dry runを確認。[検証範囲](infra/cloudflare/README.md#検証範囲)を参照。
 - このWSLではContainersのネイティブなローカル起動が停止するため、手順書のDocker代替経路を使用。`/dev/ar`のホストフォルダ読み取りもWorkersでは利用できず、CLI解析またはARファイル投稿で確認する。
 - GitHub同期前のREADME変更は既存のstash、未pushコミットは`refactoring`に残す。この変更では適用しない。
