@@ -16,6 +16,7 @@
     "db:seed": "node scripts/d1/seed-local.mjs",
     "dev:services": "docker compose up -d --build --wait geometry",
     "perf:frontend": "node scripts/measure-frontend.mjs",
+    "perf:navigation": "node scripts/measure-navigation.mjs",
     "preview": "wrangler dev --config dist/server/wrangler.json",
     "typecheck": "tsc --noEmit",
     "cf:types": "wrangler types --strict-vars=false --env-interface CloudflareEnv worker-configuration.d.ts && wrangler types --strict-vars=false --config infra/cloudflare/geometry/wrangler.jsonc --env-interface GeometryEnv infra/cloudflare/geometry/worker-configuration.d.ts",

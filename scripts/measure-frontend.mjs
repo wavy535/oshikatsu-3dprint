@@ -114,8 +114,16 @@ try {
             fcp:
               performance.getEntriesByName("first-contentful-paint")[0]
                 ?.startTime ?? null,
+            hydratedAt: window.__VINEXT_HYDRATED_AT ?? null,
             htmlBytes: navigation.decodedBodySize,
+            htmlEncodedBytes: navigation.encodedBodySize,
+            contentEncoding: navigation.contentEncoding ?? null,
             htmlTransferBytes: navigation.transferSize,
+            connection: {
+              dns: navigation.domainLookupEnd - navigation.domainLookupStart,
+              tcpTls: navigation.connectEnd - navigation.connectStart,
+              requestWait: navigation.responseStart - navigation.requestStart,
+            },
             responseEnd: navigation.responseEnd,
             resources: performance.getEntriesByType("resource").map((e) => ({
               url: e.name,
