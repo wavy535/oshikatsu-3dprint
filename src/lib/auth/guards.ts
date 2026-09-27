@@ -1,5 +1,5 @@
 import "server-only";
-import { cache } from "react";
+import { cacheForRequest } from "vinext/cache";
 import { redirect, notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { getSessionCookie } from "better-auth/cookies";
@@ -19,8 +19,12 @@ export async function requireUser(redirectTo?: string) {
   return { db, user };
 }
 
-/** 公開ページ用。未ログインでもリダイレクトせず null を返す。 */
-export const getOptionalUser = cache(async () => {
+/**
+ * 公開ページ用。未ログインでもリダイレクトせず null を返す。
+ * vinext の HTTP リクエストスコープで検証結果を共有する。
+ * React.cache はこのランタイムの非同期 reader 呼び出しをまとめられない。
+ */
+export const getOptionalUser = cacheForRequest(async () => {
   // Resolve the request before initializing runtime-only secrets/connections.
   // This also makes Next.js defer these readers during a credential-free build.
   const requestHeaders = await headers();
@@ -41,8 +45,8 @@ export async function getDatabase() {
   return (await getOptionalUser()).db;
 }
 
-/** Reactのリクエスト内キャッシュ。別リクエスト・別ユーザーとは共有しない。 */
-export const getUserProfile = cache(async () => {
+/** vinext のリクエスト内で共有。別リクエスト・別ユーザーとは共有しない。 */
+export const getUserProfile = cacheForRequest(async () => {
   const { db, user } = await getOptionalUser();
   if (!user) return { db, user, profile: null };
   const profile =

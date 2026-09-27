@@ -1,4 +1,4 @@
-import { cache } from "react";
+import { cacheForRequest } from "vinext/cache";
 import { sql } from "kysely";
 import { jsonObjectFrom } from "kysely/helpers/sqlite";
 import "server-only";
@@ -30,8 +30,8 @@ const GUEST: ShellContext = {
   mainNui: null,
 };
 
-/** Header and sidebar share this result within one render, never across users. */
-export const getShellContext = cache(async (): Promise<ShellContext> => {
+/** Header and sidebar share this result within one HTTP request, never across users. */
+export const getShellContext = cacheForRequest(async (): Promise<ShellContext> => {
   const { db, user } = await getOptionalUser();
   if (!user) return GUEST;
   const [{ profile }, counts] = await Promise.all([
