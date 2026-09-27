@@ -1,6 +1,7 @@
 import handler from "vinext/server/fetch-handler";
 import { createProcessor, type CompactPlan } from "beasties/runtime";
 import { readBoundedHtml } from "./lib/render/bounded-html";
+import { compressHtml } from "./lib/render/compress-html";
 export * from "vinext/server/fetch-handler";
 
 declare global {
@@ -50,7 +51,7 @@ export default {
     // The initial DOM gets all matching rules, not a viewport approximation.
     // Keep the normal RSC stylesheet loader for new components and later routes.
     // This subset must not claim to replace the complete stylesheet in React.
-    return new HTMLRewriter().on("head > style[data-vinext-inline-css]", {
+    const optimized = new HTMLRewriter().on("head > style[data-vinext-inline-css]", {
       element(element) {
         element.removeAttribute("data-vinext-inline-css");
         element.removeAttribute("data-href");
@@ -59,5 +60,23 @@ export default {
         element.setInnerContent(css.replace(/<\/style/gi, "<\\/style"), { html: true });
       },
     }).transform(new Response(body.html, { status: response.status, headers }));
+    // This document is already bounded and buffered. Coalesce the rewrite so
+    // compression can see the entire document without intermediate flushes.
+    const html = await optimized.text();
+    // Cloudflare normalizes Accept-Encoding before invoking the Worker. Use
+    // the original client capabilities when available, including explicit q=0.
+    const accepted = typeof request.cf?.clientAcceptEncoding === "string"
+      ? request.cf.clientAcceptEncoding : request.headers.get("accept-encoding");
+    headers.append("vary", "Accept-Encoding");
+    let compressed: Uint8Array<ArrayBuffer> | null;
+    try {
+      compressed = compressHtml(html, accepted);
+    } catch {
+      console.warn("HTML compression failed; using automatic encoding");
+      return new Response(html, { status: response.status, headers });
+    }
+    if (!compressed) return new Response(html, { status: response.status, headers });
+    headers.set("content-encoding", "br");
+    return new Response(compressed, { status: response.status, headers, encodeBody: "manual" });
   },
 } satisfies ExportedHandler<CloudflareEnv>;

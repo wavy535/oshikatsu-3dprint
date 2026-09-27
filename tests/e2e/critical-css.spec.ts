@@ -54,3 +54,12 @@ for (const width of [390, 1365]) {
     }
   });
 }
+
+test("HTML remains readable when Brotli is explicitly disabled", async ({ request }) => {
+  for (const encoding of ["identity", "gzip, br;q=0"]) {
+    const response = await request.get("/", { headers: { "Accept-Encoding": encoding } });
+    expect(response.ok()).toBe(true);
+    expect(response.headers()["content-encoding"]).not.toBe("br");
+    expect(await response.text()).toContain("ぬいのサイズから、");
+  }
+});
