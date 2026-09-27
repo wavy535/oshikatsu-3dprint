@@ -7,7 +7,7 @@ test("primary actions have sufficient contrast, readable text and keyboard focus
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   const cta = page
     .getByRole("main")
-    .getByRole("link", { name: "作品をさがす", exact: true });
+    .getByRole("button", { name: "作品をさがす", exact: true });
   const styles = await cta.evaluate((element) => {
     const style = getComputedStyle(element);
     return {

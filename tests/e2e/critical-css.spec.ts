@@ -60,6 +60,6 @@ test("HTML remains readable when Brotli is explicitly disabled", async ({ reques
     const response = await request.get("/", { headers: { "Accept-Encoding": encoding } });
     expect(response.ok()).toBe(true);
     expect(response.headers()["content-encoding"]).not.toBe("br");
-    expect(await response.text()).toContain("ぬいのサイズから、");
+    expect(await response.text()).toContain("おうちと家具。");
   }
 });

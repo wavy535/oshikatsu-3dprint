@@ -1,132 +1,219 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+import { Armchair, ArrowRight, Layers3, PanelsTopLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { RoomDiagram } from "@/components/home/room-diagram";
+
+const categories = [
+  {
+    name: "家具",
+    detail: "椅子やソファに座らせる",
+    description: "ぬいの座り幅・奥行きに合わせて。",
+    slug: "kagu",
+    icon: Armchair,
+  },
+  {
+    name: "台座",
+    detail: "机や棚に並べて飾る",
+    description: "一体ずつ置く台や、段差のあるステージ。",
+    slug: "daiza",
+    icon: Layers3,
+  },
+  {
+    name: "背景",
+    detail: "お部屋をつくって撮影する",
+    description: "壁や背景を、置き場所に合わせて。",
+    slug: "haikei",
+    icon: PanelsTopLeft,
+  },
+];
 
 export default function HomePage() {
   return (
     <div className="page-shell flex flex-col gap-12 sm:gap-16">
-      <section className="grid gap-8 border-b border-ink pb-10 lg:grid-cols-[1.4fr_1fr] lg:gap-16">
-        <div>
-          <p className="mb-5 text-sm font-semibold text-brand">
-            推しぬいのための3Dプリントマーケット
-          </p>
-          <h1 className="text-3xl font-bold leading-normal sm:text-4xl">
-            ぬいのサイズから、
-            <br />
-            おうちと家具を探す。
-          </h1>
-          <p className="mt-5 max-w-lg text-base leading-8 text-muted-foreground">
-            10・15・20cmのぬいぐるみに対応した台座、家具、背景。
-            作品ごとの寸法を確かめて、飾る場所に合わせて選べます。
-          </p>
-          <Button asChild size="lg" className="mt-6">
-            <Link href="/works" prefetch={false}>
-              作品をさがす
-              <ArrowRight className="size-4" aria-hidden />
-            </Link>
-          </Button>
-        </div>
-        <div className="lg:pt-2">
-          <h2 className="mb-2 text-base font-semibold">ぬいの身長で絞り込む</h2>
-          <nav
-            aria-label="ぬいのサイズから探す"
-            className="border-t border-ink"
-          >
-            {[10, 15, 20].map((size) => (
-              <Link
-                key={size}
-                href={`/works?nuiSize=${size}`}
-                prefetch={false}
-                className="flex min-h-18 items-center justify-between border-b border-line py-3 hover:text-brand"
+      <section aria-labelledby="home-heading">
+        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+          <div className="py-2 lg:py-4">
+            <p className="mb-4 text-sm font-semibold text-brand">
+              推しぬいのための3Dプリントマーケット
+            </p>
+            <h1
+              id="home-heading"
+              className="text-4xl font-bold leading-tight sm:text-5xl"
+            >
+              推しぬいの
+              <br />
+              <span className="text-brand">おうちと家具。</span>
+            </h1>
+            <p className="mt-5 max-w-md text-base leading-8 text-muted-foreground">
+              座らせる椅子、並べる台座、撮影の背景。
+              ぬいのサイズと飾る場所に合わせて、3Dプリント作品を探せます。
+            </p>
+
+            <form
+              action="/works"
+              method="get"
+              role="search"
+              aria-label="サイズとカテゴリから作品を探す"
+              className="mt-7 max-w-lg"
+            >
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label
+                    htmlFor="home-nui-size"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    ぬいの身長
+                  </label>
+                  <select
+                    id="home-nui-size"
+                    name="nuiSize"
+                    defaultValue=""
+                    className="h-12 w-full rounded-sm border border-input bg-white px-3 text-base"
+                  >
+                    <option value="">すべて</option>
+                    <option value="10">10cm</option>
+                    <option value="15">15cm</option>
+                    <option value="20">20cm</option>
+                  </select>
+                </div>
+                <div>
+                  <label
+                    htmlFor="home-category"
+                    className="mb-2 block text-sm font-semibold"
+                  >
+                    探しているもの
+                  </label>
+                  <select
+                    id="home-category"
+                    name="category"
+                    defaultValue=""
+                    className="h-12 w-full rounded-sm border border-input bg-white px-3 text-base"
+                  >
+                    <option value="">すべて</option>
+                    {categories.map(({ name, slug }) => (
+                      <option key={slug} value={slug}>{name}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <Button
+                type="submit"
+                size="lg"
+                className="mt-3 w-full justify-between px-5"
               >
-                <span>
-                  <span className="num text-3xl font-semibold">{size}</span>
-                  <span className="ml-2 text-base">cm</span>
-                </span>
-                <span className="flex items-center gap-3 text-sm">
-                  対応作品を見る
-                  <ArrowRight className="size-4" aria-hidden />
-                </span>
-              </Link>
-            ))}
-          </nav>
-          <Link
-            href="/mypage/nuis"
-            prefetch={false}
-            className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4"
-          >
-            マイぬいのサイズを登録する
-          </Link>
+                作品をさがす
+                <ArrowRight className="size-5" aria-hidden />
+              </Button>
+            </form>
+          </div>
+
+          <figure className="bg-brand p-5 text-white sm:p-6">
+            <div className="flex items-center justify-between border-b border-white/40 pb-3 text-sm">
+              <span className="font-semibold">ぬいを飾る、小さなお部屋</span>
+              <span>構成例</span>
+            </div>
+            <RoomDiagram />
+            <figcaption className="flex flex-wrap justify-between gap-x-4 gap-y-1 border-t border-white/40 pt-3 text-sm">
+              <span>背景 ＋ 家具 ＋ 台座</span>
+              <span>販売作品ではなくイメージ図です</span>
+            </figcaption>
+          </figure>
         </div>
+
+        <aside
+          aria-label="公開状況"
+          className="mt-6 flex flex-col gap-1 border-y border-line py-4 text-sm leading-6 sm:flex-row sm:gap-5"
+        >
+          <p className="shrink-0 font-semibold text-brand">準備公開中</p>
+          <p className="text-muted-foreground">
+            会員登録と閲覧をお試しいただけます。注文はデモ機能のため、実際の決済・発送は行いません。
+          </p>
+        </aside>
       </section>
 
       <section
         aria-labelledby="browse-heading"
-        className="grid gap-5 lg:grid-cols-[1fr_2fr] lg:gap-12"
+        className="grid gap-6 lg:grid-cols-3 lg:gap-12"
       >
         <div>
-          <h2 id="browse-heading" className="text-2xl font-bold">
-            カテゴリから探す
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            飾りたいものに合わせて。
+          <p className="mb-2 text-sm font-semibold text-brand">作品を選ぶ</p>
+          <h2 id="browse-heading" className="text-2xl font-bold">飾り方から探す</h2>
+          <p className="mt-3 max-w-xs text-base leading-7 text-muted-foreground">
+            家具・台座・背景を組み合わせて、机や棚に飾る空間をつくれます。
           </p>
         </div>
-        <div className="border-t border-ink">
-          {[
-            { name: "台座", detail: "ぬいを置く台・ステージ", slug: "daiza" },
-            { name: "家具", detail: "椅子・ソファ・テーブル", slug: "kagu" },
-            {
-              name: "背景",
-              detail: "撮影やディスプレイ用の背景",
-              slug: "haikei",
-            },
-          ].map(({ name, detail, slug }) => (
+        <nav
+          aria-label="カテゴリから探す"
+          className="border-t border-ink lg:col-span-2"
+        >
+          {categories.map(({ name, detail, description, slug, icon: Icon }) => (
             <Link
               key={slug}
               href={`/works?category=${slug}`}
               prefetch={false}
-              className="grid min-h-20 grid-cols-[4rem_1fr_auto] items-center gap-4 border-b border-line py-4 hover:text-brand sm:grid-cols-[6rem_1fr_auto]"
+              className="flex min-h-28 items-center gap-4 border-b border-line py-5 hover:text-brand sm:gap-6"
             >
-              <span className="text-xl font-semibold">{name}</span>
-              <span className="text-sm text-muted-foreground">{detail}</span>
-              <ArrowRight className="size-5" aria-hidden />
+              <Icon
+                className="size-8 shrink-0 text-brand sm:size-10"
+                strokeWidth={1.5}
+                aria-hidden
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                  <span className="text-xl font-semibold">{name}</span>
+                  <span className="text-sm">{detail}</span>
+                </div>
+                <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                  {description}
+                </p>
+              </div>
+              <ArrowRight className="size-5 shrink-0" aria-hidden />
             </Link>
           ))}
-        </div>
+        </nav>
       </section>
 
       <section
         aria-labelledby="size-heading"
-        className="grid gap-5 border-t border-line pt-8 lg:grid-cols-[1fr_2fr] lg:gap-12"
+        className="grid gap-6 border-t border-line pt-8 lg:grid-cols-3 lg:gap-12"
       >
-        <h2 id="size-heading" className="text-2xl font-bold">
-          選ぶ前に、寸法を確認
-        </h2>
-        <dl className="grid gap-6 sm:grid-cols-2">
-          <div>
-            <dt className="font-semibold">ぬいの幅・奥行きも測る</dt>
-            <dd className="mt-2 text-sm leading-7 text-muted-foreground">
-              同じ身長でも体型は異なります。座ったときの幅・奥行きと、作品の内寸を確認してください。
+        <div>
+          <p className="mb-2 text-sm font-semibold text-brand">サイズの選び方</p>
+          <h2 id="size-heading" className="text-2xl font-bold">ぬいと置き場所を測る</h2>
+          <p className="mt-3 max-w-xs text-base leading-7 text-muted-foreground">
+            同じ身長のぬいでも、座ったときの大きさは違います。
+          </p>
+          <Link
+            href="/mypage/nuis"
+            prefetch={false}
+            className="mt-3 inline-flex min-h-11 items-center gap-2 font-semibold text-brand underline underline-offset-4"
+          >
+            マイぬいのサイズを登録する
+            <ArrowRight className="size-4 shrink-0" aria-hidden />
+          </Link>
+        </div>
+        <dl className="grid gap-6 sm:grid-cols-2 lg:col-span-2">
+          <div className="border-l-2 border-brand pl-5">
+            <dt className="text-lg font-semibold">ぬいの幅・奥行き</dt>
+            <dd className="mt-3 text-base leading-8 text-muted-foreground">
+              座らせた状態で、腕や足も含めて測ります。椅子やおうちの内寸と比べて、収まるかを確認してください。
             </dd>
           </div>
-          <div>
-            <dt className="font-semibold">棚や机に置けるか確かめる</dt>
-            <dd className="mt-2 text-sm leading-7 text-muted-foreground">
-              作品の外寸を置き場所と照らし合わせます。AR対応作品では、対応するスマートフォンで実寸表示も試せます。
+          <div className="border-l-2 border-line pl-5">
+            <dt className="text-lg font-semibold">棚や机の空きスペース</dt>
+            <dd className="mt-3 text-base leading-8 text-muted-foreground">
+              幅・奥行き・高さを作品の外寸と比べます。AR対応作品は、対応するスマートフォンで実寸表示も試せます。
             </dd>
           </div>
         </dl>
       </section>
-      <aside
-        aria-label="公開状況"
-        className="border-l-2 border-brand pl-4 text-sm leading-7"
-      >
-        <p className="font-semibold">準備公開中</p>
-        <p className="text-muted-foreground">
-          会員登録・作品の閲覧をお試しいただけます。注文はデモ機能のため、実際の決済・発送は行いません。新規のクリエイター申請は受付を停止しています。
+
+      <details className="border-y border-line py-3">
+        <summary className="cursor-pointer py-3 font-semibold">作品をつくりたい方へ</summary>
+        <p className="max-w-3xl pb-3 text-sm leading-7 text-muted-foreground">
+          言葉からおうちの形をつくるAIモデリングは開発予定です。現在は利用できません。新規のクリエイター申請も受付を停止しています。
         </p>
-      </aside>
+      </details>
     </div>
   );
 }
