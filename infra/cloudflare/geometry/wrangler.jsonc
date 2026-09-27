@@ -1,6 +1,7 @@
 {
   "$schema": "../../../node_modules/wrangler/config-schema.json",
   "name": "oshinest-geometry",
+  "account_id": "1c93af48e1a5c2e163edc9030cff4647",
   "main": "worker.ts",
   "compatibility_date": "2026-09-27",
   "compatibility_flags": ["nodejs_compat"],

@@ -4,6 +4,27 @@ Webはvinext/ViteをCloudflare Workersで実行する。ファイルはR2、重�
 
 AI編集機能の追加設計と構成選定は[制作基盤の設計](../../docs/product-architecture.md)。Cloudflare上のリソース作成、既存データ移行、DNS切り替えは、リポジトリのビルドだけでは実行されない。
 
+## 今回の配備先と進捗（2026-09-27）
+
+- 配備先：`yumaboda.official@gmail.com`のCloudflareアカウント（`1c93af48e1a5c2e163edc9030cff4647`）。両Workerの設定に固定済み。
+- 通常会員向けの新環境。`DEMO_GUEST_ENABLED=false`を維持し、既存DB・S3のデータ移行や開発用seedは行わない。
+- 公開予定URL：`https://oshinest.yumaboda-official.workers.dev`。Worker本体は未配備で、このURLは公開済みの成果ではない。
+- `oshinest-files`をAPACの配置ヒントで新規作成。`r2.dev`公開は無効。`ar-cache/`だけに7日で期限切れとなるルール`ar-cache-expiry`を設定済み。
+- PostgreSQLは新規作成が必要。NeonのCLIを準備したがブラウザ認証が時間切れとなり、DBは未作成。Hyperdrive IDも未設定。
+- Cloudflareの既存認証には`containers:write`が不足。追加スコープの認証は時間切れとなり、Geometry Worker・Containerは未配備。
+- Resendの送信元・APIキー、Twilioの接続情報は未設定。通常会員向けの公開前に設定する。
+- アカウントと公開予定URLを設定した状態でビルドとWrangler dry runは成功。実配備の完了を意味しない。
+
+再開時は同じ開発環境でCloudflareとNeonへ認証する。以前発行した一時URL・デバイスコードは期限切れのため再利用しない。
+
+```bash
+npx wrangler login --device --browser=false --scopes user:read account:read workers:write workers_scripts:write workers_tail:read containers:write cloudchamber:write artifacts:write
+npx wrangler whoami
+npx --yes neonctl@6.2.3 auth
+```
+
+Neon側の対象アカウント・プランを確認してから新しいDBを作成し、以下の手順でスキーマ、Hyperdrive、secretを準備する。認証情報はGitやチャットに記録しない。既に作成したR2バケットを再作成せず、Workerの配備が完了した時点でこの進捗を更新する。
+
 ## ローカル
 
 Node.js 24とDockerを用意する。初回のみ環境ファイルをコピーする。既存の設定ファイルは上書きしない。

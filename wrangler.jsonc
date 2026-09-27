@@ -1,6 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "oshinest",
+  "account_id": "1c93af48e1a5c2e163edc9030cff4647",
+  "workers_dev": true,
+  "preview_urls": false,
   "compatibility_date": "2026-09-27",
   "compatibility_flags": [
     "nodejs_compat"
@@ -16,7 +19,7 @@
   }],
   "services": [{ "binding": "GEOMETRY", "service": "oshinest-geometry" }],
   "vars": {
-    "SITE_URL": "https://configure-before-deploy.invalid",
+    "SITE_URL": "https://oshinest.yumaboda-official.workers.dev",
     "MAIL_PROVIDER": "none",
     "SMS_PROVIDER": "none",
     "DEMO_GUEST_ENABLED": "false",
