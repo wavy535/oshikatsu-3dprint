@@ -31,7 +31,8 @@ for (const width of [390, 1365]) {
       const page = await context.newPage();
       await signInFixture(page, baseURL!, "buyer@example.com");
       for (const path of ["/", "/works", "/mypage", "/mypage/notification-settings", "/mypage/orders", "/cart"]) {
-        await page.goto(new URL(path, baseURL!).href);
+        const response = await page.goto(new URL(path, baseURL!).href);
+        expect(response?.headers().link ?? "").not.toContain('/_next/static/css/');
         await expect(page.locator("style[data-oshinest-critical]")).toHaveCount(1);
         const critical = await appearance(page);
         // Swap only the inline subset for the complete emitted stylesheet.

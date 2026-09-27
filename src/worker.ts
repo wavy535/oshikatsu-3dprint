@@ -37,6 +37,16 @@ export default {
     const headers = new Headers(response.headers);
     headers.delete("content-length");
     headers.delete("etag");
+    // The inline subset already styles the initial document. An HTTP preload
+    // of the full CSS starts before HTML arrives and competes for its bandwidth.
+    // Leave unrelated hints intact; React still loads full CSS for navigation.
+    const hints = headers.get("link")?.split(/,(?=\s*<)/).filter((hint) => !(
+      /^\s*<\/_next\/static\/css\/[^>]+>/.test(hint) &&
+      /;\s*rel="?preload"?(?:;|\s*$)/.test(hint) &&
+      /;\s*as="?style"?(?:;|\s*$)/.test(hint)
+    ));
+    if (hints?.length) headers.set("link", hints.join(","));
+    else if (hints) headers.delete("link");
     // The initial DOM gets all matching rules, not a viewport approximation.
     // Keep the normal RSC stylesheet loader for new components and later routes.
     // This subset must not claim to replace the complete stylesheet in React.
