@@ -20,7 +20,8 @@ test("AR loads on demand, reserves space, and clears errors when switching model
   // Delay newly imported scripts to exercise the loading state on a slow connection.
   let release!: () => void;
   const gate = new Promise<void>((resolve) => { release = resolve; });
-  await page.route("**/_next/static/**/*.js", async (route) => { await gate; await route.continue(); });
+  const scripts = /\.js(?:\?|$)/;
+  await page.route(scripts, async (route) => { await gate; await route.continue(); });
   try {
     await open.click();
     const loading = page.getByRole("status").filter({ hasText: "3D表示を準備しています" });
@@ -33,7 +34,7 @@ test("AR loads on demand, reserves space, and clears errors when switching model
   await expect(viewer).toBeVisible();
   expect((await viewer.boundingBox())!.height).toBe(256);
   await expect.poll(() => modelRequests.length).toBeGreaterThan(0);
-  await page.unroute("**/_next/static/**/*.js");
+  await page.unroute(scripts);
   const previousSource = await viewer.evaluate((element) => (element as HTMLElement & { src: string }).src);
   await viewer.dispatchEvent("error");
   await expect(page.getByRole("alert").filter({ hasText: "このモデルを表示できませんでした" })).toBeVisible();

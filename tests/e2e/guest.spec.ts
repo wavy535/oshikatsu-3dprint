@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { basematerialsXml, modelXml, modelZip, tetrahedronMeshWith } from "../helpers/model-files";
 
-// Aurora may resume on the first guest request; Lambda allows up to 120 seconds.
+// Isolated guest deployments may include a geometry container cold start.
 test.use({ actionTimeout: 90_000, navigationTimeout: 90_000 });
 test.setTimeout(180_000);
 
@@ -17,6 +17,7 @@ test("guests enter without credentials, post works, remain isolated and cannot b
   await page.getByRole("button", { name: "作品を投稿する" }).click();
   await expect(page).toHaveURL(/\/steps\/1$/);
   const draft = page.url();
+  await expect(page.getByLabel("印刷用ファイル")).toBeEnabled();
   await page.getByLabel("印刷用ファイル").setInputFiles("tests/fixtures/tetrahedron.stl");
   await expect(page.getByRole("heading", { name: "自動検証の結果" })).toBeVisible();
   await page.reload();
@@ -47,6 +48,7 @@ test("a guest publishes separate print and AR files and another guest places a d
   await expect(page).toHaveURL(/\/steps\/1$/);
   const draft = page.url();
   const workId = draft.match(/\/works\/([^/]+)\//)![1];
+  await expect(page.getByLabel("印刷用ファイル")).toBeEnabled();
   await page.getByLabel("印刷用ファイル").setInputFiles("tests/fixtures/tetrahedron.stl");
   await expect(page.getByRole("heading", { name: "自動検証の結果" })).toBeVisible();
   await page.goto(draft.replace(/\/1$/, "/3"));
@@ -58,6 +60,7 @@ test("a guest publishes separate print and AR files and another guest places a d
   await page.getByLabel("15cmを出品する", { exact: true }).check();
   await page.getByRole("button", { name: "公開の設定へ進む", exact: true }).click();
   await expect(page).toHaveURL(/\/steps\/4$/);
+  await expect(page.getByLabel("AR用ファイル", { exact: true })).toBeEnabled();
   await page.getByLabel("AR用ファイル", { exact: true }).setInputFiles({
     name: "colored.3mf", mimeType: "application/octet-stream", buffer: modelZip(modelXml(
       basematerialsXml(1, [["Red", "#FF0000"], ["Blue", "#0000FF"]]) +
@@ -65,6 +68,7 @@ test("a guest publishes separate print and AR files and another guest places a d
     )),
   });
   await expect(page.getByText("登録済み：colored.3mf")).toBeVisible();
+  await expect(page.getByLabel("作品画像", { exact: true })).toBeEnabled();
   await page.getByLabel("作品画像", { exact: true }).setInputFiles({ name: "test.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX1sAAAAASUVORK5CYII=", "base64") });
   await expect(page.locator('img[src^="/api/files/public/work-images/"]')).toHaveCount(1);
   await page.getByRole("button", { name: "公開する", exact: true }).click();
