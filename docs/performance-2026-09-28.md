@@ -1,5 +1,7 @@
 # 公開環境のLCP調査・改善（2026-09-28）
 
+追記: 会員の「通知設定」と青の配色は、後続の[会員ページの改善記録](performance-member-2026-09-28.md)を参照。以下は匿名ページを対象とした当時の記録。
+
 ## 対象と条件
 
 `https://oshinest.yumaboda-official.workers.dev` の `/`、`/works`、`/login` を、未ログインで計測した。変更前は99f2700（Worker version `7b18ab57-5a12-430d-b7a2-a1a56e6fc7f5`）。
