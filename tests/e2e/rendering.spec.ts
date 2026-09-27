@@ -14,6 +14,7 @@ test("AR loads on demand, reserves space, and clears errors when switching model
   await page.goto(href!);
   const open = page.getByRole("button", { name: "開く", exact: true });
   await expect(open).toBeVisible();
+  await expect(open).toBeEnabled();
   expect(await page.evaluate(() => Boolean(customElements.get("model-viewer")))).toBe(false);
   expect(modelRequests).toEqual([]);
 

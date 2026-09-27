@@ -10,6 +10,7 @@ import type { ArModelKind, ArModelOption, RoomUnavailableReason } from "@/lib/ar
 import type { QrUnavailableReason } from "@/lib/ar/preview";
 import { ArModelViewer } from "./ar-model-viewer";
 import { cn } from "@/lib/utils";
+import { useHydrated } from "@/lib/use-hydrated";
 
 // 小数の誤差（125.50000000000001 など）を出さず、整数なら小数点も付けない
 const mm = (value: number) => Number(value.toFixed(AR_DISPLAY.mmDecimals));
@@ -68,6 +69,7 @@ export function ArPreview({
   qrUnavailable,
 }: Props) {
   const router = useRouter();
+  const hydrated = useHydrated();
   const [open, setOpen] = useState(false);
   const [kind, setKind] = useState<ArModelKind | null>(options[0]?.kind ?? null);
   if (options.length === 0 && !roomUnavailable) return null;
@@ -84,6 +86,7 @@ export function ArPreview({
           <button
             type="button"
             onClick={() => setOpen(true)}
+            disabled={!hydrated}
             className="ml-auto min-h-11 px-2 text-[11.5px] font-semibold text-brand hover:underline"
           >
             開く
