@@ -3,8 +3,8 @@
 /* Shared UI tokens. See docs/ui-redesign.md for the visual hierarchy. */
 :root {
   /* ── 素のトークン ── */
-  --brand: #a9321b;
-  --brand-soft: #f2f2f0;
+  --brand: #1d4ed8;
+  --brand-soft: #eef3fb;
   --ground: #f5f5f3;
   --ink: #20201e;
   --line: #cececa;
