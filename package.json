@@ -19,7 +19,7 @@
     "perf:frontend": "node scripts/measure-frontend.mjs",
     "preview": "wrangler dev --config dist/server/wrangler.json",
     "typecheck": "tsc --noEmit",
-    "cf:types": "wrangler types --strict-vars=false --env-interface CloudflareEnv worker-configuration.d.ts",
+    "cf:types": "wrangler types --strict-vars=false --env-interface CloudflareEnv worker-configuration.d.ts && wrangler types --strict-vars=false --config infra/cloudflare/geometry/wrangler.jsonc --env-interface GeometryEnv infra/cloudflare/geometry/worker-configuration.d.ts",
     "dev:geometry": "wrangler dev --config infra/cloudflare/geometry/wrangler.jsonc --port 8788",
     "deploy": "node scripts/check-cloudflare-config.mjs && npm run build && wrangler deploy --config dist/server/wrangler.json",
     "deploy:geometry": "wrangler deploy --config infra/cloudflare/geometry/wrangler.jsonc",

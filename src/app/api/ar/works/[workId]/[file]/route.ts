@@ -5,7 +5,9 @@ import { modelResponse, modelRedirect } from "@/lib/ar/response";
 import { modelRevision } from "@/lib/ar/revision";
 import { assetVersion } from "@/lib/ar/version";
 import { buildWorkMeshes, isUnconvertibleModelError, readModelObjects } from "@/lib/ar/work-model";
-import { readModel, findArModel } from "@/lib/files/storage";
+import { platform } from "@/lib/platform";
+import { GeometryError, geometryRequest } from "@/lib/geometry";
+import { readModel, findArModel, signedDownload, objectKey } from "@/lib/files/storage";
 import { AnalysisBudget } from "@/lib/print/limits";
 
 /**
@@ -38,6 +40,19 @@ export async function GET(
     const location = await findArModel(cachePath);
     if (location) return modelRedirect(location, current);
   }
+  if (platform().GEOMETRY) {
+    try {
+      const response = await geometryRequest(`/convert-ar?format=${work.format}&scale=${source.scaleRatio}`, source.storagePath, source.fileName, "work-ar");
+      await platform().FILES.put(objectKey("ar-cache", cachePath), response.body, {
+        httpMetadata: { contentType: work.format === "glb" ? "model/gltf-binary" : "model/vnd.usdz+zip" },
+      });
+      return modelRedirect(await signedDownload("ar-cache", cachePath), current);
+    } catch (error) {
+      if (error instanceof GeometryError) return new Response(null, { status: error.status });
+      throw error;
+    }
+  }
+  if (process.env.APP_RUNTIME === "cloudflare") return new Response(null, { status: 503 });
   const budget = new AnalysisBudget();
   const buffer = await readModel(source.storagePath, "work-ar");
   try {

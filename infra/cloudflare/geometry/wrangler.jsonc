@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../node_modules/wrangler/config-schema.json",
+  "name": "oshinest-geometry",
+  "main": "worker.ts",
+  "compatibility_date": "2026-09-27",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
+  "containers": [{
+    "class_name": "Geometry",
+    "image": "./Dockerfile",
+    "image_build_context": "../../..",
+    "instance_type": "standard-1",
+    "max_instances": 2
+  }],
+  "durable_objects": { "bindings": [{ "name": "GEOMETRY_CONTAINER", "class_name": "Geometry" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Geometry"] }]
+}

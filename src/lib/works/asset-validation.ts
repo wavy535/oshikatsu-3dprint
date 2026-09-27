@@ -1,6 +1,8 @@
 import { jsonArrayFrom } from "kysely/helpers/postgres";
 import { combinedEstimates } from "./combined-estimates";
 import { MAX_PRINT_FILES, MAX_PRINT_UPLOAD_BYTES } from "./asset-limits";
+import { platform } from "@/lib/platform";
+import { analyzeStoredModel } from "@/lib/geometry";
 import { readModel } from "@/lib/files/storage";
 import { queryResult } from "@/lib/db/result";
 import "server-only";
@@ -86,6 +88,15 @@ type AnalysisResult =
   | Extract<ValidateAssetResult, { ok: false }>;
 
 async function analyzeFile(rule: PricingRule, asset: AssetFile): Promise<AnalysisResult> {
+  if (platform().GEOMETRY) {
+    try {
+      return { ok: true, ...await analyzeStoredModel(asset.storage_path, asset.file_name, rule, asset.file_size_bytes) };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : "解析に失敗しました", stage: "analyze" };
+    }
+  }
+  if (process.env.APP_RUNTIME === "cloudflare") return { ok: false, error: "解析サービスが未設定です", stage: "analyze" };
+
   const { data: buffer, error: downloadError } = await queryResult(
     readModel(asset.storage_path),
   );

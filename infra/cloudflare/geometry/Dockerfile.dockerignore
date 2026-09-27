@@ -1,0 +1,12 @@
+**
+!src
+!src/lib
+!src/lib/print
+!src/lib/print/**
+!src/lib/ar
+!src/lib/ar/**
+!infra
+!infra/cloudflare
+!infra/cloudflare/geometry
+!infra/cloudflare/geometry/server.mjs
+!infra/cloudflare/geometry/runner.ts

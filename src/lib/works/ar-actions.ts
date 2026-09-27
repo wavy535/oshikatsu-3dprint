@@ -5,6 +5,8 @@ import { z } from "zod";
 import { requireOwnWork } from "./ownership";
 import type { StepActionState } from "./step-actions";
 import { idSchema } from "@/lib/validation";
+import { platform } from "@/lib/platform";
+import { geometryRequest } from "@/lib/geometry";
 import { readModel } from "@/lib/files/storage";
 import { MODEL_LIMITS, AnalysisBudget } from "@/lib/print/limits";
 import { buildWorkMeshes, readModelObjects, workModelExtension } from "@/lib/ar/work-model";
@@ -27,10 +29,16 @@ export async function registerArAssetAction(_prev: StepActionState, data: FormDa
   const format = workModelExtension(file.fileName);
   if (!format) return { error: "STL・3MF・Blender (.blend) のファイルを選んでください" };
   try {
-    const buffer = await readModel(file.storagePath, "work-ar");
-    if (buffer.byteLength !== file.fileSize) return { error: "ファイルのサイズが一致しません" };
-    const budget = new AnalysisBudget();
-    buildWorkMeshes(readModelObjects(buffer, file.fileName, budget), 1, budget);
+    if (platform().GEOMETRY) {
+      const response = await geometryRequest("/validate-ar", file.storagePath, file.fileName, "work-ar", file.fileSize);
+      await response.body?.cancel();
+    } else {
+      if (process.env.APP_RUNTIME === "cloudflare") throw new Error("解析サービスが未設定です");
+      const buffer = await readModel(file.storagePath, "work-ar");
+      if (buffer.byteLength !== file.fileSize) return { error: "ファイルのサイズが一致しません" };
+      const budget = new AnalysisBudget();
+      buildWorkMeshes(readModelObjects(buffer, file.fileName, budget), 1, budget);
+    }
   } catch (error) {
     return { error: error instanceof Error ? error.message : "AR用ファイルを読み込めませんでした" };
   }
