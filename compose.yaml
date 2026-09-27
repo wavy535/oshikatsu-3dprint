@@ -1,6 +1,7 @@
 name: oshinest
 services:
   postgres:
+    profiles: ["oracle"]
     build: ./infra/local/postgres
     environment:
       POSTGRES_DB: oshinest
@@ -14,6 +15,7 @@ services:
       timeout: 3s
       retries: 20
   mailpit:
+    profiles: ["mail"]
     image: axllent/mailpit:v1.27.10
     ports: ["127.0.0.1:58025:8025"]
   geometry:

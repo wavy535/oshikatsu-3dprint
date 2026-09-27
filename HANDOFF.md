@@ -1,3 +1,14 @@
+# 2026-09-28: D1・メールなしの一般会員環境
+
+- 最新の合意は **Cloudflare完結、既存データ移行なし、メール未確認の一般会員登録を許可、クリエイター申請停止**。以前のNeon・Resend・Twilioの準備は不要。
+- Workers / D1 / 非公開R2 / 非公開Containers。AI生成は設計まで、実決済・送金なし。
+- D1の移植と検証は [移行記録](docs/d1-migration.md)、配備状況と操作は [Cloudflare配備手順](infra/cloudflare/README.md) を正本とする。
+- 対象アカウントは `yumaboda.official@gmail.com` / `1c93af48e1a5c2e163edc9030cff4647`。R2とGeometryは配備済み。WebとD1は追加OAuth権限の認証待ち。
+- DBの更新は `atomicBatch`。対話的なtransaction・FOR UPDATEを使わない。読み取り可視性と書込みトリガーを維持し、任意SQLをブラウザへ公開しない。
+- 通常開発はローカルD1。PostgreSQLは固定した旧実装との比較用のみ。既存のPostgreSQL/S3ボリューム、stash、`refactoring` ブランチは保持する。
+- 型・lint・Vitest 258件・互換性15項目・ビルド・dry run、本番ビルドでブラウザ11件が成功。隔離ゲスト2件は今回対象外。依存監査0件。
+- 以下は移行前の履歴。構成・公開条件・検証結果は上記の最新資料を優先する。
+
 # 2026-09-27: Cloudflare向け構成への変更
 
 - 実行系はvinext/Vite + Workers。`next/*` APIは互換実装、Next.jsは型・lint用の開発依存。

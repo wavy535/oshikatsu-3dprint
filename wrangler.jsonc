@@ -12,16 +12,18 @@
   "observability": { "enabled": true, "head_sampling_rate": 1 },
   "placement": { "mode": "smart" },
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "oshinest-files" }],
-  "hyperdrive": [{
+  "d1_databases": [{
     "binding": "DATABASE",
-    "id": "00000000000000000000000000000000",
-    "localConnectionString": "postgresql://app_runtime:local-app-password@127.0.0.1:55432/oshinest"
+    "database_name": "oshinest",
+    "database_id": "00000000-0000-0000-0000-000000000000",
+    "migrations_dir": "db/d1"
   }],
   "services": [{ "binding": "GEOMETRY", "service": "oshinest-geometry" }],
   "vars": {
     "SITE_URL": "https://oshinest.yumaboda-official.workers.dev",
     "MAIL_PROVIDER": "none",
-    "SMS_PROVIDER": "none",
+    "AUTH_EMAIL_VERIFICATION": "disabled",
+    "CREATOR_APPLICATIONS_ENABLED": "false",
     "DEMO_GUEST_ENABLED": "false",
     "AR_MODEL_STORAGE": "r2",
     "APP_RUNTIME": "cloudflare"

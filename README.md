@@ -10,14 +10,14 @@
 | --- | --- |
 | Web | React / TypeScript / Tailwind、vinext / Vite → Cloudflare Workers |
 | 認証 | Better Auth、DBセッション |
-| DB | AWS外のPostgreSQL / Kysely、Cloudflare Hyperdrive経由 |
+| DB | Cloudflare D1 / Kysely（SQLite） |
 | ファイル | 非公開R2、期限・操作・サイズを限定した署名URL |
 | 3D解析・AR変換 | Cloudflare Containers、service binding経由 |
-| メール・SMS | Resend / Twilio、ローカルではMailpit |
+| メール・SMS | 今回の公開では送信しない。一般会員登録はメール未確認を許可 |
 
 Next.jsのWebサーバーを運用から外し、既存の`next/*` APIはvinextの互換実装で処理します。Next.jsパッケージは型・lintの開発依存として残しています。vinextとContainersはベータ版で、従来構成との速度・費用比較は未実施です。
 
-DBはD1ではありません。注文・在庫・権限制御を維持するためPostgreSQLを残し、その配置先をAWSから移します。[構成選定とAI制作機能の設計](docs/product-architecture.md)に理由と次の実装範囲を記載しています。
+DBはD1へ移植しました。利用者別の可視性、同時注文、在庫、精算額を検証しています。[D1への移行と差異](docs/d1-migration.md)を参照してください。[構成選定とAI制作機能の設計](docs/product-architecture.md)に理由と次の実装範囲を記載しています。
 
 ## 現在の機能
 
@@ -37,7 +37,6 @@ Node.js 24とDockerを使用します。設定ファイルが既にある場合�
 
 ```bash
 npm ci
-cp .env.local.example .env.local
 cp .dev.vars.example .dev.vars
 # .dev.vars の AUTH_SECRET に openssl rand -hex 32 の生成値を設定
 npm run cf:types
@@ -49,17 +48,17 @@ npm run db:seed # 初回の空DBのみ。既存DBには実行しない
 別々のターミナルで起動します。
 
 ```bash
-npm run dev:geometry
+npm run dev:geometry:local
 npm run dev
 ```
 
 WSLでContainersのローカル起動が止まる場合は、[ローカル用の代替手順](infra/cloudflare/README.md#ローカル)を使用します。
 
-アプリ: http://localhost:3000 / Mailpit: http://localhost:58025 。DBは127.0.0.1:55432、ローカルR2は`.wrangler/state`。既存DBの画像だけを準備する場合は`npm run db:seed:storage`を使います。
+アプリ: http://localhost:3000 。ローカルD1・R2は`.wrangler/state`。既存DBの画像だけを準備する場合は`npm run db:seed:storage`を使います。
 
-開発会員は `buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`、共通パスワードは`password123`です。公開環境へ開発会員をseedしません。
+開発会員は `buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`、共通パスワードは`password123`です。公開環境へ開発会員をseedしません。公開環境ではクリエイター申請を停止しています。
 
-`.env.local`はDB管理ツール用、`.dev.vars`はWorker用です。管理者のDB接続URLをWorkerへ渡しません。停止時はdevプロセスを終了し、`docker compose stop`。DBとローカルR2の内容は残ります。
+`.dev.vars`はWorker用です。PostgreSQLは移行比較用の開発ツールにだけ残り、通常の開発・本番では起動しません。停止時はdevプロセスを終了し、`docker compose stop`。DBとローカルR2の内容は残ります。
 
 ## 検証・配備
 
@@ -68,14 +67,14 @@ npm run cf:types
 npm run check:compat
 npm run typecheck
 npm run lint
-TEST_DATABASE=true npm test
+npm test
 npm run test:db
 npm run build
-# ローカルのアプリ・解析サービス・Mailpitを起動した状態で
+# ローカルのアプリ・解析サービスを起動した状態で
 npm run test:e2e
 ```
 
-配備するリソース、Hyperdriveのキャッシュ無効化、secret、既存DBとS3からの移行、dry runは[Cloudflare配備手順](infra/cloudflare/README.md)を参照。`npm run deploy`は仮設定を検出して止まります。既存AWSの停止・削除は含みません。
+D1・R2・Containers・secret・dry runは[Cloudflare配備手順](infra/cloudflare/README.md)を参照。`npm run deploy`は仮設定を検出して止まります。既存AWSの停止・削除は含みません。
 
 ## 資料
 

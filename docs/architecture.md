@@ -4,16 +4,16 @@
 
 ## データ取得・権限
 
-- vinext互換APIのReact Server ComponentsからKyselyで取得し、更新はServer Actionsで行う。業務別の処理は `src/lib/`、SQL・RLSは `db/migrations/` に置く。
-- Better AuthのDBセッションで利用者を特定。各操作で所有者・役割を確認し、PostgreSQLのRLSでも制限する。アプリは `app_runtime` で接続し、サーバーで `app_guest` / `app_user` / `app_service` を選ぶ。
+- vinext互換APIのReact Server ComponentsからKyselyで取得し、更新はServer Actionsで行う。業務別の処理は `src/lib/`、現行SQLは `db/d1/` に置く。
+- Better AuthのDBセッションで利用者を特定。各操作で所有者・役割を確認し、D1の可視性ビューと更新トリガーでも制限する。サーバーで `app_guest` / `app_user` / `app_service` を選ぶ。
 - 認証・プロフィール・作品詳細の重複取得はReact.cacheでリクエスト内だけ共有する。利用者のデータをリクエスト間で共有しない。
 - 通常一覧は件数上限と前後ページを持つ。メッセージ履歴はカーソル方式、集計はSQLで行う。
-- ゲスト環境では匿名セッションごとにcreatorプロフィールを発行。購入・投稿は可能、管理者操作は不可。通常の会員登録とメール・SMS送信は無効。Cookie削除後の復元は提供しない。
+- 今回の新環境では一般会員登録を許可する。メール未確認でもログインでき、メール送信・SMS・クリエイター申請・匿名ゲスト登録は停止する。
 - 注文・送金はデモ。外部への実課金・実配送・送金を実行しない。
 
 ## Cloudflare実行基盤
 
-`src/lib/platform.ts`からR2・Hyperdrive・Geometry service bindingを参照する。共有のWorker isolateへDBクライアントを保持しない。利用者の役割とIDはSQLと同じトランザクション内で`SET LOCAL`し、終了時に破棄する。Hyperdriveのクエリキャッシュは無効にする。
+`src/lib/platform.ts`からR2・D1・Geometry service bindingを参照する。共有のWorker isolateへDBクライアントを保持しない。利用者の役割・IDの設定、SQL、IDの消去を同じD1 batchで行う。失敗時は全更新が戻る。詳細は[D1移行記録](d1-migration.md)を参照。
 
 3D入力はR2からContainersへストリームで送り、既存のパーサ・解析・AR変換を再利用する。Webのリクエストにモデル全体を展開しない。未来のAI制作機能とDB設計は[制作基盤の設計](product-architecture.md)を参照。
 
@@ -26,7 +26,7 @@
 | 3 | 作品情報・価格・在庫 | 作品情報、サイズ、タグ |
 | 4 | 画像・AR登録、公開 | 検証状態、掲載価格、画像、ARファイル |
 
-[投稿処理](../src/lib/works/asset-actions.ts)は単数・複数とも同じ入口を使う。最大16個のSTL/3MF、一度に合計80MiB。料金設定は操作ごとに一度取得し、全件の解析・合算で共有する。解析成功後に作品をロックし、一括登録を1トランザクションで保存する。読み込み・解析・保存失敗時は既存の登録内容を保持する。
+[投稿処理](../src/lib/works/asset-actions.ts)は単数・複数とも同じ入口を使う。最大16個のSTL/3MF、一度に合計80MiB。料金設定は操作ごとに一度取得し、全件の解析・合算で共有する。解析成功後、作品の更新番号が変わっていないことをバッチ内で検証し、一括登録する。競合時は最大3回まで現在の状態から再計画する。読み込み・解析・保存失敗時は既存の登録内容を保持する。
 
 差し替えはアセットIDを指定し、価格・在庫・サイズIDと一致する部品の印刷指示を維持する。再解析中に元ファイルが差し替えられた場合、古い結果を保存しない。合算の基本作業料は作品につき一度だけ計上する。
 

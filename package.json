@@ -11,11 +11,10 @@
     "test:e2e": "playwright test",
     "benchmark:print": "node --experimental-strip-types scripts/benchmark-print.ts",
     "analyze": "node --experimental-strip-types scripts/analyze-file.ts",
-    "test:db": "node scripts/db.mjs test",
-    "db:migrate": "node scripts/db.mjs migrate",
-    "db:seed": "node scripts/db.mjs seed && node scripts/seed-storage.mjs",
-    "db:types": "node scripts/db-types.mjs",
-    "dev:services": "docker compose up -d --build --wait",
+    "test:db": "vitest run tests/d1-authorization.test.ts tests/d1-business.test.ts tests/database.integration.test.ts tests/worker-database.integration.test.ts tests/operations.integration.test.ts tests/queries.integration.test.ts tests/registration.test.ts tests/d1-contracts.test.ts",
+    "db:migrate": "wrangler d1 migrations apply oshinest --local",
+    "db:seed": "node scripts/d1/seed-local.mjs",
+    "dev:services": "docker compose up -d --build --wait geometry",
     "perf:frontend": "node scripts/measure-frontend.mjs",
     "preview": "wrangler dev --config dist/server/wrangler.json",
     "typecheck": "tsc --noEmit",
@@ -24,8 +23,14 @@
     "deploy": "node scripts/check-cloudflare-config.mjs && npm run build && wrangler deploy --config dist/server/wrangler.json",
     "deploy:geometry": "wrangler deploy --config infra/cloudflare/geometry/wrangler.jsonc",
     "check:compat": "vinext check",
-    "db:seed:storage": "node scripts/seed-storage.mjs",
-    "dev:geometry:local": "wrangler dev --config infra/local/geometry/wrangler.jsonc --port 8788"
+    "db:seed:storage": "node scripts/d1/seed-local.mjs --storage-only",
+    "dev:geometry:local": "wrangler dev --config infra/local/geometry/wrangler.jsonc --port 8788",
+    "db:migrate:remote": "wrangler d1 migrations apply oshinest --remote",
+    "db:oracle:migrate": "node scripts/db.mjs migrate",
+    "db:oracle:seed": "node scripts/db.mjs seed",
+    "db:oracle:test": "node scripts/db.mjs test",
+    "db:oracle:capture": "node scripts/d1/capture-oracle.mjs",
+    "db:generate": "node scripts/d1/generate-all.mjs"
   },
   "dependencies": {
     "@cloudflare/containers": "0.3.7",
@@ -37,7 +42,6 @@
     "clsx": "^2.1.1",
     "kysely": "^0.29.5",
     "lucide-react": "^1.40.0",
-    "pg": "^8.23.0",
     "qrcode": "^1.5.4",
     "react": "19.2.8",
     "react-dom": "19.2.8",
@@ -68,7 +72,8 @@
     "typescript": "^5",
     "vite": "8.3.1",
     "vitest": "^4.1.11",
-    "wrangler": "4.141.0"
+    "wrangler": "4.141.0",
+    "pg": "^8.23.0"
   },
   "engines": {
     "node": "24.x"
