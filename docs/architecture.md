@@ -1,15 +1,21 @@
 # 実装構成と制約
 
-起動・検証コマンドは [README](../README.md)、配備は [AWS運用手順](../infra/aws/README.md) を参照。
+起動・検証コマンドは [README](../README.md)、配備は [Cloudflare配備手順](../infra/cloudflare/README.md) を参照。
 
 ## データ取得・権限
 
-- Next.jsのServer ComponentsからKyselyで取得し、更新はServer Actionsで行う。業務別の処理は `src/lib/`、SQL・RLSは `db/migrations/` に置く。
+- vinext互換APIのReact Server ComponentsからKyselyで取得し、更新はServer Actionsで行う。業務別の処理は `src/lib/`、SQL・RLSは `db/migrations/` に置く。
 - Better AuthのDBセッションで利用者を特定。各操作で所有者・役割を確認し、PostgreSQLのRLSでも制限する。アプリは `app_runtime` で接続し、サーバーで `app_guest` / `app_user` / `app_service` を選ぶ。
 - 認証・プロフィール・作品詳細の重複取得はReact.cacheでリクエスト内だけ共有する。利用者のデータをリクエスト間で共有しない。
 - 通常一覧は件数上限と前後ページを持つ。メッセージ履歴はカーソル方式、集計はSQLで行う。
 - ゲスト環境では匿名セッションごとにcreatorプロフィールを発行。購入・投稿は可能、管理者操作は不可。通常の会員登録とメール・SMS送信は無効。Cookie削除後の復元は提供しない。
 - 注文・送金はデモ。外部への実課金・実配送・送金を実行しない。
+
+## Cloudflare実行基盤
+
+`src/lib/platform.ts`からR2・Hyperdrive・Geometry service bindingを参照する。共有のWorker isolateへDBクライアントを保持しない。利用者の役割とIDはSQLと同じトランザクション内で`SET LOCAL`し、終了時に破棄する。Hyperdriveのクエリキャッシュは無効にする。
+
+3D入力はR2からContainersへストリームで送り、既存のパーサ・解析・AR変換を再利用する。Webのリクエストにモデル全体を展開しない。未来のAI制作機能とDB設計は[制作基盤の設計](product-architecture.md)を参照。
 
 ## 作品投稿
 
@@ -32,19 +38,19 @@
 
 3MFのbasematerials / colorgroupとBlenderのマテリアル色をARへ反映する。色なしは単色、最大8色を保持し、超過分は単色にまとめる。テクスチャ画像は対象外。印刷用とAR用の分離は維持する。PR #4ではiPhoneでの色表示が確認されているが、今回の統合版の実機検証は未実施。
 
-作品ARは毎回、公開状態・掲載サイズ・元ファイルの版を確認する。`AR_MODEL_STORAGE=s3` では元ファイルの保存先・名前・倍率・変換処理の版・出力形式からキーを作り、変換済みGLB/USDZを再利用する。未生成・期限間近の場合だけ再変換する。変換ロジック変更時は `AR_MODEL` の版も更新する。
+作品ARは毎回、公開状態・掲載サイズ・元ファイルの版を確認する。`AR_MODEL_STORAGE=r2` では元ファイルの保存先・名前・倍率・変換処理の版・出力形式からキーを作り、変換済みGLB/USDZを再利用する。未生成・期限間近の場合だけ再変換する。変換ロジック変更時は `AR_MODEL` の版も更新する。
 
-生成物は `ar-cache/` に7日保存。6日経過で再生成し、5分有効の署名付きURLへ307で移動する。現行版のリダイレクトは最大60秒キャッシュされる。校正モデル・仮の部屋は生成後の内容ハッシュで保存し、事前キャッシュ検索の対象外。
+R2のlifecycle設定により、生成物は `ar-cache/` に7日保存。6日経過で再生成し、5分有効の署名付きURLへ307で移動する。現行版のリダイレクトは最大60秒キャッシュされる。校正モデル・仮の部屋は生成後の内容ハッシュで保存し、事前キャッシュ検索の対象外。
 
-ARパネルはSuspenseで分離し、ビューアは開いたときだけ読み込む。AWSのFunction URLはBUFFEREDなので、HTMLの段階的な送信による改善は保証しない。モデル表示領域は256pxを確保し、通貨表示は `src/lib/format.ts` に集約する。
+ARパネルはSuspenseで分離し、ビューアは開いたときだけ読み込む。WebはWorkersで動かす。描画速度の改善は未計測。モデル表示領域は256pxを確保し、通貨表示は `src/lib/format.ts` に集約する。
 
 ## 制約・未検証
 
 - 3D解析には入力サイズ・展開量・要素数・探索回数の上限がある。10秒の解析期限は協調的なチェックで、強制中断ではない。肉厚・自己交差の判定は近似。
 - 3MFは限定したXML/ZIPパーサ。ZIP64・暗号化ZIP・OPC関係定義の一般的な解決・Bambu固有の色設定には未対応。
-- 大量同時投稿、AWSでの最大入力のメモリ、実機ARの配置・実寸、DB停止・復帰時間、実利用料金は未検証。
+- 大量同時投稿、Containersでの最大入力のメモリ、実機ARの配置・実寸、Hyperdrive経由の接続・復帰時間、実利用料金は未検証。
 - 未使用・解析失敗ファイルの自動整理は未実装。注文で参照するファイルの保持と合わせて設計する。
 - 保留機能のテーブルや過去のマイグレーションは削除しない。利用状況とSQL依存を確認してから扱う。
 - 通常環境の通知メールと期限切れデータ整理は管理画面から手動実行。通知は完全な一回配信を保証しない。
 
-表示性能の再計測は `npm run perf:frontend`、解析は `npm run benchmark:print`。ローカル計測はAWSや実ユーザーの性能保証には使わない。
+表示性能の再計測は `npm run perf:frontend`、解析は `npm run benchmark:print`。ローカル計測はCloudflareや実ユーザーの性能保証には使わない。

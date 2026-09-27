@@ -1,3 +1,5 @@
+> **旧構成の記録です。** 現在の配備先は[Cloudflare](../cloudflare/README.md)。この変更ではAWSリソースを停止・削除していません。以下は移行前の運用記録であり、現在のコードを再配備する手順ではありません。
+
 # AWS運用
 
 対象：**small-vlm-sop-check / 796093524263 / ap-northeast-1（東京）**。既存VLMサービスとは別のOshiNest専用リソース。
