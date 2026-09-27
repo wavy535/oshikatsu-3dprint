@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 const initial: OpsActionState = { error: null };
 const FIELD =
-  "w-full rounded-lg border border-line bg-white px-3 py-2 text-[11.5px] text-ink outline-none focus:border-brand";
+  "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand";
 
 /**
  * 運営メンバーの追加。招待メールは送らず、登録済みのユーザーをメールアドレスで指す。
@@ -21,7 +21,7 @@ export function AddMemberForm() {
   return (
     <form action={action} className="flex flex-col gap-2.5">
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">登録済みユーザーのメールアドレス</span>
+        <span className="text-sm text-muted-foreground">登録済みユーザーのメールアドレス</span>
         <input
           name="email"
           type="email"
@@ -35,9 +35,9 @@ export function AddMemberForm() {
         <UserPlus className="size-3.5" aria-hidden />
         運営メンバーに追加
       </Button>
-      {state.error && <p className="text-[11px] text-danger">{state.error}</p>}
-      {state.message && <p className="text-[11px] text-ok">{state.message}</p>}
-      <p className="text-[10.5px] leading-relaxed text-muted-foreground">
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
+      {state.message && <p className="text-sm text-ok">{state.message}</p>}
+      <p className="text-sm leading-relaxed text-muted-foreground">
         先に本人が普通に会員登録している必要があります。追加した人は運営コンソールの
         すべての画面を操作できます。
       </p>
@@ -54,11 +54,11 @@ export function RevokeMemberButton({ userId }: { userId: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-danger/40 bg-white px-2 py-1 text-[10.5px] font-semibold text-danger hover:bg-danger-bg disabled:opacity-50"
+        className="rounded-md border border-danger/40 bg-white px-2 py-1 text-sm font-semibold text-danger hover:bg-danger-bg disabled:opacity-50"
       >
         解除する
       </button>
-      {state.error && <span className="text-[10px] text-danger">{state.error}</span>}
+      {state.error && <span className="text-sm text-danger">{state.error}</span>}
     </form>
   );
 }

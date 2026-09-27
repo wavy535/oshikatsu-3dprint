@@ -25,15 +25,15 @@ export default async function VerifySignupPage({
         <Link href="/" className="text-xl font-bold text-brand">
           OshiNest
         </Link>
-        <h1 className="mt-4 text-lg font-bold text-ink">確認コードを入力</h1>
-        <p className="mt-1 mb-6 text-[12.5px] leading-5 text-muted-foreground">
+        <h1 className="page-title mt-4 font-bold text-ink">確認コードを入力</h1>
+        <p className="mt-1 mb-6 text-sm leading-6 text-muted-foreground">
           <span className="break-all font-medium text-ink">{email}</span> に6桁のコードを送りました。
           10分以内に入力してください。
         </p>
 
         <VerifyForm email={email} />
 
-        <p className="mt-5 text-center text-[11px] text-muted-foreground">
+        <p className="mt-5 text-center text-sm text-muted-foreground">
           アドレスを間違えた場合は{" "}
           <Link href="/login?mode=signup" className="text-brand hover:underline">
             登録し直す

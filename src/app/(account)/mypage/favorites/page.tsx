@@ -51,8 +51,8 @@ export default async function FavoritesPage({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-base font-bold text-ink">お気に入り</h1>
-        <span className="num text-[12px] text-muted-foreground">
+        <h1 className="page-title font-bold text-ink">お気に入り</h1>
+        <span className="num text-sm text-muted-foreground">
           このページ {rows.length}件
         </span>
         <nav className="ml-auto flex gap-1">
@@ -62,8 +62,8 @@ export default async function FavoritesPage({
               href={`/mypage/favorites?sort=${k}`}
               className={
                 k === active
-                  ? "rounded-full bg-brand px-3 py-1 text-[11.5px] font-semibold text-white"
-                  : "rounded-full bg-white px-3 py-1 text-[11.5px] text-muted-foreground hover:text-ink"
+                  ? "rounded-full bg-brand px-3 py-1 text-sm font-semibold text-white"
+                  : "rounded-full bg-white px-3 py-1 text-sm text-muted-foreground hover:text-ink"
               }
             >
               {label}
@@ -104,10 +104,10 @@ export default async function FavoritesPage({
                   ) : null}
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="truncate text-[13px] font-semibold text-ink">
+                  <span className="truncate text-sm font-semibold text-ink">
                     {r.title}
                   </span>
-                  <span className="truncate text-[11px] text-muted-foreground">
+                  <span className="truncate text-sm text-muted-foreground">
                     {r.creator_name}
                   </span>
                   <span className="mt-auto flex items-center gap-2">
@@ -115,12 +115,12 @@ export default async function FavoritesPage({
                       {yen(r.min_price_jpy)}
                     </span>
                     {r.dropped_since_favorited && (
-                      <span className="rounded bg-danger-bg px-1.5 py-0.5 text-[10px] font-semibold text-danger">
+                      <span className="rounded bg-danger-bg px-1.5 py-0.5 text-sm font-semibold text-danger">
                         追加後に値下げ
                       </span>
                     )}
                     {!r.has_stock && (
-                      <span className="rounded bg-ground px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                      <span className="rounded bg-ground px-1.5 py-0.5 text-sm text-muted-foreground">
                         在庫なし
                       </span>
                     )}

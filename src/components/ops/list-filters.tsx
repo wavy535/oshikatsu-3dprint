@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Search, SlidersHorizontal } from "lucide-react";
 
 const SELECT_CLASS =
-  "rounded-lg border border-line bg-white px-2.5 py-1.5 text-[11.5px] text-ink outline-none focus:border-brand";
+  "rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand";
 
 export type FilterSelect = {
   name: string;
@@ -70,7 +70,7 @@ export function ListFilters({
           name="q"
           defaultValue={params.get("q") ?? ""}
           placeholder={searchPlaceholder}
-          className="w-full bg-transparent text-[11.5px] text-ink outline-none placeholder:text-muted-foreground"
+          className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted-foreground"
         />
       </form>
     </div>

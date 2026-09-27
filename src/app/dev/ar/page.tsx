@@ -43,7 +43,7 @@ type Query = {
 // 仮の部屋のフォームの項目。手元のファイルを選び直しても、入力した寸法は残す
 const ROOM_QUERY_KEYS = ["height", "sit", "shoulder", "hug", "layout"] as const;
 
-const field = "w-28 rounded-md border border-line bg-white px-2 py-1.5 text-[13px] text-ink";
+const field = "w-28 rounded-md border border-line bg-white px-2 py-1.5 text-sm text-ink";
 
 const qrCodeOf = (url: string) =>
   QRCode.toDataURL(url, { width: AR_DEV_PAGE.qrCodeWidthPx, margin: AR_DEV_PAGE.qrCodeMargin });
@@ -89,7 +89,7 @@ function BlendSummary({ report, carry }: { report: BlendReport; carry: [string, 
   const unsupported = report.modifierNotes.filter((note) => note.note === "unsupported");
   const limited = report.modifierNotes.filter((note) => note.note === "levels_limited");
   return (
-    <div className="flex flex-col gap-1.5 text-[11.5px] leading-5 text-muted-foreground">
+    <div className="flex flex-col gap-1.5 text-sm leading-6 text-muted-foreground">
       <p>
         レンダリングに出るメッシュ <span className="num">{report.objects.length - excluded}</span> 個を、組み立てた配置のまま表示しています（1 Blender 単位 ={" "}
         <span className="num">{AR_BLEND.mmPerUnit}</span> mm）。
@@ -109,7 +109,7 @@ function BlendSummary({ report, carry }: { report: BlendReport; carry: [string, 
           <HiddenInputs entries={carry} />
           <div className="flex max-h-64 flex-col gap-1 overflow-y-auto">
             {report.objects.map((object) => (
-              <label key={object.name} className="flex items-center gap-1.5 text-[12px] text-ink">
+              <label key={object.name} className="flex items-center gap-1.5 text-sm text-ink">
                 <input
                   type="checkbox"
                   name={LOCAL_MODEL_EXCLUDE_PARAM}
@@ -135,7 +135,7 @@ function BlendSummary({ report, carry }: { report: BlendReport; carry: [string, 
  */
 function PlacementGuide() {
   return (
-    <div className="flex flex-col gap-1 text-[11.5px] leading-5 text-muted-foreground">
+    <div className="flex flex-col gap-1 text-sm leading-6 text-muted-foreground">
       <p className="font-semibold text-ink">AR での置き方</p>
       <ol className="list-decimal space-y-0.5 pl-4">
         <li>iPhone を床にゆっくり向け、床が認識されてから置きます（机の上など、水平な面なら置けます）。</li>
@@ -197,34 +197,34 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
   return (
     <main className="mx-auto flex w-full max-w-[760px] flex-col gap-5 px-4 sm:px-6 py-8">
       <div className="flex flex-col gap-1">
-        <h1 className="text-lg font-bold text-ink">AR 実寸テスト（開発用）</h1>
-        <p className="text-[12.5px] text-muted-foreground">
+        <h1 className="page-title font-bold text-ink">AR 実寸テスト（開発用）</h1>
+        <p className="text-sm text-muted-foreground">
           ぬいの寸法から作る仮の部屋と、手元の3Dデータ（3MF / STL / Blender の .blend）を、iPhone の Quick Look で実寸表示します。校正用の A4 の板で、AR の縮尺そのものも確かめられます。
         </p>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           モデルの版（rev）：<span className="num">{revision}</span>（設定を変えると変わり、iPhone に残った古いモデルは使われません）
         </p>
       </div>
 
       {!phone && (
-        <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
+        <p className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
           スマホから届くアドレスが分からないため、QR コードを作れません。Mac が Wi-Fi などのネットワークにつながっているか確認してください。
         </p>
       )}
       {phone?.replacedLoopback && (
-        <p className="text-[11.5px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           localhost で開いているため、QR コードには <span className="num">{phone.origin}</span>{" "}
           を入れています。iPhone と Mac を同じ Wi-Fi につないでください。
         </p>
       )}
 
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-sm font-bold text-ink">校正用：A4 の板</h2>
+        <h2 className="text-lg leading-normal font-bold text-ink">校正用：A4 の板</h2>
         <div className="flex flex-col gap-4 sm:flex-row">
           {calibrationQrCode && (
             <QrImage src={calibrationQrCode} alt="iPhone のカメラで読み取ると A4 の板の AR が起動します" />
           )}
-          <div className="flex min-w-0 flex-col gap-2 text-[12.5px] leading-5 text-ink">
+          <div className="flex min-w-0 flex-col gap-2 text-sm leading-6 text-ink">
             <p>
               <span className="num">{AR_CALIBRATION.a4LongMm}</span> ×{" "}
               <span className="num">{AR_CALIBRATION.a4ShortMm}</span> mm（厚さ{" "}
@@ -236,7 +236,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
               <li>真上から見て、四隅が用紙の四隅と重なるかを確かめます。ずれていれば、はみ出した（足りない）長さを長辺・短辺それぞれ定規で測って記録します。</li>
             </ol>
             {calibrationUrl && (
-              <p className="text-[11.5px] break-all text-muted-foreground">
+              <p className="text-sm break-all text-muted-foreground">
                 iPhone でこのページを開いている場合は{" "}
                 <a href={calibrationUrl} className="font-semibold text-brand hover:underline">
                   ここをタップ
@@ -248,24 +248,24 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       </section>
 
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-sm font-bold text-ink">作品の3Dデータ（手元のファイル）</h2>
-        <p className="text-[12px] leading-5 text-muted-foreground">
+        <h2 className="text-lg leading-normal font-bold text-ink">作品の3Dデータ（手元のファイル）</h2>
+        <p className="text-sm leading-6 text-muted-foreground">
           <span className="num break-all">{localRoot}</span>{" "}
           の中のフォルダ（test_3mf・roomfile など）にある 3MF / STL / .blend を、そのままの大きさで表示します。Bambu Studio の .gcode.3mf も読めます。3MF / STL はプレートに置いた（印刷する）向きのまま、.blend は組み立てた配置のままで表示します。データが色を持っていれば、その色も反映します。
         </p>
         {localFolders === null && (
-          <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
+          <p className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
             置き場所が見つかりません。上の場所の中にフォルダを作り、3MF / STL / .blend を置いてください。
           </p>
         )}
         {localFolders?.length === 0 && (
-          <p className="text-[12.5px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             フォルダがありません。上の場所の中にフォルダを作り、3MF / STL / .blend を置いてください。
           </p>
         )}
         {localFolders?.map((folder) => (
           <div key={folder.folder} className="flex flex-col gap-1">
-            <p className="text-[12px] font-semibold text-ink">
+            <p className="text-sm font-semibold text-ink">
               {folder.folder}/
               {folder.linkedTo && (
                 <span className="ml-1.5 font-normal break-all text-muted-foreground">
@@ -274,10 +274,10 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
               )}
             </p>
             {folder.models.length === 0 && folder.unsupported.length === 0 && (
-              <p className="text-[12px] text-muted-foreground">ファイルがありません。</p>
+              <p className="text-sm text-muted-foreground">ファイルがありません。</p>
             )}
             {folder.models.length > 0 && (
-              <ul className="flex flex-col gap-1 text-[12.5px]">
+              <ul className="flex flex-col gap-1 text-sm">
                 {folder.models.map((model) => (
                   <li key={model.name} className="flex flex-wrap items-baseline gap-x-2">
                     {model.name === selectedModel?.name ? (
@@ -287,7 +287,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                         {model.name}
                       </a>
                     )}
-                    <span className="num text-[11.5px] text-muted-foreground">
+                    <span className="num text-sm text-muted-foreground">
                       {decimal(model.bytes / BYTES_PER_MB)} MB
                     </span>
                   </li>
@@ -295,23 +295,23 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
               </ul>
             )}
             {folder.unsupported.length > 0 && (
-              <p className="text-[11.5px] break-all text-muted-foreground">
+              <p className="text-sm break-all text-muted-foreground">
                 読めない形式：{folder.unsupported.join("、")}（3MF・STL・.blend 以外のファイルです）
               </p>
             )}
           </div>
         ))}
         {query.model && localModels && !selectedModel && (
-          <p className="text-[12.5px] text-danger">選んだファイル（{query.model}）が見つかりません。</p>
+          <p className="text-sm text-danger">選んだファイル（{query.model}）が見つかりません。</p>
         )}
         {selectedModel && modelPreview && (
           <div className="flex flex-col gap-4 border-t border-line pt-4 sm:flex-row">
             {modelQrCode && <QrImage src={modelQrCode} alt="iPhone のカメラで読み取ると作品の AR が起動します" />}
-            <div className="flex min-w-0 flex-col gap-2 text-[12.5px] text-ink">
+            <div className="flex min-w-0 flex-col gap-2 text-sm text-ink">
               <p className="font-semibold break-all">{selectedModel.name}</p>
               {modelPreview.ok ? (
                 <>
-                  <table className="text-[12px]">
+                  <table className="text-sm">
                     <tbody>
                       <tr>
                         <td className="pr-3 text-muted-foreground">AR での大きさ</td>
@@ -330,13 +330,13 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                       </tr>
                     </tbody>
                   </table>
-                  <p className="text-[11.5px] text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {modelPreview.outputTriangles < modelPreview.sourceTriangles &&
                       "間引きで細部はつぶれますが、外形の大きさはほぼ保たれます。"}
                     定規を当てて、上の大きさと比べてください。
                   </p>
                   {modelPreview.colors.length > 0 && (
-                    <div className="flex flex-col gap-1 text-[11.5px] text-muted-foreground">
+                    <div className="flex flex-col gap-1 text-sm text-muted-foreground">
                       <p>
                         AR に反映する色 <span className="num">{modelPreview.colors.length}</span> 色（色ごとにメッシュを分けます）
                       </p>
@@ -363,7 +363,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
                   )}
                   <PlacementGuide />
                   {modelUrl && (
-                    <p className="text-[11.5px] break-all text-muted-foreground">
+                    <p className="text-sm break-all text-muted-foreground">
                       iPhone でこのページを開いている場合は{" "}
                       <a href={modelUrl} className="font-semibold text-brand hover:underline">
                         ここをタップ
@@ -382,7 +382,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       </section>
 
       <form method="get" className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-sm font-bold text-ink">仮の部屋</h2>
+        <h2 className="text-lg leading-normal font-bold text-ink">仮の部屋</h2>
         <HiddenInputs
           entries={[
             ...(query.model ? [["model", query.model] as [string, string]] : []),
@@ -390,25 +390,25 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
           ]}
         />
         <div className="flex flex-wrap gap-4">
-          <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
+          <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
             身長（mm）
             <input name="height" type="number" step="0.1" required defaultValue={query.height} className={field} />
           </label>
-          <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
+          <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
             座高（mm）
             <input name="sit" type="number" step="0.1" defaultValue={query.sit} className={field} />
           </label>
-          <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
+          <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
             肩幅（mm）
             <input name="shoulder" type="number" step="0.1" defaultValue={query.shoulder} className={field} />
           </label>
-          <label className="flex flex-col gap-1 text-[12px] font-semibold text-ink">
+          <label className="flex flex-col gap-1 text-sm font-semibold text-ink">
             抱き幅（mm）
             <input name="hug" type="number" step="0.1" defaultValue={query.hug} className={field} />
           </label>
         </div>
-        <fieldset className="flex flex-wrap gap-4 text-[12.5px] text-ink">
-          <legend className="mb-1 text-[12px] font-semibold">部屋の形</legend>
+        <fieldset className="flex flex-wrap gap-4 text-sm text-ink">
+          <legend className="mb-1 text-sm font-semibold">部屋の形</legend>
           {ROOM_LAYOUTS.map((candidate) => (
             <label key={candidate} className="flex items-center gap-1.5">
               <input type="radio" name="layout" value={candidate} defaultChecked={candidate === layout} />
@@ -416,7 +416,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
             </label>
           ))}
         </fieldset>
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           単位は mm です（15cm なら 150）。身長は必須で、座高・肩幅・抱き幅は測れた場合だけ入力します（両方あれば抱き幅を使います）。
           <span className="num">{AR_LIMITS.nuiDimensionMinMm}</span>〜
           <span className="num">{AR_LIMITS.nuiDimensionMaxMm}</span>mm の範囲で入力してください。
@@ -427,7 +427,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       </form>
 
       {submitted && !nui && (
-        <p className="rounded-lg bg-danger-bg px-3 py-2 text-[12.5px] text-danger">
+        <p className="rounded-lg bg-danger-bg px-3 py-2 text-sm text-danger">
           寸法を確認してください（身長が必要で、入力した値はすべて範囲内にしてください）。
         </p>
       )}
@@ -435,9 +435,9 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       {nui && interior && guide && outer && (
         <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5 sm:flex-row">
           {roomQrCode && <QrImage src={roomQrCode} alt="iPhone のカメラで読み取ると仮の部屋の AR が起動します" />}
-          <div className="flex min-w-0 flex-col gap-2 text-[12.5px] text-ink">
+          <div className="flex min-w-0 flex-col gap-2 text-sm text-ink">
             <p className="font-semibold">{LAYOUT_LABEL[layout]}</p>
-            <table className="text-[12px]">
+            <table className="text-sm">
               <tbody>
                 {(
                   [
@@ -457,7 +457,7 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
             </table>
             <PlacementGuide />
             {roomUrl && (
-              <p className="text-[11.5px] break-all text-muted-foreground">
+              <p className="text-sm break-all text-muted-foreground">
                 iPhone でこのページを開いている場合は{" "}
                 <a href={roomUrl} className="font-semibold text-brand hover:underline">
                   ここをタップ
@@ -470,8 +470,8 @@ export default async function ArRoomTestPage({ searchParams }: { searchParams: P
       )}
 
       <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-sm font-bold text-ink">仮の部屋の測り方（遠近の影響を避ける）</h2>
-        <ol className="list-decimal space-y-1 pl-5 text-[12.5px] leading-5 text-ink">
+        <h2 className="text-lg leading-normal font-bold text-ink">仮の部屋の測り方（遠近の影響を避ける）</h2>
+        <ol className="list-decimal space-y-1 pl-5 text-sm leading-6 text-ink">
           <li>QR コードを読み、Quick Look で「AR」を選んで机に置きます。ピンチしても大きさが変わらないことを確かめます。</li>
           <li>定規は、測る辺に触れる位置に置きます（離れた辺を読むと、遠いほど小さく映ります）。</li>
           <li>幅：床の手前の辺に沿って定規を置き、真上から読みます。</li>

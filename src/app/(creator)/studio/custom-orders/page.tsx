@@ -26,9 +26,9 @@ export default async function StudioCustomOrdersPage({ searchParams }: { searchP
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">オーダーメイド相談</h1>
-        <span className="num text-[12px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">オーダーメイド相談</h1>
+        <span className="num text-sm text-muted-foreground">
           このページ {requests.length}件{pending > 0 ? `（回答待ち ${pending}）` : ""}
         </span>
       </div>
@@ -37,7 +37,7 @@ export default async function StudioCustomOrdersPage({ searchParams }: { searchP
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Sparkles className="size-6 text-line" aria-hidden />
           <p className="text-sm font-semibold text-ink">このページに表示する相談はありません</p>
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             作品の STEP3 で「対応できるカスタマイズ」を増やすと、相談が届きやすくなります。
           </p>
         </div>
@@ -55,19 +55,19 @@ export default async function StudioCustomOrdersPage({ searchParams }: { searchP
                 <Avatar src={r.profiles?.avatar_url} name={r.profiles?.display_name} className="size-10" />
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="flex flex-wrap items-center gap-2">
-                    <span className="text-[13px] font-semibold text-ink">{r.profiles?.display_name ?? "購入者"} さん</span>
-                    {r.works && <span className="text-[11px] text-muted-foreground">参考：{r.works.title}</span>}
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", TONE[r.status])}>
+                    <span className="text-sm font-semibold text-ink">{r.profiles?.display_name ?? "購入者"} さん</span>
+                    {r.works && <span className="text-sm text-muted-foreground">参考：{r.works.title}</span>}
+                    <span className={cn("rounded-full px-2 py-0.5 text-sm font-semibold", TONE[r.status])}>
                       {REQUEST_STATUS_LABEL[r.status]}
                     </span>
                   </span>
-                  <span className="line-clamp-1 text-[11.5px] text-muted-foreground">{r.message}</span>
-                  <span className="num text-[10px] text-muted-foreground">{shortDateTime(r.created_at)}</span>
+                  <span className="line-clamp-1 text-sm text-muted-foreground">{r.message}</span>
+                  <span className="num text-sm text-muted-foreground">{shortDateTime(r.created_at)}</span>
                 </span>
                 {latest && (
                   <span className="flex flex-col items-end">
-                    <span className="num text-[12.5px] font-bold text-ink">{yen(latest.price_jpy)}</span>
-                    <span className="num text-[9.5px] text-muted-foreground">{latest.quote_no}</span>
+                    <span className="num text-sm font-bold text-ink">{yen(latest.price_jpy)}</span>
+                    <span className="num text-sm text-muted-foreground">{latest.quote_no}</span>
                   </span>
                 )}
               </Link>

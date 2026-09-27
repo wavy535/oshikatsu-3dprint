@@ -40,7 +40,7 @@ export function FollowButton({
         {following ? <UserCheck className="size-4" aria-hidden /> : <UserPlus className="size-4" aria-hidden />}
         {following ? "フォロー中" : "フォローする"}
       </Button>
-      {state.error && <p className="text-[11px] text-danger">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
     </form>
   );
 }

@@ -30,9 +30,9 @@ export default async function StudioWorksPage({ searchParams }: { searchParams: 
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">作品管理</h1>
-        <span className="num text-[12px] text-muted-foreground">このページ {works.length}件</span>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">作品管理</h1>
+        <span className="num text-sm text-muted-foreground">このページ {works.length}件</span>
         <form action={createDraftWorkAction} className="ml-auto">
           <Button type="submit" size="sm">
             <Plus className="size-4" aria-hidden />
@@ -45,7 +45,7 @@ export default async function StudioWorksPage({ searchParams }: { searchParams: 
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Package className="size-6 text-line" aria-hidden />
           <p className="text-sm font-semibold text-ink">このページに表示する作品はありません</p>
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             3Dデータをアップロードすると、印刷代行費と造形時間の見積りが自動で出ます。
           </p>
         </div>
@@ -78,16 +78,16 @@ export default async function StudioWorksPage({ searchParams }: { searchParams: 
                   <div className="flex items-center gap-2">
                     <span
                       className={cn(
-                        "rounded-full px-2 py-0.5 text-[10.5px] font-semibold",
+                        "rounded-full px-2 py-0.5 text-sm font-semibold",
                         STATUS_TONE[w.status]
                       )}
                     >
                       {STATUS_LABEL[w.status]}
                     </span>
-                    <p className="truncate text-[13px] font-semibold text-ink">{w.title}</p>
+                    <p className="truncate text-sm font-semibold text-ink">{w.title}</p>
                   </div>
 
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {listed.length > 0 ? (
                       <>
                         出品中 <span className="num">{listed.length}</span>サイズ ／ 最安{" "}
@@ -107,7 +107,7 @@ export default async function StudioWorksPage({ searchParams }: { searchParams: 
                     <Link
                       prefetch={false}
                       href={`/studio/works/${w.id}/steps/${w.status === "draft" ? step : 3}`}
-                      className="text-[11.5px] text-brand hover:underline"
+                      className="text-sm text-brand hover:underline"
                     >
                       {w.status === "draft" ? "続きから編集する" : "編集する"}
                     </Link>
@@ -115,7 +115,7 @@ export default async function StudioWorksPage({ searchParams }: { searchParams: 
                       <Link
                         prefetch={false}
                         href={`/works/${w.id}`}
-                        className="text-[11.5px] text-muted-foreground hover:text-ink"
+                        className="text-sm text-muted-foreground hover:text-ink"
                       >
                         公開ページを見る
                       </Link>

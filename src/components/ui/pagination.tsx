@@ -19,7 +19,7 @@ export function Pagination({
 }) {
   if (page === 1 && !hasNext) return null;
   const style =
-    "rounded-lg border border-line bg-white px-3 py-1.5 text-xs text-ink hover:bg-ground";
+    "rounded-lg border border-line bg-white px-3 py-1.5 text-sm text-ink hover:bg-ground";
   return (
     <nav
       aria-label={label}
@@ -34,7 +34,7 @@ export function Pagination({
           前へ
         </Link>
       )}
-      <span className="num text-xs text-muted-foreground" aria-current="page">
+      <span className="num text-sm text-muted-foreground" aria-current="page">
         {page}ページ目
       </span>
       {hasNext && (

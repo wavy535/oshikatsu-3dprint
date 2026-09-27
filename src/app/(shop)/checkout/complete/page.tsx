@@ -31,20 +31,20 @@ export default async function CheckoutCompletePage({
       ) : (
         <Clock className="size-12 text-warn" aria-hidden />
       )}
-      <h1 className="text-lg font-bold text-ink">
+      <h1 className="page-title font-bold text-ink">
         {confirmed ? "ご注文ありがとうございます" : order.status === "cancelled" ? "注文は取り消されました" : "注文はまだ確定していません"}
       </h1>
-      <p className="text-[12.5px] leading-5 text-muted-foreground">
+      <p className="text-sm leading-6 text-muted-foreground">
         {confirmed
           ? order.is_demo ? "デモ注文を受け付けました。実際の請求は発生していません。印刷・検品・発送の進み具合は注文詳細で確認できます。" : "注文を受け付けました。進み具合は注文詳細で確認できます。"
           : "注文詳細で現在の状態を確認できます。"}
       </p>
 
       <div className="w-full rounded-xl border border-line bg-white p-4 text-left">
-        <p className="num text-[11px] text-muted-foreground">注文番号 #{order.id.slice(0, 8)}</p>
+        <p className="num text-sm text-muted-foreground">注文番号 #{order.id.slice(0, 8)}</p>
         <ul className="mt-2 flex flex-col gap-1.5">
           {order.order_items.map((i) => (
-            <li key={i.id} className="flex justify-between text-[12px]">
+            <li key={i.id} className="flex justify-between text-sm">
               <span className="text-ink">
                 {i.works?.title ?? "作品"}{" "}
                 <span className="num text-muted-foreground">
@@ -55,7 +55,7 @@ export default async function CheckoutCompletePage({
             </li>
           ))}
         </ul>
-        <dl className="mt-3 flex flex-col gap-1 border-t border-line pt-2 text-[11.5px]">
+        <dl className="mt-3 flex flex-col gap-1 border-t border-line pt-2 text-sm">
           <div className="flex justify-between"><dt className="text-muted-foreground">印刷代行費</dt><dd className="num text-ink">{yen(order.print_cost_amount)}</dd></div>
           <div className="flex justify-between"><dt className="text-muted-foreground">送料</dt><dd className="num text-ink">{yen(order.shipping_fee_amount)}</dd></div>
           <div className="flex justify-between pt-1"><dt className="font-semibold text-ink">合計</dt><dd className="num font-bold text-ink">{yen(order.total_amount)}</dd></div>

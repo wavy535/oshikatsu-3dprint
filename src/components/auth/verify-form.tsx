@@ -42,9 +42,9 @@ export function VerifyForm({ email }: { email: string }) {
           {resending ? "再送しています..." : "確認コードを再送する"}
         </Button>
         {resendState.error ? (
-          <p className="text-center text-[11px] text-destructive">{resendState.error}</p>
+          <p className="text-center text-sm text-destructive">{resendState.error}</p>
         ) : (
-          <p className="text-center text-[11px] text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground">
             届かない場合は60秒あけて再送してください
           </p>
         )}

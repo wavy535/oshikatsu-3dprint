@@ -96,8 +96,8 @@ export default async function WorkDetailPage({
         )}
 
         <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-5">
-          <h2 className="text-sm font-bold text-ink">この作品について</h2>
-          <p className="text-[13px] leading-6 whitespace-pre-wrap text-ink">{work.description}</p>
+          <h2 className="text-lg leading-normal font-bold text-ink">この作品について</h2>
+          <p className="text-sm leading-6 whitespace-pre-wrap text-ink">{work.description}</p>
           {tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {tags.map((t) => (
@@ -108,7 +108,7 @@ export default async function WorkDetailPage({
                       ? `/works?category=${t!.slug}`
                       : `/works?worldview=${t!.slug}`
                   }
-                  className="rounded-full bg-ground px-2.5 py-1 text-[11px] text-muted-foreground hover:text-ink"
+                  className="rounded-full bg-ground px-2.5 py-1 text-sm text-muted-foreground hover:text-ink"
                 >
                   {t!.name}
                 </Link>
@@ -122,7 +122,7 @@ export default async function WorkDetailPage({
       <div className="flex w-full flex-col gap-4 lg:w-[380px]">
         <div className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
           <div className="flex items-start gap-2">
-            <h1 className="flex-1 text-lg leading-6 font-bold text-ink">{work.title}</h1>
+            <h1 className="page-title flex-1 font-bold text-ink">{work.title}</h1>
             <FavoriteButton
               workId={work.id}
               favorited={favorited}
@@ -135,10 +135,10 @@ export default async function WorkDetailPage({
           <div className="flex flex-col gap-0.5">
             <p className="num text-2xl font-bold text-ink">
               {yen(selected?.buyer_total_jpy ?? null)}
-              <span className="ml-1 text-[11px] font-medium text-muted-foreground">税込</span>
+              <span className="ml-1 text-sm font-medium text-muted-foreground">税込</span>
             </p>
             {selected && (
-              <p className="num text-[11px] text-muted-foreground">
+              <p className="num text-sm text-muted-foreground">
                 作品 {yen(selected.price_jpy)} ＋ 印刷代行費 {yen(selected.print_fee_jpy)}
               </p>
             )}
@@ -146,7 +146,7 @@ export default async function WorkDetailPage({
 
           {/* サイズ展開 */}
           <div className="flex flex-col gap-2">
-            <p className="text-[11px] font-semibold text-muted-foreground">対応ぬいサイズ</p>
+            <p className="text-sm font-semibold text-muted-foreground">対応ぬいサイズ</p>
             <div className="flex flex-wrap gap-2">
               {variants.map((v) => {
                 const soldOut = (v.stock ?? 0) <= 0;
@@ -163,11 +163,11 @@ export default async function WorkDetailPage({
                       soldOut && "opacity-60"
                     )}
                   >
-                    <span className="text-[12.5px] font-semibold text-ink">{v.size_label}</span>
-                    <span className="num text-[11px] text-muted-foreground">
+                    <span className="text-sm font-semibold text-ink">{v.size_label}</span>
+                    <span className="num text-sm text-muted-foreground">
                       {yen(v.buyer_total_jpy)}
                     </span>
-                    {soldOut && <span className="text-[10px] text-danger">在庫なし</span>}
+                    {soldOut && <span className="text-sm text-danger">在庫なし</span>}
                   </Link>
                 );
               })}
@@ -202,12 +202,12 @@ export default async function WorkDetailPage({
           />
 
           {/* 発送サマリ */}
-          <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Truck className="size-3.5" aria-hidden />
             印刷から発送まで運営が代行。目安 5〜10日で発送
           </p>
           {selected && (
-            <p className="flex items-center gap-1.5 text-[11.5px] text-muted-foreground">
+            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
               <Package className="size-3.5" aria-hidden />
               <span className="num">{selected.part_count}</span>パーツ / 造形時間の目安{" "}
               <span className="num">{selected.est_print_hours}</span>時間
@@ -222,10 +222,10 @@ export default async function WorkDetailPage({
         >
           <Avatar src={creator?.avatar_url} name={creator?.display_name} className="size-9" />
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-[13px] font-semibold text-ink">
+            <span className="truncate text-sm font-semibold text-ink">
               {creator?.display_name}
             </span>
-            <span className="truncate text-[11px] text-muted-foreground">
+            <span className="truncate text-sm text-muted-foreground">
               {creator?.bio || "クリエイター"}
             </span>
           </span>
@@ -237,7 +237,7 @@ export default async function WorkDetailPage({
             work.accepts_custom_size || work.accepts_other_request) && (
             <Link
               href={`/mypage/custom-orders/new?creator=${work.creator_id}&work=${work.id}`}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand bg-white px-3 py-2.5 text-[12px] font-semibold text-brand hover:bg-brand-soft"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-brand bg-white px-3 py-2.5 text-sm font-semibold text-brand hover:bg-brand-soft"
             >
               <MessageSquare className="size-3.5" aria-hidden />
               オーダーメイド相談
@@ -245,7 +245,7 @@ export default async function WorkDetailPage({
           )}
           <Link
             href={`/mypage/messages?with=${work.creator_id}`}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2.5 text-[12px] font-semibold text-ink hover:bg-ground"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-white px-3 py-2.5 text-sm font-semibold text-ink hover:bg-ground"
           >
             メッセージを送る
           </Link>
@@ -257,13 +257,13 @@ export default async function WorkDetailPage({
           className="flex items-center gap-2 rounded-xl border border-line bg-white p-4 hover:bg-ground"
         >
           <Star className="size-4 fill-star text-star" aria-hidden />
-          <span className="num text-[13px] font-semibold text-ink">
+          <span className="num text-sm font-semibold text-ink">
             {review.avg ? review.avg.toFixed(1) : "—"}
           </span>
-          <span className="text-[12px] text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             レビュー<span className="num">{review.count}</span>件
           </span>
-          <span className="ml-auto text-[11px] text-brand">すべて見る</span>
+          <span className="ml-auto text-sm text-brand">すべて見る</span>
         </Link>
 
         {/* Q&A・発送行 */}
@@ -272,8 +272,8 @@ export default async function WorkDetailPage({
           className="flex items-center gap-2 rounded-xl border border-line bg-white p-4 hover:bg-ground"
         >
           <MessageSquare className="size-4 text-muted-foreground" aria-hidden />
-          <span className="text-[12.5px] text-ink">Q&A・発送について</span>
-          <span className="ml-auto text-[11px] text-brand">見る</span>
+          <span className="text-sm text-ink">Q&A・発送について</span>
+          <span className="ml-auto text-sm text-brand">見る</span>
         </Link>
       </div>
     </div>

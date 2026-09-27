@@ -12,7 +12,7 @@ function Step({ n, label, state }: { n: number; label: string; state: "done" | "
   return (
     <span className="flex items-center gap-2">
       <span
-        className={`num flex size-[22px] items-center justify-center rounded-full text-[11px] font-bold ${
+        className={`num flex size-[22px] items-center justify-center rounded-full text-sm font-bold ${
           state === "done"
             ? "bg-ok text-white"
             : state === "now"
@@ -22,7 +22,7 @@ function Step({ n, label, state }: { n: number; label: string; state: "done" | "
       >
         {state === "done" ? <Check className="size-3" aria-hidden /> : n}
       </span>
-      <span className={`text-[12px] ${state === "todo" ? "text-muted-foreground" : "font-semibold text-ink"}`}>
+      <span className={`text-sm ${state === "todo" ? "text-muted-foreground" : "font-semibold text-ink"}`}>
         {label}
       </span>
     </span>

@@ -19,11 +19,11 @@ type Filament = {
 };
 
 const FIELD =
-  "w-full rounded-lg border border-line bg-white px-3 py-2 text-[11.5px] text-ink outline-none focus:border-brand";
+  "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand";
 
 function Notice({ state }: { state: OpsActionState }) {
-  if (state.error) return <p className="text-[11px] text-danger">{state.error}</p>;
-  if (state.message) return <p className="text-[11px] text-ok">{state.message}</p>;
+  if (state.error) return <p className="text-sm text-danger">{state.error}</p>;
+  if (state.message) return <p className="text-sm text-ok">{state.message}</p>;
   return null;
 }
 
@@ -73,7 +73,7 @@ export function JobControls({
               name="printerId"
               aria-label="プリンタ"
               defaultValue={defaultPrinterId ?? printers[0]?.id ?? ""}
-              className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[11.5px] text-ink outline-none focus:border-brand"
+              className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand"
             >
               {printers.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -114,7 +114,7 @@ export function JobControls({
               name="printerId"
               aria-label="プリンタ"
               defaultValue={defaultPrinterId ?? printers[0]?.id ?? ""}
-              className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-[11.5px] text-ink outline-none focus:border-brand"
+              className="rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand"
             >
               {printers.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -161,7 +161,7 @@ export function JobFinishForm({
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">実使用フィラメント（g）</span>
+          <span className="text-sm text-muted-foreground">実使用フィラメント（g）</span>
           <input
             name="actualGrams"
             type="number"
@@ -173,7 +173,7 @@ export function JobFinishForm({
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">実印刷時間（h）</span>
+          <span className="text-sm text-muted-foreground">実印刷時間（h）</span>
           <input
             name="actualHours"
             type="number"
@@ -187,12 +187,12 @@ export function JobFinishForm({
       </div>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">失敗・再印刷（回）</span>
+        <span className="text-sm text-muted-foreground">失敗・再印刷（回）</span>
         <input name="failureCount" type="number" min="0" defaultValue={0} className={FIELD} />
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">消費するフィラメント</span>
+        <span className="text-sm text-muted-foreground">消費するフィラメント</span>
         <select name="filamentId" defaultValue={defaultFilamentId ?? ""} className={FIELD}>
           <option value="">在庫から引かない</option>
           {filaments.map((f) => (
@@ -228,7 +228,7 @@ export function JobEditActualsForm({
   return (
     <form action={action} className="flex flex-col gap-2 border-t border-line pt-2.5">
       <input type="hidden" name="jobId" value={jobId} />
-      <p className="text-[10.5px] font-semibold text-muted-foreground">実績を修正する</p>
+      <p className="text-sm font-semibold text-muted-foreground">実績を修正する</p>
       <div className="grid grid-cols-3 gap-2">
         <input name="actualGrams" type="number" step="0.1" min="0" required defaultValue={actualGrams ?? ""} aria-label="実使用フィラメント（g）" className={FIELD} />
         <input name="actualHours" type="number" step="0.1" min="0" required defaultValue={actualHours ?? ""} aria-label="実印刷時間（h）" className={FIELD} />

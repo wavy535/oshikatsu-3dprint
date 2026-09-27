@@ -25,9 +25,9 @@ function Stars({
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-2">
-        <span className="w-36 text-[12px] text-ink">
+        <span className="w-36 text-sm text-ink">
           {label}
-          {required && <span className="ml-1 text-[10px] text-danger">必須</span>}
+          {required && <span className="ml-1 text-sm text-danger">必須</span>}
         </span>
         <input type="hidden" name={name} value={value || ""} />
         <div className="flex gap-0.5">
@@ -51,7 +51,7 @@ function Stars({
           ))}
         </div>
       </div>
-      {hint && <p className="pl-36 text-[10.5px] text-muted-foreground">{hint}</p>}
+      {hint && <p className="pl-36 text-sm text-muted-foreground">{hint}</p>}
     </div>
   );
 }
@@ -66,7 +66,7 @@ export function ReviewForm({ orderItemId, workTitle }: { orderItemId: string; wo
 
   if (state.ok) {
     return (
-      <p className="rounded-lg bg-ok-bg px-3 py-2 text-[12px] text-ok">
+      <p className="rounded-lg bg-ok-bg px-3 py-2 text-sm text-ok">
         評価を投稿しました。ありがとうございます。
       </p>
     );
@@ -77,7 +77,7 @@ export function ReviewForm({ orderItemId, workTitle }: { orderItemId: string; wo
       <input type="hidden" name="orderItemId" value={orderItemId} />
 
       <div className="flex flex-col gap-3">
-        <p className="text-[12.5px] font-semibold text-ink">
+        <p className="text-sm font-semibold text-ink">
           {workTitle} はいかがでしたか？
         </p>
         <Stars name="rating" label="総合評価" required />
@@ -87,8 +87,8 @@ export function ReviewForm({ orderItemId, workTitle }: { orderItemId: string; wo
       </div>
 
       <div className="flex flex-col gap-3 rounded-lg bg-ground/60 p-3">
-        <p className="text-[12px] font-semibold text-ink">印刷・梱包・配送（運営あて・任意）</p>
-        <p className="text-[10.5px] text-muted-foreground">
+        <p className="text-sm font-semibold text-ink">印刷・梱包・配送（運営あて・任意）</p>
+        <p className="text-sm text-muted-foreground">
           この評価はクリエイターの評価には反映されません。
         </p>
         <Stars name="printQualityRating" label="印刷の品質" />
@@ -97,7 +97,7 @@ export function ReviewForm({ orderItemId, workTitle }: { orderItemId: string; wo
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="comment" className="text-[12px] text-ink">
+        <label htmlFor="comment" className="text-sm text-ink">
           コメント（任意）
         </label>
         <textarea
@@ -106,16 +106,16 @@ export function ReviewForm({ orderItemId, workTitle }: { orderItemId: string; wo
           rows={4}
           maxLength={2000}
           placeholder="サイズ感や飾ったときの様子など"
-          className="rounded-lg border border-line bg-white px-3 py-2 text-[12.5px] text-ink outline-none focus:border-brand"
+          className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
         />
       </div>
 
-      <label className="flex items-center gap-2 text-[12px] text-ink">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input type="checkbox" name="isAnonymous" className="size-4 accent-brand" />
         名前を出さずに投稿する
       </label>
 
-      {state.error && <p className="text-[12px] text-danger">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="self-start">
         {pending ? "投稿しています..." : "評価を投稿する"}

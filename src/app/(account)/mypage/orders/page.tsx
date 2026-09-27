@@ -29,9 +29,9 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">購入履歴</h1>
-        <span className="num text-[12px] text-muted-foreground">このページ {orders.length}件</span>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">購入履歴</h1>
+        <span className="num text-sm text-muted-foreground">このページ {orders.length}件</span>
       </div>
 
       {orders.length === 0 ? (
@@ -57,17 +57,17 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                 <div className="flex flex-wrap items-center gap-2">
                   <span
                     className={cn(
-                      "rounded-full px-2.5 py-0.5 text-[11px] font-semibold",
+                      "rounded-full px-2.5 py-0.5 text-sm font-semibold",
                       TONE[order.status]
                     )}
                   >
                     {ORDER_STATUS_LABEL[order.status]}
                   </span>
-                  <span className="num text-[11px] text-muted-foreground">
+                  <span className="num text-sm text-muted-foreground">
                     {new Date(order.created_at).toLocaleDateString("ja-JP")}
                   </span>
                   {needsReview && (
-                    <span className="rounded-full bg-star/15 px-2.5 py-0.5 text-[11px] font-semibold text-star">
+                    <span className="rounded-full bg-star/15 px-2.5 py-0.5 text-sm font-semibold text-star">
                       評価をお願いします
                     </span>
                   )}
@@ -93,10 +93,10 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                         )}
                       </span>
                       <span className="flex min-w-0 flex-col">
-                        <span className="truncate text-[12.5px] font-semibold text-ink">
+                        <span className="truncate text-sm font-semibold text-ink">
                           {item.works?.title}
                         </span>
-                        <span className="text-[11px] text-muted-foreground">
+                        <span className="text-sm text-muted-foreground">
                           {item.size_label_snapshot} / <span className="num">{item.quantity}</span>点
                         </span>
                       </span>

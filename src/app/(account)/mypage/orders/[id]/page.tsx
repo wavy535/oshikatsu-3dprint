@@ -26,25 +26,25 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">注文詳細</h1>
-        <span className="num text-[11.5px] text-muted-foreground">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">注文詳細</h1>
+        <span className="num text-sm text-muted-foreground">
           {new Date(order.created_at).toLocaleDateString("ja-JP")} の注文
         </span>
-        <Link href="/mypage/orders" className="ml-auto text-[11.5px] text-brand hover:underline">
+        <Link href="/mypage/orders" className="ml-auto text-sm text-brand hover:underline">
           購入履歴へ戻る
         </Link>
       </div>
 
       <section className="flex flex-col gap-4 rounded-xl border border-line bg-white p-5">
-        {order.is_demo && <p className="text-xs text-muted-foreground">デモ注文（実際の請求はありません）</p>}
+        {order.is_demo && <p className="text-sm text-muted-foreground">デモ注文（実際の請求はありません）</p>}
         <OrderStatusStepper status={order.status} />
-        <p className="text-[12px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           現在の状態: <span className="text-ink">{ORDER_STATUS_LABEL[order.status]}</span>
         </p>
         {order.status === "payment_pending" && <OrderControls orderId={order.id} />}
         {order.tracking_number && (
-          <p className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+          <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <Truck className="size-3.5" aria-hidden />
             追跡番号 <span className="num text-ink">{order.tracking_number}</span>
             {order.shipped_at && (
@@ -80,15 +80,15 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                   <Link
                     href={`/works/${item.work_id}`}
-                    className="truncate text-[13px] font-semibold text-ink hover:underline"
+                    className="truncate text-sm font-semibold text-ink hover:underline"
                   >
                     {item.works?.title}
                   </Link>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="text-sm text-muted-foreground">
                     {item.profiles?.display_name} ／ {item.size_label_snapshot} ／{" "}
                     <span className="num">{item.quantity}</span>点
                   </p>
-                  <p className="num mt-auto text-[13px] font-bold text-ink">
+                  <p className="num mt-auto text-sm font-bold text-ink">
                     {yen(item.unit_price * item.quantity)}
                   </p>
                 </div>
@@ -96,7 +96,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
               {order.status === "completed" &&
                 (item.reviews ? (
-                  <p className="rounded-lg bg-ground px-3 py-2 text-[12px] text-muted-foreground">
+                  <p className="rounded-lg bg-ground px-3 py-2 text-sm text-muted-foreground">
                     この作品は評価済みです（総合 <span className="num">{item.reviews.rating}</span>）
                   </p>
                 ) : (
@@ -109,9 +109,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
 
       <section className="flex flex-col gap-3 sm:flex-row">
         <div className="flex flex-1 flex-col gap-2 rounded-xl border border-line bg-white p-4">
-          <h2 className="text-[12.5px] font-semibold text-ink">お届け先</h2>
+          <h2 className="text-lg leading-normal font-semibold text-ink">お届け先</h2>
           {address ? (
-            <p className="text-[12px] leading-5 text-muted-foreground">
+            <p className="text-sm leading-6 text-muted-foreground">
               {address.recipient_name}
               <br />
               <span className="num">〒{address.postal_code}</span>
@@ -123,13 +123,13 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
               <span className="num">{address.phone}</span>
             </p>
           ) : (
-            <p className="text-[12px] text-muted-foreground">登録がありません</p>
+            <p className="text-sm text-muted-foreground">登録がありません</p>
           )}
         </div>
 
         <div className="flex flex-1 flex-col gap-2 rounded-xl border border-line bg-white p-4">
-          <h2 className="text-[12.5px] font-semibold text-ink">お支払い</h2>
-          <dl className="flex flex-col gap-1 text-[12px]">
+          <h2 className="text-lg leading-normal font-semibold text-ink">お支払い</h2>
+          <dl className="flex flex-col gap-1 text-sm">
             {/* 合計 = 作品代金 + 印刷代行費 + 送料（0015）。代行費は上乗せ請求なので「うち」ではない */}
             <div className="flex justify-between">
               <dt className="text-muted-foreground">作品代金</dt>

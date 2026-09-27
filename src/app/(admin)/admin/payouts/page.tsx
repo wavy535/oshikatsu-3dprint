@@ -21,6 +21,7 @@ export default async function AdminPayoutsPage({ searchParams }: { searchParams:
 
   return (
     <>
+      <div className="mb-2"><h1 className="page-title">払込管理</h1><p className="mt-2 text-sm text-muted-foreground">クリエイターからの振込申請と対応状況を確認できます。</p></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="未処理の申請" tone="warn" value={summary.open} note={`合計 ${yen(summary.openTotal)}`} />
         <StatCard label="振込済み（累計）" tone="ok" value={yen(summary.paidTotal)} />
@@ -29,9 +30,9 @@ export default async function AdminPayoutsPage({ searchParams }: { searchParams:
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-white">
-        <table className="w-full min-w-[900px] border-collapse text-[11px]">
+        <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead>
-            <tr className="bg-ground text-[10.5px] text-muted-foreground">
+            <tr className="bg-ground text-sm text-muted-foreground">
               <th className={TH}>申請日時</th>
               <th className={TH}>クリエイター</th>
               <th className={`${TH} text-right`}>金額</th>
@@ -44,7 +45,7 @@ export default async function AdminPayoutsPage({ searchParams }: { searchParams:
           <tbody>
             {requests.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-[12px] text-muted-foreground">申請はまだありません。</td>
+                <td colSpan={7} className="px-3 py-10 text-center text-sm text-muted-foreground">申請はまだありません。</td>
               </tr>
             )}
             {requests.map((r) => (
@@ -56,7 +57,7 @@ export default async function AdminPayoutsPage({ searchParams }: { searchParams:
                   {r.account ? (
                     <>
                       <span className="block">{r.account.bank_name} {r.account.branch_name} {r.account.account_type}</span>
-                      <span className="num block text-[10px] text-muted-foreground">{r.account.account_number} {r.account.account_holder_name}</span>
+                      <span className="num block text-sm text-muted-foreground">{r.account.account_number} {r.account.account_holder_name}</span>
                     </>
                   ) : (
                     <span className="text-danger">口座未登録</span>

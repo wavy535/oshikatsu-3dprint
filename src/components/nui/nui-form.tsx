@@ -61,8 +61,8 @@ export function NuiForm({ nui }: { nui?: Nui }) {
       </div>
 
       <fieldset className="flex flex-col gap-3 rounded-lg bg-ground/60 p-3">
-        <legend className="px-1 text-[11.5px] font-semibold text-ink">採寸値（mm）</legend>
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <legend className="px-1 text-sm font-semibold text-ink">採寸値（mm）</legend>
+        <p className="text-sm leading-6 text-muted-foreground">
           作品の内寸と比べて「入るかどうか」を判定します。身長からサイズ区分（10 / 15 / 20cm）も決まります。
         </p>
 
@@ -80,10 +80,10 @@ export function NuiForm({ nui }: { nui?: Nui }) {
             placeholder="150"
             required
           />
-          <p className="text-[10.5px] text-muted-foreground">立たせた状態の、足の裏から頭のてっぺんまで</p>
+          <p className="text-sm text-muted-foreground">立たせた状態の、足の裏から頭のてっぺんまで</p>
         </div>
 
-        <p className="text-[10.5px] text-muted-foreground">ここから下は、測れる場合だけ入力してください。</p>
+        <p className="text-sm text-muted-foreground">ここから下は、測れる場合だけ入力してください。</p>
 
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="sitHeightMm">座高</Label>
@@ -97,7 +97,7 @@ export function NuiForm({ nui }: { nui?: Nui }) {
             defaultValue={nui?.sit_height_mm ?? ""}
             placeholder="132"
           />
-          <p className="text-[10.5px] text-muted-foreground">座らせた状態の、床から頭のてっぺんまで</p>
+          <p className="text-sm text-muted-foreground">座らせた状態の、床から頭のてっぺんまで</p>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -126,7 +126,7 @@ export function NuiForm({ nui }: { nui?: Nui }) {
             defaultValue={nui?.hug_width_mm ?? ""}
             placeholder="86"
           />
-          <p className="text-[10.5px] text-muted-foreground">腕を含めた一番広いところ</p>
+          <p className="text-sm text-muted-foreground">腕を含めた一番広いところ</p>
         </div>
       </fieldset>
 

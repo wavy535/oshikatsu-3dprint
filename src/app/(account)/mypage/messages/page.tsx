@@ -42,10 +42,10 @@ export default async function MessagesPage({
 
   return (
     <>
-      <div className="flex items-center gap-2">
-        <h1 className="text-base font-bold text-ink">メッセージ</h1>
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="page-title font-bold text-ink">メッセージ</h1>
         {totalUnread > 0 && (
-          <span className="num rounded-full bg-danger px-1.5 text-[10px] font-bold text-white">{totalUnread}</span>
+          <span className="num rounded-full bg-danger px-1.5 text-sm font-bold text-white">{totalUnread}</span>
         )}
       </div>
 
@@ -61,7 +61,7 @@ export default async function MessagesPage({
                 key={c.key}
                 href={c.href}
                 className={cn(
-                  "rounded-full px-3 py-1 text-[11px] font-semibold",
+                  "rounded-full px-3 py-1 text-sm font-semibold",
                   (c.key === "unread") === unreadOnly ? "bg-brand text-white" : "bg-ground text-muted-foreground hover:text-ink"
                 )}
               >
@@ -70,7 +70,7 @@ export default async function MessagesPage({
             ))}
           </div>
           {visible.length === 0 ? (
-            <p className="px-4 py-10 text-center text-[12px] text-muted-foreground">
+            <p className="px-4 py-10 text-center text-sm text-muted-foreground">
               {unreadOnly ? "未読のメッセージはありません。" : "まだメッセージはありません。"}
             </p>
           ) : (
@@ -87,14 +87,14 @@ export default async function MessagesPage({
                 <Avatar src={t.avatarUrl} name={t.name} className="size-9" />
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-baseline gap-2">
-                    <span className="truncate text-[12px] font-semibold text-ink">{t.name || "ユーザー"}</span>
-                    {t.role === "admin" && <span className="rounded bg-console px-1 text-[9px] font-semibold text-white">運営</span>}
-                    <span className="num ml-auto text-[10px] text-muted-foreground">{shortDateTime(t.lastAt)}</span>
+                    <span className="truncate text-sm font-semibold text-ink">{t.name || "ユーザー"}</span>
+                    {t.role === "admin" && <span className="rounded bg-console px-1 text-sm font-semibold text-white">運営</span>}
+                    <span className="num ml-auto text-sm text-muted-foreground">{shortDateTime(t.lastAt)}</span>
                   </span>
                   <span className="flex items-center gap-2">
-                    <span className="truncate text-[10.5px] text-muted-foreground">{t.lastBody}</span>
+                    <span className="truncate text-sm text-muted-foreground">{t.lastBody}</span>
                     {t.unread > 0 && (
-                      <span className="num ml-auto rounded-full bg-danger px-1.5 text-[9px] font-bold text-white">{t.unread}</span>
+                      <span className="num ml-auto rounded-full bg-danger px-1.5 text-sm font-bold text-white">{t.unread}</span>
                     )}
                   </span>
                 </span>
@@ -109,10 +109,10 @@ export default async function MessagesPage({
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 py-16 text-center">
               <MessageCircle className="size-6 text-line" aria-hidden />
               <p className="text-sm font-semibold text-ink">スレッドを選んでください</p>
-              <p className="text-[12px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 作品ページの「メッセージを送る」や、注文の「運営に問い合わせ」から新しいやりとりを始められます。
               </p>
-              <Link prefetch={false} href="/mypage/messages?with=admin" className="text-[12px] font-semibold text-brand hover:underline">
+              <Link prefetch={false} href="/mypage/messages?with=admin" className="text-sm font-semibold text-brand hover:underline">
                 運営に問い合わせる
               </Link>
             </div>
@@ -121,13 +121,13 @@ export default async function MessagesPage({
               <div className="flex items-center gap-3 border-b border-line px-4 py-3">
                 <Avatar src={thread.counterpart.avatar_url} name={thread.counterpart.display_name} className="size-9" />
                 <span className="flex flex-col">
-                  <span className="text-[13px] font-semibold text-ink">{thread.counterpart.display_name}</span>
-                  <span className="text-[10px] text-muted-foreground">
+                  <span className="text-sm font-semibold text-ink">{thread.counterpart.display_name}</span>
+                  <span className="text-sm text-muted-foreground">
                     {thread.counterpart.role === "admin" ? "OshiNest 運営" : thread.counterpart.role === "creator" ? "クリエイター" : "購入者"}
                   </span>
                 </span>
                 {thread.counterpart.role === "creator" && (
-                  <Link prefetch={false} href={`/creators/${thread.counterpart.id}`} className="ml-auto text-[11px] text-brand hover:underline">
+                  <Link prefetch={false} href={`/creators/${thread.counterpart.id}`} className="ml-auto text-sm text-brand hover:underline">
                     プロフィール
                   </Link>
                 )}
@@ -135,7 +135,7 @@ export default async function MessagesPage({
 
               <div className="flex flex-1 flex-col gap-3 bg-ground px-4 py-4">
                 {thread.messages.length === 0 && (
-                  <p className="py-8 text-center text-[12px] text-muted-foreground">
+                  <p className="py-8 text-center text-sm text-muted-foreground">
                     まだやりとりはありません。最初のメッセージを送ってみましょう。
                   </p>
                 )}
@@ -149,7 +149,7 @@ export default async function MessagesPage({
                       {newDay && (
                         <div className="flex items-center gap-2">
                           <span className="h-px flex-1 bg-line" />
-                          <span className="num text-[10px] text-muted-foreground">{dayLabel(m.created_at)}</span>
+                          <span className="num text-sm text-muted-foreground">{dayLabel(m.created_at)}</span>
                           <span className="h-px flex-1 bg-line" />
                         </div>
                       )}
@@ -157,7 +157,7 @@ export default async function MessagesPage({
                         <Link
                           prefetch={false}
                           href={`/mypage/orders/${order.id}`}
-                          className="flex items-center gap-2 self-center rounded-lg border border-brand bg-white px-3 py-1.5 text-[10.5px] text-ink hover:bg-brand-soft"
+                          className="flex items-center gap-2 self-center rounded-lg border border-brand bg-white px-3 py-1.5 text-sm text-ink hover:bg-brand-soft"
                         >
                           この取引について：{order.order_items[0]?.works?.title ?? "注文"}
                           <span className="num text-muted-foreground">
@@ -170,13 +170,13 @@ export default async function MessagesPage({
                         <div className={cn("flex max-w-[70%] flex-col gap-0.5", mine ? "items-end" : "items-start")}>
                           <p
                             className={cn(
-                              "whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-[12px] leading-5",
+                              "whitespace-pre-wrap rounded-2xl px-3.5 py-2.5 text-sm leading-6",
                               mine ? "bg-brand text-white" : "border border-line bg-white text-ink"
                             )}
                           >
                             {m.body}
                           </p>
-                          <span className="num text-[9px] text-muted-foreground">
+                          <span className="num text-sm text-muted-foreground">
                             {mine && m.read_at ? "既読 " : ""}
                             {shortDateTime(m.created_at)}
                           </span>
@@ -188,7 +188,7 @@ export default async function MessagesPage({
               </div>
 
               <MessageReadReceipt ids={thread.messages.filter((m) => m.recipient_id === thread.me && !m.read_at).map((m) => m.id)} />
-              <div className="flex justify-center gap-3 py-2 text-xs text-brand">
+              <div className="flex justify-center gap-3 py-2 text-sm text-brand">
                 {thread.olderCursor && <Link prefetch={false} href={`${latestHref}&before=${thread.olderCursor}`}>過去のメッセージ</Link>}
                 {sp.before && <Link prefetch={false} href={latestHref}>最新のメッセージ</Link>}
               </div>

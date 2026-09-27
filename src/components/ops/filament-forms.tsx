@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 
 const initial: OpsActionState = { error: null };
 const FIELD =
-  "w-full rounded-lg border border-line bg-white px-3 py-2 text-[11.5px] text-ink outline-none focus:border-brand";
+  "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand";
 
 function Notice({ state }: { state: OpsActionState }) {
-  if (state.error) return <p className="text-[11px] text-danger">{state.error}</p>;
-  if (state.message) return <p className="text-[11px] text-ok">{state.message}</p>;
+  if (state.error) return <p className="text-sm text-danger">{state.error}</p>;
+  if (state.message) return <p className="text-sm text-ok">{state.message}</p>;
   return null;
 }
 
@@ -30,7 +30,7 @@ export function StockAdjustForm({ filaments }: { filaments: Filament[] }) {
   return (
     <form action={action} className="flex flex-col gap-2.5">
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">フィラメント</span>
+        <span className="text-sm text-muted-foreground">フィラメント</span>
         <select name="filamentId" required className={FIELD} defaultValue="">
           <option value="" disabled>
             選んでください
@@ -46,7 +46,7 @@ export function StockAdjustForm({ filaments }: { filaments: Filament[] }) {
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">区分</span>
+          <span className="text-sm text-muted-foreground">区分</span>
           <select
             name="reason"
             value={reason}
@@ -59,7 +59,7 @@ export function StockAdjustForm({ filaments }: { filaments: Filament[] }) {
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">グラム</span>
+          <span className="text-sm text-muted-foreground">グラム</span>
           <input name="grams" type="number" min="1" step="1" required placeholder="1000" className={FIELD} />
         </label>
       </div>
@@ -82,7 +82,7 @@ export function NewFilamentForm() {
     <form action={action} className="flex flex-col gap-2.5">
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">素材</span>
+          <span className="text-sm text-muted-foreground">素材</span>
           <select name="material" defaultValue="PLA" className={FIELD}>
             {["PLA", "PETG", "ABS", "TPU"].map((m) => (
               <option key={m} value={m}>
@@ -92,14 +92,14 @@ export function NewFilamentForm() {
           </select>
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">色の名前</span>
+          <span className="text-sm text-muted-foreground">色の名前</span>
           <input name="colorName" required maxLength={30} placeholder="ラベンダー" className={FIELD} />
         </label>
       </div>
 
       <div className="grid grid-cols-[auto_1fr_1fr] items-end gap-2.5">
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">色</span>
+          <span className="text-sm text-muted-foreground">色</span>
           <input
             type="color"
             value={hex}
@@ -110,11 +110,11 @@ export function NewFilamentForm() {
           <input type="hidden" name="colorHex" value={hex} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">単価（円/g）</span>
+          <span className="text-sm text-muted-foreground">単価（円/g）</span>
           <input name="pricePerGram" type="number" step="0.1" min="0" defaultValue="3.5" className={FIELD} />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">初期在庫（g）</span>
+          <span className="text-sm text-muted-foreground">初期在庫（g）</span>
           <input name="stockGrams" type="number" min="0" step="1" defaultValue="0" className={FIELD} />
         </label>
       </div>
@@ -138,11 +138,11 @@ export function ToggleActiveButton({ filamentId, isActive }: { filamentId: strin
       <button
         type="submit"
         disabled={pending}
-        className="rounded-md border border-line bg-white px-2 py-1 text-[10.5px] font-semibold text-ink hover:bg-ground disabled:opacity-50"
+        className="rounded-md border border-line bg-white px-2 py-1 text-sm font-semibold text-ink hover:bg-ground disabled:opacity-50"
       >
         {isActive ? "停止する" : "再開する"}
       </button>
-      {state.error && <span className="text-[10px] text-danger">{state.error}</span>}
+      {state.error && <span className="text-sm text-danger">{state.error}</span>}
     </form>
   );
 }

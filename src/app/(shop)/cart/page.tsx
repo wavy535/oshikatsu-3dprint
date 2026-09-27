@@ -20,8 +20,8 @@ export default async function CartPage() {
   return (
     <div className="mx-auto flex w-full max-w-[1270px] flex-1 flex-col gap-5 px-4 sm:px-6 py-6 lg:flex-row">
       <div className="flex min-w-0 flex-1 flex-col gap-3">
-        <h1 className="text-base font-bold text-ink">
-          カート <span className="num text-[12px] text-muted-foreground">{lines.length}件</span>
+        <h1 className="page-title font-bold text-ink">
+          カート <span className="num text-sm text-muted-foreground">{lines.length}件</span>
         </h1>
 
         {lines.length === 0 ? (
@@ -39,19 +39,19 @@ export default async function CartPage() {
 
       {lines.length > 0 && (
         <aside className="flex w-full flex-col gap-3 self-start rounded-xl border border-line bg-white p-5 lg:w-80">
-          <p className="text-[12px] font-semibold text-muted-foreground">お支払い金額</p>
+          <p className="text-sm font-semibold text-muted-foreground">お支払い金額</p>
           <div className="flex items-baseline justify-between">
-            <span className="text-[12.5px] text-ink">小計</span>
+            <span className="text-sm text-ink">小計</span>
             <span className="num text-lg font-bold text-ink">{yen(subtotal)}</span>
           </div>
-          <p className="text-[11px] leading-4 text-muted-foreground">
+          <p className="text-sm leading-6 text-muted-foreground">
             印刷代行費を含みます。送料は次の画面で確定します。
           </p>
           <Button asChild disabled={buyable.length === 0} className="mt-1 w-full">
             <Link href="/checkout">レジに進む</Link>
           </Button>
           {buyable.length !== lines.length && (
-            <p className="text-[11px] text-danger">
+            <p className="text-sm text-danger">
               購入できない商品が含まれています。削除してから進んでください。
             </p>
           )}

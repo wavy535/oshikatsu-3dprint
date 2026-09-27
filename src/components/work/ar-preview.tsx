@@ -78,7 +78,7 @@ export function ArPreview({
   return (
     <div className="flex min-h-28 flex-col gap-2 rounded-lg border border-line bg-ground/60 p-3">
       <div className="flex items-center gap-2">
-        <p className="flex items-center gap-1.5 text-[12px] font-semibold text-ink">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
           <Box className="size-3.5" aria-hidden />
           ARで実寸を見る
         </p>
@@ -87,7 +87,7 @@ export function ArPreview({
             type="button"
             onClick={() => setOpen(true)}
             disabled={!hydrated}
-            className="ml-auto min-h-11 px-2 text-[11.5px] font-semibold text-brand hover:underline"
+            className="ml-auto min-h-11 px-2 text-sm font-semibold text-brand hover:underline"
           >
             開く
           </button>
@@ -97,7 +97,7 @@ export function ArPreview({
       {/* マイぬいを選ぶと、そのぬいに合うサイズで AR に出せる（スマホ用の QR コードもここに出す） */}
       {nuis.length > 0 && (
         <div className="flex flex-col gap-2">
-          <label className="flex items-center gap-2 text-[11.5px] text-muted-foreground">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground">
             マイぬい
             <select
               aria-label="マイぬい"
@@ -108,7 +108,7 @@ export function ArPreview({
                 const suffix = query.toString();
                 router.push(suffix ? `${basePath}?${suffix}` : basePath, { scroll: false });
               }}
-              className="min-w-0 flex-1 rounded-md border border-line bg-white px-2 py-1 text-[12px] text-ink"
+              className="min-w-0 flex-1 rounded-md border border-line bg-white px-2 py-1 text-sm text-ink"
             >
               <option value="">選んでください</option>
               {nuis.map((nui) => (
@@ -126,7 +126,7 @@ export function ArPreview({
                 alt="スマホのカメラで読み取ると、この作品の AR が起動します"
                 className="size-[120px] shrink-0"
               />
-              <p className="flex flex-col gap-1 text-[11px] leading-4 text-muted-foreground">
+              <p className="flex flex-col gap-1 text-sm leading-6 text-muted-foreground">
                 <span>
                   スマホのカメラでこの QR コードを読み取ると、選んだぬいに合うサイズ
                   {sizeLabel && <span className="font-semibold text-ink">（{sizeLabel}）</span>}
@@ -139,7 +139,7 @@ export function ArPreview({
             </div>
           )}
           {selectedNuiId && !qr && qrUnavailable && (
-            <p className="text-[11px] leading-4 text-muted-foreground">{QR_HINT[qrUnavailable]}</p>
+            <p className="text-sm leading-6 text-muted-foreground">{QR_HINT[qrUnavailable]}</p>
           )}
         </div>
       )}
@@ -156,7 +156,7 @@ export function ArPreview({
                   setKind(option.kind);
                 }}
                 className={cn(
-                  "min-h-11 rounded-full border px-2.5 py-1 text-[11px]",
+                  "min-h-11 rounded-full border px-2.5 py-1 text-sm",
                   option.kind === selected.kind
                     ? "border-brand bg-brand-soft font-semibold text-ink"
                     : "border-line bg-white text-muted-foreground hover:text-ink",
@@ -170,7 +170,7 @@ export function ArPreview({
           <ArModelViewer key={selected.src} src={selected.src} label={LABEL[selected.kind]} />
 
           {selected.kind !== "work" && interiorMm && (
-            <p className="text-[11px] leading-4 text-muted-foreground">
+            <p className="text-sm leading-6 text-muted-foreground">
               部屋の内寸 <span className="num">{mm(interiorMm.widthMm)}</span> ×{" "}
               <span className="num">{mm(interiorMm.depthMm)}</span> ×{" "}
               <span className="num">{mm(interiorMm.heightMm)}</span> mm（幅×奥行×高さ）。
@@ -178,7 +178,7 @@ export function ArPreview({
             </p>
           )}
 
-          <ul className="list-disc space-y-0.5 pl-4 text-[10.5px] leading-4 text-muted-foreground">
+          <ul className="list-disc space-y-0.5 pl-4 text-sm leading-6 text-muted-foreground">
             <li>実寸で表示され、拡大・縮小はできません。</li>
             <li>
               置く場所は決まっていません。iPhone を床に向けて床が認識されてから置き、そのあとは1本指で動かし、2本指で回して向きを変えられます。
@@ -201,7 +201,7 @@ export function ArPreview({
       )}
 
       {roomUnavailable && (
-        <p className="text-[11px] leading-4 text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground">
           {ROOM_HINT[roomUnavailable]}{" "}
           <Link
             href={signedIn ? "/mypage/nuis" : "/login?redirect=/mypage/nuis"}

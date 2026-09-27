@@ -19,15 +19,16 @@ export default async function AdminMembersPage() {
 
   return (
     <>
+      <div className="mb-2"><h1 className="page-title">運営メンバー</h1><p className="mt-2 text-sm text-muted-foreground">運営コンソールを利用できるメンバーを管理します。</p></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="運営メンバー" tone="info" value={members.length} note="運営コンソールを操作できる人" />
       </div>
 
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-line bg-white">
-          <table className="w-full min-w-[560px] border-collapse text-[11px]">
+          <table className="w-full min-w-[560px] border-collapse text-sm">
             <thead>
-              <tr className="bg-ground text-[10.5px] text-muted-foreground">
+              <tr className="bg-ground text-sm text-muted-foreground">
                 <th className={TH}>名前</th>
                 <th className={TH}>メールアドレス</th>
                 <th className={TH}>登録日</th>
@@ -61,7 +62,7 @@ export default async function AdminMembersPage() {
             <AddMemberForm />
           </Card>
           <Card title="解除したときの役割">
-            <p className="text-[11px] leading-relaxed text-muted-foreground">
+            <p className="text-sm leading-relaxed text-muted-foreground">
               解除すると、追加する前の役割（クリエイター／購入者）に戻ります。
               自分自身は解除できません（運営が0人になることはありません）。
             </p>

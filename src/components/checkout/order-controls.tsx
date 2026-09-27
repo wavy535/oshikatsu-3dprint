@@ -13,7 +13,7 @@ export function OrderControls({ orderId }: { orderId: string }) {
   const [cancel, cancelAction, cancelling] = useActionState(cancelUnpaidOrderAction, initial);
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground">デモ注文として確定します。実際の請求は発生しません。</p>
+      <p className="text-sm text-muted-foreground">デモ注文として確定します。実際の請求は発生しません。</p>
       <div className="flex flex-wrap gap-2">
         <form action={confirmAction}>
           <input type="hidden" name="orderId" value={orderId} />
@@ -24,7 +24,7 @@ export function OrderControls({ orderId }: { orderId: string }) {
           <Button variant="outline" disabled={confirming || cancelling}>{cancelling ? "処理中…" : "注文を取り消す"}</Button>
         </form>
       </div>
-      {(confirm.error || cancel.error) && <p role="alert" className="text-xs text-danger">{confirm.error || cancel.error}</p>}
+      {(confirm.error || cancel.error) && <p role="alert" className="text-sm text-danger">{confirm.error || cancel.error}</p>}
     </div>
   );
 }

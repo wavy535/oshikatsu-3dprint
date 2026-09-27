@@ -26,6 +26,7 @@ export default async function AdminFilamentsPage() {
 
   return (
     <>
+      <div className="mb-2"><h1 className="page-title">フィラメント在庫</h1><p className="mt-2 text-sm text-muted-foreground">材料の在庫と使用履歴を確認し、補充・調整を記録します。</p></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="在庫合計" value={kg(totalGrams)} note={`有効 ${active.length}種`} />
         <StatCard label="30日の消費" tone="info" value={kg(used30)} note="印刷で使ったぶん" />
@@ -46,7 +47,7 @@ export default async function AdminFilamentsPage() {
       {short.length > 0 && (
         <div className="flex items-center gap-2 rounded-xl bg-danger-bg px-3 py-2.5">
           <AlertTriangle className="size-3.5 text-danger" aria-hidden />
-          <p className="text-[11px] text-danger">
+          <p className="text-sm text-danger">
             {short.map((f) => `${f.material}・${f.color_name}`).join("、")}
             は、作業中のジョブを刷り切るには在庫が足りません。先に補充してください。
           </p>
@@ -55,9 +56,9 @@ export default async function AdminFilamentsPage() {
 
       <div className="flex flex-col gap-4 xl:flex-row">
         <div className="min-w-0 flex-1 overflow-x-auto rounded-xl border border-line bg-white">
-          <table className="w-full min-w-[720px] border-collapse text-[11px]">
+          <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
-              <tr className="bg-ground text-[10.5px] text-muted-foreground">
+              <tr className="bg-ground text-sm text-muted-foreground">
                 <th className={TH}>素材・色</th>
                 <th className={`${TH} text-right`}>在庫</th>
                 <th className={`${TH} text-right`}>予定消費</th>
@@ -129,10 +130,10 @@ export default async function AdminFilamentsPage() {
 
       <Card title="台帳（直近30件）">
         {ledger.length === 0 ? (
-          <p className="text-[11px] text-muted-foreground">まだ記録がありません。</p>
+          <p className="text-sm text-muted-foreground">まだ記録がありません。</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] border-collapse text-[11px]">
+            <table className="w-full min-w-[560px] border-collapse text-sm">
               <tbody>
                 {ledger.map((l) => (
                   <tr key={l.id} className="border-b border-line last:border-b-0">

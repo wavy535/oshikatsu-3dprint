@@ -35,17 +35,17 @@ export function NuiRow({ nui }: { nui: Nui }) {
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
       <div className="flex items-center gap-2">
-        <p className="text-[13.5px] font-semibold text-ink">{nui.name}</p>
-        <span className="rounded-full bg-ground px-2 py-0.5 text-[10.5px] text-muted-foreground">
+        <p className="text-sm font-semibold text-ink">{nui.name}</p>
+        <span className="rounded-full bg-ground px-2 py-0.5 text-sm text-muted-foreground">
           {KIND_LABEL[nui.kind] ?? nui.kind}
         </span>
         {nui.nui_size_cm && (
-          <span className="num rounded-full bg-brand-soft px-2 py-0.5 text-[10.5px] font-semibold text-accent-foreground">
+          <span className="num rounded-full bg-brand-soft px-2 py-0.5 text-sm font-semibold text-accent-foreground">
             {nui.nui_size_cm}cm
           </span>
         )}
         {nui.is_main ? (
-          <span className="ml-auto flex items-center gap-1 text-[11px] font-semibold text-star">
+          <span className="ml-auto flex items-center gap-1 text-sm font-semibold text-star">
             <Star className="size-3.5 fill-star" aria-hidden />
             メイン
           </span>
@@ -55,7 +55,7 @@ export function NuiRow({ nui }: { nui: Nui }) {
             <button
               type="submit"
               disabled={settingMain}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-ink"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-ink"
             >
               <Star className="size-3.5" aria-hidden />
               メインにする
@@ -64,7 +64,7 @@ export function NuiRow({ nui }: { nui: Nui }) {
         )}
       </div>
 
-      <dl className={cn("grid grid-cols-4 gap-2 rounded-lg bg-ground/60 p-2.5 text-[11.5px]")}>
+      <dl className={cn("grid grid-cols-4 gap-2 rounded-lg bg-ground/60 p-2.5 text-sm")}>
         {[
           ["身長", nui.height_mm],
           ["座高", nui.sit_height_mm],
@@ -79,7 +79,7 @@ export function NuiRow({ nui }: { nui: Nui }) {
       </dl>
 
       <div className="flex items-center gap-3">
-        <Link href={`/mypage/nuis/${nui.id}`} className="text-[11.5px] text-brand hover:underline">
+        <Link href={`/mypage/nuis/${nui.id}`} className="text-sm text-brand hover:underline">
           編集する
         </Link>
         <form action={remove} className="ml-auto">
@@ -87,7 +87,7 @@ export function NuiRow({ nui }: { nui: Nui }) {
           <button
             type="submit"
             disabled={removing}
-            className="flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-danger"
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-danger"
           >
             <Trash2 className="size-3.5" aria-hidden />
             削除
@@ -96,7 +96,7 @@ export function NuiRow({ nui }: { nui: Nui }) {
       </div>
 
       {(mainState.error || delState.error) && (
-        <p className="text-[11px] text-danger">{mainState.error ?? delState.error}</p>
+        <p className="text-sm text-danger">{mainState.error ?? delState.error}</p>
       )}
     </div>
   );

@@ -85,14 +85,14 @@ export default async function CreatorApplicationsAdminPage({ searchParams }: { s
                       {STATUS_LABEL[a.status]}
                     </Badge>
                   </div>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     {new Date(a.created_at).toLocaleString("ja-JP")}
                   </span>
                 </div>
                 {a.message && (
                   <p className="text-sm whitespace-pre-wrap">{a.message}</p>
                 )}
-                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-ground px-3 py-2 text-[12px]">
+                <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 rounded-md bg-ground px-3 py-2 text-sm">
                   <dt className="text-muted-foreground">メール確認</dt>
                   <dd className="text-ink">{a.email}（{a.email_verified ? "確認済み" : "未確認"}）</dd>
                   <dt className="text-muted-foreground">利用規約</dt>

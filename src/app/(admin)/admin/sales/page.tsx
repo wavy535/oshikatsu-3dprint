@@ -35,9 +35,9 @@ export default async function AdminSalesPage({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-[15px] font-bold text-ink">
+        <h1 className="page-title font-bold text-ink">
           売上・手数料{" "}
-          <span className="text-[12px] font-normal text-muted-foreground">
+          <span className="text-sm font-normal text-muted-foreground">
             {month === "all" ? "全期間" : monthLabel(month)}
           </span>
         </h1>
@@ -59,12 +59,12 @@ export default async function AdminSalesPage({
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <Card title="クリエイター別">
             {sales.creators.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground">この期間の売上はありません。</p>
+              <p className="text-sm text-muted-foreground">この期間の売上はありません。</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[640px] border-collapse text-[11px]">
+                <table className="w-full min-w-[640px] border-collapse text-sm">
                   <thead>
-                    <tr className="text-[10.5px] text-muted-foreground">
+                    <tr className="text-sm text-muted-foreground">
                       <th className={`${TH} border-b border-line`}>クリエイター</th>
                       <th className={`${TH} border-b border-line text-right`}>注文</th>
                       <th className={`${TH} border-b border-line text-right`}>作品代金</th>
@@ -88,7 +88,7 @@ export default async function AdminSalesPage({
                     ))}
                   </tbody>
                 </table>
-                <p className="pt-2 text-[10px] text-muted-foreground">
+                <p className="pt-2 text-sm text-muted-foreground">
                   複数のクリエイターが入った注文は、作品代金の割合で手数料と受取を配っています。
                 </p>
               </div>
@@ -97,12 +97,12 @@ export default async function AdminSalesPage({
 
           <Card title="注文ごと">
             {sales.settlements.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground">この期間の注文はありません。</p>
+              <p className="text-sm text-muted-foreground">この期間の注文はありません。</p>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[820px] border-collapse text-[11px]">
+                <table className="w-full min-w-[820px] border-collapse text-sm">
                   <thead>
-                    <tr className="text-[10.5px] text-muted-foreground">
+                    <tr className="text-sm text-muted-foreground">
                       <th className={`${TH} border-b border-line`}>注文</th>
                       <th className={`${TH} border-b border-line`}>受注</th>
                       <th className={`${TH} border-b border-line text-right`}>支払い</th>
@@ -126,11 +126,11 @@ export default async function AdminSalesPage({
                         <td className={`${TD} num text-right text-ink`}>{yen(s.gross)}</td>
                         <td className={`${TD} num text-right ${s.printActual === null ? "text-muted-foreground" : "text-ink"}`}>
                           −{yen(s.printUsed)}
-                          {s.printActual === null && <span className="block text-[9.5px]">請求額で仮</span>}
+                          {s.printActual === null && <span className="block text-sm">請求額で仮</span>}
                         </td>
                         <td className={`${TD} num text-right ${s.shippingActual === null ? "text-muted-foreground" : "text-ink"}`}>
                           −{yen(s.shippingUsed)}
-                          {s.shippingActual === null && <span className="block text-[9.5px]">購入者負担で仮</span>}
+                          {s.shippingActual === null && <span className="block text-sm">購入者負担で仮</span>}
                         </td>
                         <td className={`${TD} num text-right text-ink`}>{yen(s.pool)}</td>
                         <td className={`${TD} num text-right text-ok`}>{yen(s.fee)}</td>
@@ -145,7 +145,7 @@ export default async function AdminSalesPage({
               </div>
             )}
             {sales.pageCount > 1 && (
-              <nav aria-label="注文明細のページ" className="mt-4 flex items-center justify-between gap-3 text-[12px]">
+              <nav aria-label="注文明細のページ" className="mt-4 flex items-center justify-between gap-3 text-sm">
                 {sales.page > 1 ? (
                   <Link href={{ pathname: "/admin/sales", query: { month, page: sales.page - 1 } }} className="rounded px-2 py-1 text-brand underline focus-visible:outline-2">前へ</Link>
                 ) : <span />}
@@ -170,7 +170,7 @@ export default async function AdminSalesPage({
             <div className="my-1 border-t border-line" />
             <Row label="（参考）請求した印刷代行費" value={<span className="num text-muted-foreground">{yen(t.printFee)}</span>} />
             <Row label="（参考）購入者負担の送料" value={<span className="num text-muted-foreground">{yen(t.shippingCharged)}</span>} />
-            <p className="pt-1 text-[10px] text-muted-foreground">
+            <p className="pt-1 text-sm text-muted-foreground">
               実費は発送が終わると確定します（印刷：実使用グラム×フィラメント単価＋実印刷時間×機械費＋検品梱包、
               送料：発送登録で入れた実費）。それまでは請求額で仮に計算しています。
               料率は注文時の値を使うので、あとで料率を変えても過去の注文は動きません。
@@ -192,20 +192,20 @@ export default async function AdminSalesPage({
                       style={{ height: `${m.pool > 0 ? Math.max(Math.round((m.pool / maxPool) * 72), 3) : 0}px` }}
                     />
                   </div>
-                  <span className="num text-[9.5px] text-muted-foreground">{Number(m.key.split("-")[1])}月</span>
+                  <span className="num text-sm text-muted-foreground">{Number(m.key.split("-")[1])}月</span>
                 </div>
               ))}
             </div>
             <div className="flex flex-col gap-0.5 pt-1">
               {sales.trend.slice().reverse().map((m) => (
-                <div key={m.key} className="flex items-baseline gap-2 text-[10.5px]">
+                <div key={m.key} className="flex items-baseline gap-2 text-sm">
                   <span className="w-[62px] text-muted-foreground">{monthLabel(m.key)}</span>
                   <span className="num text-ink">{yen(m.pool)}</span>
                   <span className="num flex-1 text-right text-ok">{yen(m.fee)}</span>
                   <span className="num w-8 text-right text-muted-foreground">{m.count}件</span>
                 </div>
               ))}
-              <p className="pt-1 text-[10px] text-muted-foreground">差引と手数料。見込みの注文も含みます。</p>
+              <p className="pt-1 text-sm text-muted-foreground">差引と手数料。見込みの注文も含みます。</p>
             </div>
           </Card>
         </div>

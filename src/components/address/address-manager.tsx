@@ -66,7 +66,7 @@ function AddressForm({ address, onDone }: { address?: Address; onDone: () => voi
         <Input id="phone" name="phone" defaultValue={address?.phone} placeholder="09000000000" required />
       </div>
 
-      <label className="flex items-center gap-2 text-[12.5px] text-ink">
+      <label className="flex items-center gap-2 text-sm text-ink">
         <input
           type="checkbox"
           name="isDefault"
@@ -76,7 +76,7 @@ function AddressForm({ address, onDone }: { address?: Address; onDone: () => voi
         既定の配送先にする
       </label>
 
-      {state.error && <p className="text-[12px] text-danger">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
 
       <div className="flex gap-2">
         <Button type="submit" size="sm" disabled={pending}>
@@ -100,9 +100,9 @@ function AddressRow({ address }: { address: Address }) {
   return (
     <div className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
       <div className="flex items-center gap-2">
-        <p className="text-[13px] font-semibold text-ink">{address.recipient_name}</p>
+        <p className="text-sm font-semibold text-ink">{address.recipient_name}</p>
         {address.is_default ? (
-          <span className="flex items-center gap-1 text-[11px] font-semibold text-star">
+          <span className="flex items-center gap-1 text-sm font-semibold text-star">
             <Star className="size-3.5 fill-star" aria-hidden />
             既定
           </span>
@@ -112,7 +112,7 @@ function AddressRow({ address }: { address: Address }) {
             <button
               type="submit"
               disabled={settingDefault}
-              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-ink"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-ink"
             >
               <Star className="size-3.5" aria-hidden />
               既定にする
@@ -121,7 +121,7 @@ function AddressRow({ address }: { address: Address }) {
         )}
       </div>
 
-      <p className="text-[12px] leading-5 text-muted-foreground">
+      <p className="text-sm leading-6 text-muted-foreground">
         <span className="num">〒{address.postal_code}</span>
         <br />
         {address.prefecture}
@@ -135,7 +135,7 @@ function AddressRow({ address }: { address: Address }) {
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="text-[11.5px] text-brand hover:underline"
+          className="text-sm text-brand hover:underline"
         >
           編集する
         </button>
@@ -144,7 +144,7 @@ function AddressRow({ address }: { address: Address }) {
           <button
             type="submit"
             disabled={removing}
-            className="flex items-center gap-1 text-[11.5px] text-muted-foreground hover:text-danger"
+            className="flex items-center gap-1 text-sm text-muted-foreground hover:text-danger"
           >
             <Trash2 className="size-3.5" aria-hidden />
             削除
@@ -153,7 +153,7 @@ function AddressRow({ address }: { address: Address }) {
       </div>
 
       {(defState.error || delState.error) && (
-        <p className="text-[11px] text-danger">{defState.error ?? delState.error}</p>
+        <p className="text-sm text-danger">{defState.error ?? delState.error}</p>
       )}
     </div>
   );

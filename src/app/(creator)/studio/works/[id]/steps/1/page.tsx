@@ -24,9 +24,9 @@ export default async function Step1Page({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">作品を投稿する</h1>
-        <Link href="/studio/works" className="ml-auto text-[11.5px] text-brand hover:underline">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">作品を投稿する</h1>
+        <Link href="/studio/works" className="ml-auto text-sm text-brand hover:underline">
           作品管理へ戻る
         </Link>
       </div>
@@ -38,14 +38,14 @@ export default async function Step1Page({ params }: { params: Promise<{ id: stri
       {assets.length > 0 && (
         <>
           <section className="rounded-xl border border-line bg-white p-5">
-            <h2 className="text-[13px] font-semibold">作品一式の原寸見積り</h2>
-            <p className="num mt-2 text-[12.5px]">{assets.length}ファイル・{base?.part_count ?? "—"}パーツ ／ {base?.est_filament_grams ?? "—"} g ／ {base?.est_print_hours ?? "—"} 時間</p>
+            <h2 className="text-lg leading-normal font-semibold">作品一式の原寸見積り</h2>
+            <p className="num mt-2 text-sm">{assets.length}ファイル・{base?.part_count ?? "—"}パーツ ／ {base?.est_filament_grams ?? "—"} g ／ {base?.est_print_hours ?? "—"} 時間</p>
           </section>
           {assets.map((asset) => <AssetAnalysisCard key={asset.id} asset={asset} />)}
 
           <div className="flex items-center gap-3">
             {failed && (
-              <p className="text-[12px] text-danger">
+              <p className="text-sm text-danger">
                 エラーが残っています。データを直してから差し替えてください。
               </p>
             )}

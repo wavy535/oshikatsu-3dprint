@@ -42,14 +42,14 @@ export function QuoteActions({
       <form action={decline} className="flex justify-center">
         <input type="hidden" name="quoteId" value={quoteId} />
         <input type="hidden" name="requestId" value={requestId} />
-        <button type="submit" disabled={declining || expired} className="text-[11px] text-danger hover:underline disabled:opacity-50">
+        <button type="submit" disabled={declining || expired} className="text-sm text-danger hover:underline disabled:opacity-50">
           この見積りを辞退する
         </button>
       </form>
       {(acceptState.error || declineState.error) && (
-        <p className="text-[11px] text-danger">{acceptState.error ?? declineState.error}</p>
+        <p className="text-sm text-danger">{acceptState.error ?? declineState.error}</p>
       )}
-      {declineState.message && <p className="text-[11px] text-ok">{declineState.message}</p>}
+      {declineState.message && <p className="text-sm text-ok">{declineState.message}</p>}
     </div>
   );
 }

@@ -13,7 +13,7 @@ export function PayoutActions({ id, status }: { id: string; status: PayoutStatus
   const [state, action, pending] = useActionState(processPayoutAction, initial);
   if (status === "paid" || status === "rejected") return null;
 
-  const btn = "rounded-md px-2.5 py-1.5 text-[11px] font-semibold disabled:opacity-50";
+  const btn = "rounded-md px-2.5 py-1.5 text-sm font-semibold disabled:opacity-50";
   return (
     <form action={action} className="flex flex-col items-end gap-1">
       <input type="hidden" name="id" value={id} />
@@ -30,7 +30,7 @@ export function PayoutActions({ id, status }: { id: string; status: PayoutStatus
           却下
         </button>
       </div>
-      {state.error && <span className="text-[10px] text-danger">{state.error}</span>}
+      {state.error && <span className="text-sm text-danger">{state.error}</span>}
     </form>
   );
 }

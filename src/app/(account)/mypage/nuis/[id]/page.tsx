@@ -12,7 +12,7 @@ export default async function EditNuiPage({ params }: { params: Promise<{ id: st
 
   return (
     <>
-      <h1 className="text-base font-bold text-ink">{nui.name} を編集</h1>
+      <h1 className="page-title font-bold text-ink">{nui.name} を編集</h1>
       <NuiForm nui={nui} />
     </>
   );

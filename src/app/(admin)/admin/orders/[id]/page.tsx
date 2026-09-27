@@ -32,7 +32,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href="/admin/orders"
-          className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-ground"
+          className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-ground"
         >
           <ChevronLeft className="size-3" aria-hidden />
           注文一覧へ
@@ -41,11 +41,11 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         <Pill tone={order.status === "shipped" || order.status === "completed" ? "ok" : "info"}>
           {ORDER_STATUS_LABEL[order.status]}
         </Pill>
-        <span className="num text-[11px] text-muted-foreground">
+        <span className="num text-sm text-muted-foreground">
           受注 {shortDateTime(order.created_at)}
         </span>
         {order.gift_wrapping && (
-          <span className="inline-flex items-center gap-1 rounded-lg bg-warn-bg px-2 py-1 text-[10.5px] font-semibold text-warn">
+          <span className="inline-flex items-center gap-1 rounded-lg bg-warn-bg px-2 py-1 text-sm font-semibold text-warn">
             <Gift className="size-3" aria-hidden />
             ラッピング希望
           </span>
@@ -56,9 +56,9 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <Card title="明細">
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] border-collapse text-[11px]">
+              <table className="w-full min-w-[560px] border-collapse text-sm">
                 <thead>
-                  <tr className="text-[10.5px] text-muted-foreground">
+                  <tr className="text-sm text-muted-foreground">
                     <th className={`${TH} border-b border-line`}>作品</th>
                     <th className={`${TH} border-b border-line`}>クリエイター</th>
                     <th className={`${TH} border-b border-line text-right`}>作品代金</th>
@@ -92,12 +92,12 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
 
           <Card title="印刷ジョブ">
             {order.print_jobs.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 ジョブはまだ生成されていません（決済完了時に create_print_jobs_for_order() が作ります）。
               </p>
             ) : (
               order.print_jobs.map((j) => (
-                <div key={j.id} className="flex items-center gap-3 text-[11px]">
+                <div key={j.id} className="flex items-center gap-3 text-sm">
                   <Link
                     href={`/admin/print-queue/${j.id}`}
                     className="num font-semibold text-brand hover:underline"
@@ -115,7 +115,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                   {(j.status === "printed" || j.status === "qc_failed") && (
                     <Link
                       href={`/admin/print-queue/${j.id}/qc`}
-                      className="rounded-md bg-brand px-2.5 py-1 text-[10.5px] font-semibold text-white hover:opacity-90"
+                      className="rounded-md bg-brand px-2.5 py-1 text-sm font-semibold text-white hover:opacity-90"
                     >
                       検品
                     </Link>
@@ -139,7 +139,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
             <Row label="印刷代行費（請求）" value={<span className="num">{yen(order.print_cost_amount)}</span>} />
             <Row label="送料（購入者負担）" value={<span className="num">{yen(order.shipping_fee_amount)}</span>} />
             <div className="my-1 border-t border-line" />
-            <Row label="購入者の支払い" value={<span className="num text-[12.5px]">{yen(order.total_amount)}</span>} />
+            <Row label="購入者の支払い" value={<span className="num text-sm">{yen(order.total_amount)}</span>} />
             {settlement && (
               <>
                 <div className="my-1 border-t border-line" />
@@ -163,7 +163,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                 />
               </>
             )}
-            <p className="pt-1 text-[10px] text-muted-foreground">
+            <p className="pt-1 text-sm text-muted-foreground">
               手数料は「支払い − 印刷の実費 − 送料の実費」にかかります。実費は発送が終わると確定し、
               それまでは請求額で仮に計算しています。
             </p>
@@ -198,7 +198,7 @@ export default async function AdminOrderPage({ params }: { params: Promise<{ id:
                 <Row label="発送日時" value={<span className="num">{shortDateTime(shipment.shipped_at)}</span>} />
               </>
             ) : (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 まだ発送していません。
                 {order.status === "packaging" && order.print_jobs[0] && (
                   <>

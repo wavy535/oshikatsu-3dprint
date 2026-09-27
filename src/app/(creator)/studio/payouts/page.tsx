@@ -20,23 +20,23 @@ export default async function StudioPayoutsPage({ searchParams }: { searchParams
 
   return (
     <>
-      <h1 className="text-base font-bold text-ink">売上の受け取り</h1>
+      <h1 className="page-title font-bold text-ink">売上の受け取り</h1>
 
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="flex min-w-0 flex-1 flex-col gap-3">
           <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
-            <h2 className="text-[12.5px] font-semibold text-ink">申請の履歴</h2>
+            <h2 className="text-lg leading-normal font-semibold text-ink">申請の履歴</h2>
             {requests.length === 0 ? (
-              <p className="text-[11.5px] text-muted-foreground">まだ申請はありません。</p>
+              <p className="text-sm text-muted-foreground">まだ申請はありません。</p>
             ) : (
-              <table className="w-full border-collapse text-[11.5px]">
+              <table className="w-full border-collapse text-sm">
                 <tbody>
                   {requests.map((r) => (
                     <tr key={r.id} className="border-b border-line last:border-b-0">
                       <td className="num py-2 text-muted-foreground">{shortDateTime(r.requested_at)}</td>
                       <td className="num py-2 text-right font-semibold text-ink">{yen(r.amount)}</td>
                       <td className="py-2 text-right">
-                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${STATUS_TONE[r.status]}`}>
+                        <span className={`rounded-full px-2 py-0.5 text-sm font-semibold ${STATUS_TONE[r.status]}`}>
                           {PAYOUT_STATUS_LABEL[r.status]}
                         </span>
                       </td>
@@ -52,11 +52,11 @@ export default async function StudioPayoutsPage({ searchParams }: { searchParams
           </section>
 
           <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
-            <h2 className="text-[12.5px] font-semibold text-ink">再印刷の負担（受取から差し引き）</h2>
+            <h2 className="text-lg leading-normal font-semibold text-ink">再印刷の負担（受取から差し引き）</h2>
             {charges.length === 0 ? (
-              <p className="text-[11.5px] text-muted-foreground">差し引きはありません。</p>
+              <p className="text-sm text-muted-foreground">差し引きはありません。</p>
             ) : (
-              <table className="w-full border-collapse text-[11.5px]">
+              <table className="w-full border-collapse text-sm">
                 <tbody>
                   {charges.map((c) => (
                     <tr key={c.id} className="border-b border-line last:border-b-0">
@@ -69,7 +69,7 @@ export default async function StudioPayoutsPage({ searchParams }: { searchParams
                 </tbody>
               </table>
             )}
-            <p className="text-[10px] text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               検品で「モデル側」と判定された再印刷の代行費です。判定に納得できないときは修正依頼の画面から運営に相談できます。
             </p>
             <Pagination path="/studio/payouts" params={sp} {...chargePaging} pageKey="chargesPage" label="再印刷費用のページ切り替え" />
@@ -78,9 +78,9 @@ export default async function StudioPayoutsPage({ searchParams }: { searchParams
 
         <aside className="flex w-full flex-col gap-3 lg:w-[320px] lg:flex-none">
           <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
-            <h2 className="text-[12.5px] font-semibold text-ink">受取可能額</h2>
+            <h2 className="text-lg leading-normal font-semibold text-ink">受取可能額</h2>
             <p className="num text-[26px] leading-10 font-bold text-brand">{yen(b?.available_amount ?? 0)}</p>
-            <dl className="flex flex-col gap-1 text-[11px]">
+            <dl className="flex flex-col gap-1 text-sm">
               <div className="flex justify-between"><dt className="text-muted-foreground">確定した受取</dt><dd className="num text-ink">{yen(b?.settled_payout ?? 0)}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">再印刷の負担</dt><dd className="num text-ink">− {yen(b?.reprint_charges ?? 0)}</dd></div>
               <div className="flex justify-between"><dt className="text-muted-foreground">申請中</dt><dd className="num text-ink">− {yen(b?.requested_amount ?? 0)}</dd></div>
@@ -91,7 +91,7 @@ export default async function StudioPayoutsPage({ searchParams }: { searchParams
           </section>
 
           <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
-            <h2 className="text-[12.5px] font-semibold text-ink">振込先口座</h2>
+            <h2 className="text-lg leading-normal font-semibold text-ink">振込先口座</h2>
             <PayoutAccountForm account={account} />
           </section>
         </aside>

@@ -34,13 +34,13 @@ function SectionHead({
     <div className="flex items-center gap-2.5">
       <span
         className={cn(
-          "flex size-6 items-center justify-center rounded-full text-[10.5px] font-semibold",
+          "flex size-6 items-center justify-center rounded-full text-sm font-semibold",
           done ? "bg-ok text-white" : "bg-brand text-white"
         )}
       >
         {done ? <Check className="size-3.5" aria-hidden /> : n}
       </span>
-      <h2 className="text-[14px] font-bold text-ink">{title}</h2>
+      <h2 className="text-lg leading-normal font-bold text-ink">{title}</h2>
       <span className="ml-auto text-line">{icon}</span>
     </div>
   );
@@ -59,7 +59,7 @@ export function CreatorApplyForm({ emailVerified }: { emailVerified: boolean }) 
           <Check className="size-5" aria-hidden />
         </span>
         <p className="text-sm font-semibold text-ink">申請を受け付けました</p>
-        <p className="text-[12px] leading-5 text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground">
           運営が確認し、結果を通知でお知らせします。
         </p>
       </div>
@@ -86,17 +86,17 @@ export function CreatorApplyForm({ emailVerified }: { emailVerified: boolean }) 
           />
           <div className="rounded-lg border border-line bg-ground">
             <div className="flex items-center justify-between border-b border-line px-4 py-2">
-              <span className="text-[12.5px] font-semibold text-ink">{CREATOR_TERMS_TITLE}</span>
-              <span className="num text-[11px] text-muted-foreground">
+              <span className="text-sm font-semibold text-ink">{CREATOR_TERMS_TITLE}</span>
+              <span className="num text-sm text-muted-foreground">
                 {CREATOR_TERMS_VERSION} 版
               </span>
             </div>
             <div className="max-h-56 overflow-y-auto px-4 py-3" tabIndex={0}>
               {CREATOR_TERMS.map((s) => (
                 <div key={s.heading} className="mb-3 last:mb-0">
-                  <h3 className="text-[12px] font-semibold text-ink">{s.heading}</h3>
+                  <h3 className="text-base leading-normal font-semibold text-ink">{s.heading}</h3>
                   {s.paragraphs.map((p, i) => (
-                    <p key={i} className="mt-1 text-[11.5px] leading-5 text-muted-foreground">
+                    <p key={i} className="mt-1 text-sm leading-6 text-muted-foreground">
                       {p}
                     </p>
                   ))}
@@ -107,7 +107,7 @@ export function CreatorApplyForm({ emailVerified }: { emailVerified: boolean }) 
           <Link
             href="/terms/creator"
             target="_blank"
-            className="inline-flex items-center gap-1 self-start text-[11.5px] text-brand hover:underline"
+            className="inline-flex items-center gap-1 self-start text-sm text-brand hover:underline"
           >
             全文を別のタブで読む
             <ExternalLink className="size-3" aria-hidden />
@@ -120,7 +120,7 @@ export function CreatorApplyForm({ emailVerified }: { emailVerified: boolean }) 
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-0.5 size-4 accent-brand"
             />
-            <span className="text-[12.5px] leading-5 text-ink">
+            <span className="text-sm leading-6 text-ink">
               {CREATOR_TERMS_TITLE}（{CREATOR_TERMS_VERSION} 版）を読み、内容に同意します。
             </span>
           </label>
@@ -134,7 +134,7 @@ export function CreatorApplyForm({ emailVerified }: { emailVerified: boolean }) 
             {applying ? "送信中..." : "クリエイター申請を送信する"}
           </Button>
           {!canSubmit && !applying && (
-            <p className="text-[11.5px] text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               {!emailVerified ? "メールアドレスを確認してください" : "利用規約に同意してください"}
             </p>
           )}

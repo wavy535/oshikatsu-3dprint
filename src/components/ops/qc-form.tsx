@@ -27,7 +27,7 @@ import type { ReprintCause, ShippingCarrier } from "@/types/db";
 const initial: OpsActionState = { error: null };
 
 const FIELD =
-  "w-full rounded-lg border border-line bg-white px-3 py-2 text-[11.5px] text-ink outline-none focus:border-brand";
+  "w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand";
 
 type CheckDefinition = { code: string; label: string; description: string };
 type Photo = { path: string; previewUrl: string };
@@ -105,7 +105,7 @@ export function QcForm({
       ))}
 
       <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-3.5">
-        <h2 className="text-[12.5px] font-semibold text-ink">
+        <h2 className="text-lg leading-normal font-semibold text-ink">
           検品チェックリスト（{checks.length}項目）
         </h2>
 
@@ -133,10 +133,10 @@ export function QcForm({
               </span>
 
               <div className="flex flex-1 flex-col">
-                <p className="text-[11.5px] font-semibold text-ink">
+                <p className="text-sm font-semibold text-ink">
                   {c.label}
                 </p>
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-sm text-muted-foreground">
                   {c.description}
                 </p>
               </div>
@@ -149,7 +149,7 @@ export function QcForm({
                     onClick={() =>
                       setAnswers((prev) => ({ ...prev, [c.code]: v }))
                     }
-                    className={`px-3 py-1 text-[10.5px] font-semibold transition-colors ${
+                    className={`px-3 py-1 text-sm font-semibold transition-colors ${
                       value === v
                         ? v === "pass"
                           ? "bg-ok-bg text-ok"
@@ -166,7 +166,7 @@ export function QcForm({
         })}
 
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">検品メモ</span>
+          <span className="text-sm text-muted-foreground">検品メモ</span>
           <textarea
             name="memo"
             rows={3}
@@ -177,7 +177,7 @@ export function QcForm({
       </section>
 
       <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-3.5">
-        <h2 className="text-[12.5px] font-semibold text-ink">
+        <h2 className="text-lg leading-normal font-semibold text-ink">
           検品写真（最大6枚）
         </h2>
         <div className="grid grid-cols-3 gap-2">
@@ -195,14 +195,14 @@ export function QcForm({
             </span>
           ))}
           {photos.length === 0 && (
-            <span className="flex h-16 items-center justify-center gap-1 rounded-lg border border-line bg-ground text-[10px] text-muted-foreground">
+            <span className="flex h-16 items-center justify-center gap-1 rounded-lg border border-line bg-ground text-sm text-muted-foreground">
               <ImageIcon className="size-3.5" aria-hidden />
               まだありません
             </span>
           )}
         </div>
 
-        <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-line px-3 py-2 text-[10.5px] font-semibold text-brand hover:bg-ground">
+        <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-line px-3 py-2 text-sm font-semibold text-brand hover:bg-ground">
           <Upload className="size-3" aria-hidden />
           {uploading ? "アップロード中…" : "検品写真を追加"}
           <input
@@ -218,7 +218,7 @@ export function QcForm({
           />
         </label>
         {uploadError && (
-          <p className="text-[11px] text-danger">{uploadError}</p>
+          <p className="text-sm text-danger">{uploadError}</p>
         )}
       </section>
 
@@ -226,12 +226,12 @@ export function QcForm({
         <section className="flex flex-col gap-2 rounded-xl border border-danger/40 bg-danger-bg p-3.5">
           <div className="flex items-center gap-2">
             <AlertTriangle className="size-3.5 text-danger" aria-hidden />
-            <p className="text-[12.5px] font-semibold text-danger">
+            <p className="text-sm font-semibold text-danger">
               NG {failed.length}件：{failed.map((f) => f.label).join("・")}
             </p>
           </div>
           <label className="flex flex-col gap-1">
-            <span className="text-[10.5px] text-muted-foreground">
+            <span className="text-sm text-muted-foreground">
               再印刷の原因
             </span>
             <select
@@ -250,7 +250,7 @@ export function QcForm({
             </select>
           </label>
           {cause && (
-            <p className="text-[10.5px] text-danger">
+            <p className="text-sm text-danger">
               {REPRINT_CAUSE_NOTE[cause]}
             </p>
           )}
@@ -273,14 +273,14 @@ export function QcForm({
           )}
         </Button>
         {!answeredAll && (
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             すべての項目に OK / NG を付けてください。
           </p>
         )}
       </div>
 
-      {state.error && <p className="text-[11px] text-danger">{state.error}</p>}
-      {state.message && <p className="text-[11px] text-ok">{state.message}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
+      {state.message && <p className="text-sm text-ok">{state.message}</p>}
     </form>
   );
 }
@@ -308,7 +308,7 @@ export function ShipmentForm({
       <input type="hidden" name="orderId" value={orderId} />
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">配送業者</span>
+        <span className="text-sm text-muted-foreground">配送業者</span>
         <select
           name="carrier"
           defaultValue="yamato"
@@ -324,7 +324,7 @@ export function ShipmentForm({
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">配送方法</span>
+        <span className="text-sm text-muted-foreground">配送方法</span>
         <input
           name="serviceName"
           defaultValue="宅急便コンパクト"
@@ -334,7 +334,7 @@ export function ShipmentForm({
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">追跡番号</span>
+        <span className="text-sm text-muted-foreground">追跡番号</span>
         <input
           name="trackingNumber"
           required
@@ -344,7 +344,7 @@ export function ShipmentForm({
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">梱包資材</span>
+        <span className="text-sm text-muted-foreground">梱包資材</span>
         <input
           name="boxType"
           defaultValue={
@@ -359,7 +359,7 @@ export function ShipmentForm({
 
       <div className="grid grid-cols-2 gap-2.5">
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             実測重量（g）
           </span>
           <input
@@ -372,7 +372,7 @@ export function ShipmentForm({
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-[10.5px] text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             三辺合計（cm）
           </span>
           <input
@@ -387,7 +387,7 @@ export function ShipmentForm({
       </div>
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10.5px] text-muted-foreground">送料（円）</span>
+        <span className="text-sm text-muted-foreground">送料（円）</span>
         <input
           name="shippingFeeJpy"
           type="number"
@@ -404,12 +404,12 @@ export function ShipmentForm({
       </Button>
 
       {!enabled && (
-        <p className="text-[10.5px] text-muted-foreground">
+        <p className="text-sm text-muted-foreground">
           同じ注文のジョブがすべて検品OKになると登録できます。
         </p>
       )}
-      {state.error && <p className="text-[11px] text-danger">{state.error}</p>}
-      {state.message && <p className="text-[11px] text-ok">{state.message}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
+      {state.message && <p className="text-sm text-ok">{state.message}</p>}
     </form>
   );
 }

@@ -27,7 +27,7 @@ export function FavoriteButton({
     return (
       <Link
         href={`/login?redirect=/works/${workId}`}
-        className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1.5 text-[12px] text-muted-foreground hover:text-ink"
+        className="flex items-center gap-1 rounded-full border border-line px-2.5 py-1.5 text-sm text-muted-foreground hover:text-ink"
         title="ログインするとお気に入りに入れられます"
       >
         <Heart className="size-4" aria-hidden />
@@ -45,14 +45,14 @@ export function FavoriteButton({
         disabled={pending}
         aria-pressed={on}
         className={cn(
-          "flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-[12px] transition-colors",
+          "flex items-center gap-1 rounded-full border px-2.5 py-1.5 text-sm transition-colors",
           on ? "border-danger/40 bg-danger-bg text-danger" : "border-line text-muted-foreground hover:text-ink"
         )}
       >
         <Heart className={cn("size-4", on && "fill-danger")} aria-hidden />
         <span className="num">{on ? count + (favorited ? 0 : 1) : count - (favorited ? 1 : 0)}</span>
       </button>
-      {state.error && <p className="mt-1 text-[11px] text-danger">{state.error}</p>}
+      {state.error && <p className="mt-1 text-sm text-danger">{state.error}</p>}
     </form>
   );
 }

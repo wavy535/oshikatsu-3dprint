@@ -46,9 +46,9 @@ export default async function NotificationsPage({
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-base font-bold text-ink">通知</h1>
+        <h1 className="page-title font-bold text-ink">通知</h1>
         {unread > 0 && (
-          <span className="num rounded-full bg-danger px-2 py-0.5 text-[11px] font-semibold text-white">
+          <span className="num rounded-full bg-danger px-2 py-0.5 text-sm font-semibold text-white">
             すべての未読 {unread}
           </span>
         )}
@@ -64,8 +64,8 @@ export default async function NotificationsPage({
           href="/mypage/notifications"
           className={
             active === undefined
-              ? "rounded-full bg-brand px-3 py-1 text-[11.5px] font-semibold text-white"
-              : "rounded-full bg-white px-3 py-1 text-[11.5px] text-muted-foreground hover:text-ink"
+              ? "rounded-full bg-brand px-3 py-1 text-sm font-semibold text-white"
+              : "rounded-full bg-white px-3 py-1 text-sm text-muted-foreground hover:text-ink"
           }
         >
           すべて
@@ -76,8 +76,8 @@ export default async function NotificationsPage({
             href={`/mypage/notifications?kind=${k}`}
             className={
               active === k
-                ? "rounded-full bg-brand px-3 py-1 text-[11.5px] font-semibold text-white"
-                : "rounded-full bg-white px-3 py-1 text-[11.5px] text-muted-foreground hover:text-ink"
+                ? "rounded-full bg-brand px-3 py-1 text-sm font-semibold text-white"
+                : "rounded-full bg-white px-3 py-1 text-sm text-muted-foreground hover:text-ink"
             }
           >
             {label}
@@ -109,15 +109,15 @@ export default async function NotificationsPage({
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                   <span className="flex items-center gap-2">
-                    <span className="truncate text-[12.5px] font-semibold text-ink">{n.title}</span>
+                    <span className="truncate text-sm font-semibold text-ink">{n.title}</span>
                     {isUnread && <span className="size-1.5 shrink-0 rounded-full bg-danger" aria-label="未読" />}
                   </span>
                   {n.body && (
-                    <span className="line-clamp-2 text-[11.5px] leading-4 text-muted-foreground">
+                    <span className="line-clamp-2 text-sm leading-6 text-muted-foreground">
                       {n.body}
                     </span>
                   )}
-                  <span className="text-[10.5px] text-muted-foreground">
+                  <span className="text-sm text-muted-foreground">
                     {KIND_LABEL[n.kind]} ・ {timeAgo(n.created_at)}
                   </span>
                 </span>

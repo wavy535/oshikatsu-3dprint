@@ -6,7 +6,7 @@ import { Search, SlidersHorizontal } from "lucide-react";
 import { QUEUE_STATUS_FILTERS } from "@/lib/ops/labels";
 
 const SELECT_CLASS =
-  "rounded-lg border border-line bg-white px-2.5 py-1.5 text-[11.5px] text-ink outline-none focus:border-brand";
+  "rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand";
 
 /**
  * 印刷キューの絞り込み。状態はURLのクエリだけが持つ（作品一覧と同じ作り）。
@@ -86,7 +86,7 @@ export function QueueFilters({
           name="q"
           defaultValue={params.get("q") ?? ""}
           placeholder="ジョブ番号・作品名で検索"
-          className="w-full bg-transparent text-[11.5px] text-ink outline-none placeholder:text-muted-foreground"
+          className="w-full bg-transparent text-sm text-ink outline-none placeholder:text-muted-foreground"
         />
       </form>
     </div>

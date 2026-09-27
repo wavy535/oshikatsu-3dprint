@@ -20,13 +20,13 @@ export function StepNav({ workId, current }: { workId: string; current: number }
           <span className="flex flex-col items-center gap-1 sm:flex-row sm:gap-2">
             <span
               className={cn(
-                "flex size-6 items-center justify-center rounded-full text-[10.5px] font-semibold",
+                "flex size-6 items-center justify-center rounded-full text-sm font-semibold",
                 active ? "bg-brand text-white" : done ? "bg-ok text-white" : "bg-ground text-muted-foreground"
               )}
             >
               {done ? <Check className="size-3.5" aria-hidden /> : s.n}
             </span>
-            <span className={cn("text-center text-[11px] sm:text-[12px]", active ? "font-semibold text-ink" : "text-muted-foreground")}>
+            <span className={cn("text-center text-sm sm:text-sm", active ? "font-semibold text-ink" : "text-muted-foreground")}>
               {s.label}
             </span>
           </span>

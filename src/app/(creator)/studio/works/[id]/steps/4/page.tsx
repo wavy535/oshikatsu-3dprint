@@ -34,9 +34,9 @@ export default async function Step4Page({ params }: { params: Promise<{ id: stri
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">作品を投稿する</h1>
-        <Link href="/studio/works" className="ml-auto text-[11.5px] text-brand hover:underline">
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">作品を投稿する</h1>
+        <Link href="/studio/works" className="ml-auto text-sm text-brand hover:underline">
           作品管理へ戻る
         </Link>
       </div>
@@ -44,10 +44,10 @@ export default async function Step4Page({ params }: { params: Promise<{ id: stri
       <StepNav workId={work.id} current={4} />
 
       <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-[13px] font-semibold text-ink">公開の条件</h2>
+        <h2 className="text-lg leading-normal font-semibold text-ink">公開の条件</h2>
         <ul className="flex flex-col gap-1.5">
           {checks.map((c) => (
-            <li key={c.label} className="flex items-center gap-2 text-[12.5px]">
+            <li key={c.label} className="flex items-center gap-2 text-sm">
               {c.ok ? (
                 <CheckCircle2 className="size-4 text-ok" aria-hidden />
               ) : (
@@ -58,7 +58,7 @@ export default async function Step4Page({ params }: { params: Promise<{ id: stri
           ))}
         </ul>
         {listed.length > 0 && (
-          <p className="mt-1 text-[11.5px] text-muted-foreground">
+          <p className="mt-1 text-sm text-muted-foreground">
             出品中（作品価格）: {listed.map((v) => `${v.size_label} ${yen(v.price_jpy)}`).join(" ／ ")}
             <br />
             買う人の支払額は、ここに印刷代行費が上乗せされた金額になります。

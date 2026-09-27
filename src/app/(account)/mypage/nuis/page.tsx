@@ -13,9 +13,9 @@ export default async function NuisPage() {
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">マイぬい</h1>
-        <span className="num text-[12px] text-muted-foreground">{nuis.length}体</span>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">マイぬい</h1>
+        <span className="num text-sm text-muted-foreground">{nuis.length}体</span>
         <Button asChild size="sm" className="ml-auto">
           <Link href="/mypage/nuis/new">
             <Plus className="size-4" aria-hidden />
@@ -24,7 +24,7 @@ export default async function NuisPage() {
         </Button>
       </div>
 
-      <p className="rounded-lg bg-brand-soft px-3 py-2 text-[12px] leading-5 text-accent-foreground">
+      <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm leading-6 text-accent-foreground">
         メインのぬいのサイズは、作品一覧の絞り込みの既定になります。作品詳細では採寸値と作品の内寸を比べて相性を出します。
       </p>
 
@@ -32,7 +32,7 @@ export default async function NuisPage() {
         <div className="flex flex-col items-center gap-2 rounded-xl border border-line bg-white px-6 py-16 text-center">
           <Smile className="size-6 text-line" aria-hidden />
           <p className="text-sm font-semibold text-ink">まだ登録されていません</p>
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             うちの子を登録すると、入るかどうかを数値で判定できます。
           </p>
           <Button asChild size="sm" className="mt-2">

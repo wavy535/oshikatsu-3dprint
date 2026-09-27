@@ -97,8 +97,8 @@ export function ThumbnailPicker({
   return (
     <div className="flex flex-col gap-4">
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-[13px] font-semibold text-ink">作品画像</h2>
-        <p className="text-[11.5px] text-muted-foreground">
+        <h2 className="text-lg leading-normal font-semibold text-ink">作品画像</h2>
+        <p className="text-sm text-muted-foreground">
           複数の画像をまとめて選べます。1枚目がサムネイルになります。星を押すと入れ替えられます。
         </p>
 
@@ -123,7 +123,7 @@ export function ThumbnailPicker({
               </span>
               <div className="flex items-center gap-1">
                 {i === 0 ? (
-                  <span className="flex items-center gap-1 text-[10.5px] font-semibold text-star">
+                  <span className="flex items-center gap-1 text-sm font-semibold text-star">
                     <Star className="size-3 fill-star" aria-hidden />
                     サムネイル
                   </span>
@@ -134,7 +134,7 @@ export function ThumbnailPicker({
                     <button
                       type="submit"
                       disabled={settingThumb || uploading}
-                      className="flex items-center gap-1 text-[10.5px] text-muted-foreground hover:text-ink"
+                      className="flex items-center gap-1 text-sm text-muted-foreground hover:text-ink"
                     >
                       <Star className="size-3" aria-hidden />
                       選択する
@@ -164,7 +164,7 @@ export function ThumbnailPicker({
             className="flex aspect-square w-32 flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-line bg-white text-muted-foreground hover:border-brand/40 hover:text-ink"
           >
             <ImagePlus className="size-5" aria-hidden />
-            <span className="text-[11px]">
+            <span className="text-sm">
               {uploading ? "アップロード中..." : "画像を追加"}
             </span>
           </button>
@@ -183,14 +183,14 @@ export function ThumbnailPicker({
           />
         </div>
 
-        {progress && <p role="status" className="text-[12px]">{progress}</p>}
-        {error && <p className="text-[12px] text-danger">{error}</p>}
+        {progress && <p role="status" className="text-sm">{progress}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
       </section>
 
       <form action={publish} className="flex flex-col gap-2">
         <input type="hidden" name="workId" value={workId} />
         {publishState.error && (
-          <p className="text-[12px] text-danger">{publishState.error}</p>
+          <p className="text-sm text-danger">{publishState.error}</p>
         )}
         <Button type="submit" disabled={publishing || uploading} className="self-end">
           {publishing

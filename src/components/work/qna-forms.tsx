@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 
 const initial: QnaActionState = { error: null };
 const FIELD =
-  "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-[12px] text-ink outline-none focus:border-brand";
+  "w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm text-ink outline-none focus:border-brand";
 
 /** 質問フォーム。「公開されます」を入口に明示する。 */
 export function AskQuestionForm({ workId, loggedIn }: { workId: string; loggedIn: boolean }) {
@@ -35,8 +35,8 @@ export function AskQuestionForm({ workId, loggedIn }: { workId: string; loggedIn
         className="flex items-center gap-2.5 rounded-xl border border-line bg-white px-4 py-3 hover:bg-ground"
       >
         <MessageSquarePlus className="size-4 text-brand" aria-hidden />
-        <span className="text-[12.5px] font-semibold text-ink">この作品について質問する</span>
-        <span className="text-[10.5px] text-muted-foreground">ログインが必要です</span>
+        <span className="text-sm font-semibold text-ink">この作品について質問する</span>
+        <span className="text-sm text-muted-foreground">ログインが必要です</span>
       </Link>
     );
   }
@@ -45,8 +45,8 @@ export function AskQuestionForm({ workId, loggedIn }: { workId: string; loggedIn
     <div className="flex flex-col gap-2 rounded-xl border border-line bg-white px-4 py-3">
       <button type="button" onClick={() => setOpen((v) => !v)} className="flex items-center gap-2.5 text-left">
         <MessageSquarePlus className="size-4 text-brand" aria-hidden />
-        <span className="text-[12.5px] font-semibold text-ink">この作品について質問する</span>
-        <span className="text-[10.5px] text-muted-foreground">公開されます</span>
+        <span className="text-sm font-semibold text-ink">この作品について質問する</span>
+        <span className="text-sm text-muted-foreground">公開されます</span>
       </button>
       {open && (
         <form ref={ref} action={action} className="flex flex-col gap-2 pt-1">
@@ -58,10 +58,10 @@ export function AskQuestionForm({ workId, loggedIn }: { workId: string; loggedIn
               質問を投稿
             </Button>
           </div>
-          {state.error && <p className="text-[11px] text-danger">{state.error}</p>}
+          {state.error && <p className="text-sm text-danger">{state.error}</p>}
         </form>
       )}
-      {state.message && <p className="text-[11px] text-ok">{state.message}</p>}
+      {state.message && <p className="text-sm text-ok">{state.message}</p>}
     </div>
   );
 }
@@ -76,8 +76,8 @@ export function AnswerForm({ threadId, workId }: { threadId: string; workId: str
       <textarea name="answer" rows={2} required maxLength={2000} placeholder="回答を書く（公開されます）" className={FIELD} />
       <div className="flex items-center gap-2">
         <Button type="submit" size="sm" variant="outline" disabled={pending}>回答する</Button>
-        {state.error && <span className="text-[11px] text-danger">{state.error}</span>}
-        {state.message && <span className="text-[11px] text-ok">{state.message}</span>}
+        {state.error && <span className="text-sm text-danger">{state.error}</span>}
+        {state.message && <span className="text-sm text-ok">{state.message}</span>}
       </div>
     </form>
   );

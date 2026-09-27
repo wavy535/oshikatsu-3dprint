@@ -74,7 +74,7 @@ export function ConsoleTabs() {
   const items = [...OPS_ITEMS, ...MASTER_ITEMS];
 
   return (
-    <nav aria-label="運営メニュー" className="order-last flex w-full min-w-0 items-center gap-0.5 overflow-x-auto xl:order-none xl:w-auto xl:flex-1 xl:flex-wrap">
+    <nav aria-label="運営メニュー" className="flex w-full min-w-0 items-center gap-1 overflow-x-auto px-4 pb-3 sm:px-6 lg:hidden">
       {items.map((item) =>
         item.href ? (
           <Link
@@ -82,7 +82,7 @@ export function ConsoleTabs() {
             href={item.href}
             aria-current={isActive(item) ? "page" : undefined}
             className={cn(
-              "flex min-h-11 shrink-0 items-center rounded-lg px-2.5 py-1.5 text-[11.5px] leading-[18px] whitespace-nowrap transition-colors lg:min-h-0",
+              "flex min-h-11 shrink-0 items-center rounded-lg px-2.5 py-1.5 text-sm leading-[18px] whitespace-nowrap transition-colors ",
               !item.inTabs && "lg:hidden",
               isActive(item)
                 ? "bg-console-2 font-semibold text-white"
@@ -95,7 +95,7 @@ export function ConsoleTabs() {
           <span
             key={item.label}
             title="準備中"
-            className="flex min-h-11 shrink-0 items-center rounded-lg px-2.5 py-1.5 text-[11.5px] leading-[18px] whitespace-nowrap text-console-muted/60 lg:hidden"
+            className="flex min-h-11 shrink-0 items-center rounded-lg px-2.5 py-1.5 text-sm leading-[18px] whitespace-nowrap text-console-muted/60 lg:hidden"
           >
             {item.label}
           </span>
@@ -113,12 +113,12 @@ export function ConsoleSideNav() {
     const Icon = item.icon;
     const content = (
       <>
-        <Icon className="size-[15px]" aria-hidden />
+        <Icon className="size-4 shrink-0" aria-hidden />
         {item.label}
       </>
     );
     const base =
-      "flex items-center gap-2 rounded-lg px-2.5 py-2 text-[11.5px] leading-[18px] transition-colors";
+      "flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm leading-[18px] transition-colors";
 
     if (!item.href) {
       return (
@@ -135,6 +135,7 @@ export function ConsoleSideNav() {
       <Link
         key={item.label}
         href={item.href}
+        aria-current={isActive(item) ? "page" : undefined}
         className={cn(
           base,
           isActive(item)
@@ -148,12 +149,12 @@ export function ConsoleSideNav() {
   };
 
   return (
-    <aside className="hidden w-[204px] shrink-0 flex-col gap-0.5 rounded-xl border border-line bg-white p-2 lg:flex">
-      <p className="px-2.5 pt-1.5 pb-1 text-[10px] font-semibold text-muted-foreground">
+    <aside className="hidden w-60 shrink-0 flex-col gap-1 self-start rounded-2xl border border-line bg-white p-3 lg:flex">
+      <p className="px-2.5 pt-1.5 pb-1 text-sm font-semibold text-muted-foreground">
         オペレーション
       </p>
       {OPS_ITEMS.map(renderItem)}
-      <p className="px-2.5 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground">マスタ</p>
+      <p className="px-2.5 pt-3 pb-1 text-sm font-semibold text-muted-foreground">マスタ</p>
       {MASTER_ITEMS.map(renderItem)}
     </aside>
   );

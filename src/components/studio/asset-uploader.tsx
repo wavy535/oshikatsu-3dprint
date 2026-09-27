@@ -78,15 +78,15 @@ export function AssetUploader({ workId, assets = [], purpose = "print", currentF
 
   return (
     <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
-      <h2 className="text-[13px] font-semibold text-ink">{ar ? "AR用の3Dデータ（任意）" : "印刷用の3Dデータ"}</h2>
-      <p className="text-[12px] leading-5 text-muted-foreground">
+      <h2 className="text-lg leading-normal font-semibold text-ink">{ar ? "AR用の3Dデータ（任意）" : "印刷用の3Dデータ"}</h2>
+      <p className="text-sm leading-6 text-muted-foreground">
         {ar
           ? `組み立てた配置のSTL・3MF・Blender (.blend) を登録してください。基準サイズ（15cm用）の実寸で用意すると、選んだサイズに合わせて拡大・縮小します。印刷用ファイルや代行費には影響しません。STL・3MFはmm、Blenderは1単位＝${AR_BLEND.mmPerUnit}mmです。`
           : "1作品を構成するSTL・3MFをまとめて選択、またはドロップできます。全ファイルを印刷する一式として、材料量・時間・代行費を合算します。1作品16ファイル、一度に合計80MiBまで。"}
       </p>
-      {currentFile && <p className="break-all text-[12px]">登録済み：{currentFile}</p>}
+      {currentFile && <p className="break-all text-sm">登録済み：{currentFile}</p>}
       {!ar && assets.length > 0 && (
-        <label className="flex flex-col gap-1 text-[12px]">
+        <label className="flex flex-col gap-1 text-sm">
           アップロード方法
           <select value={target} disabled={!hydrated || Boolean(progress)} onChange={(event) => setTarget(event.target.value)} className="min-w-0 rounded-md border border-line p-2">
             <option value="">ファイルを追加する</option>
@@ -98,9 +98,9 @@ export function AssetUploader({ workId, assets = [], purpose = "print", currentF
         <Upload className="size-6 text-muted-foreground" aria-hidden />
         <input ref={input} type="file" aria-label={ar ? "AR用ファイル" : "印刷用ファイル"} accept={ar ? ".stl,.3mf,.blend" : ".stl,.3mf"} multiple={multiple} disabled={!hydrated || Boolean(progress)} className="hidden" onChange={(event) => { void onPick(Array.from(event.target.files ?? [])); event.target.value = ""; }} />
         <Button type="button" size="sm" disabled={!hydrated || Boolean(progress)} onClick={() => input.current?.click()}>{ar ? "AR用ファイルを選ぶ" : target ? "差し替えるファイルを選ぶ" : "印刷用ファイルを選ぶ"}</Button>
-        {progress && <p role="status" className="break-all text-[12px] text-muted-foreground">{progress}</p>}
+        {progress && <p role="status" className="break-all text-sm text-muted-foreground">{progress}</p>}
       </div>
-      {error && <p role="alert" className="text-[12px] text-danger">{error}</p>}
+      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     </section>
   );
 }

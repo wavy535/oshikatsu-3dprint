@@ -38,7 +38,7 @@ export function ArModelViewer({ src, label }: { src: string; label: string }) {
       <div className="relative h-64 w-full rounded-md bg-white">
         {failed ? (
           <div role="alert" className="flex h-full flex-col items-center justify-center gap-3 p-4 text-center">
-            <p className="text-[11.5px] text-danger">3D表示を読み込めませんでした。</p>
+            <p className="text-sm text-danger">3D表示を読み込めませんでした。</p>
             <Button variant="outline" size="sm" onClick={() => { setFailed(false); setAttempt((value) => value + 1); }}>
               再試行
             </Button>
@@ -64,11 +64,11 @@ export function ArModelViewer({ src, label }: { src: string; label: string }) {
         ) : (
           <div role="status" className="flex h-full flex-col justify-center gap-3 p-4">
             <div aria-hidden className="mx-auto size-16 rounded bg-ground" />
-            <p className="text-center text-[11.5px] text-muted-foreground">3D表示を準備しています…</p>
+            <p className="text-center text-sm text-muted-foreground">3D表示を準備しています…</p>
           </div>
         )}
       </div>
-      {modelFailed && <p role="alert" className="text-[11.5px] text-danger">このモデルを表示できませんでした。</p>}
+      {modelFailed && <p role="alert" className="text-sm text-danger">このモデルを表示できませんでした。</p>}
     </div>
   );
 }

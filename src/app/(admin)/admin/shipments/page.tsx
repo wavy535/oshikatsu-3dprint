@@ -27,6 +27,7 @@ export default async function AdminShipmentsPage({
 
   return (
     <>
+      <div className="mb-2"><h1 className="page-title">出荷済み</h1><p className="mt-2 text-sm text-muted-foreground">発送済みの注文と配送情報を確認できます。</p></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="本日の発送" tone="ok" value={summary.today} note={`直近7日 ${summary.week}件`} />
         <StatCard label="累計" value={summary.total} note="発送記録の件数" />
@@ -64,9 +65,9 @@ export default async function AdminShipmentsPage({
       </Suspense>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-white">
-        <table className="w-full min-w-[980px] border-collapse text-[11px]">
+        <table className="w-full min-w-[980px] border-collapse text-sm">
           <thead>
-            <tr className="bg-ground text-[10.5px] text-muted-foreground">
+            <tr className="bg-ground text-sm text-muted-foreground">
               <th className={TH}>発送日時</th>
               <th className={TH}>注文</th>
               <th className={TH}>購入者 / お届け先</th>
@@ -82,7 +83,7 @@ export default async function AdminShipmentsPage({
           <tbody>
             {shipments.length === 0 && (
               <tr>
-                <td colSpan={10} className="px-3 py-10 text-center text-[12px] text-muted-foreground">
+                <td colSpan={10} className="px-3 py-10 text-center text-sm text-muted-foreground">
                   発送記録はまだありません。
                 </td>
               </tr>
@@ -105,7 +106,7 @@ export default async function AdminShipmentsPage({
                   </td>
                   <td className={`${TD} text-ink`}>
                     <span className="block font-semibold">{o?.profiles?.display_name ?? "—"}</span>
-                    <span className="block text-[10px] text-muted-foreground">
+                    <span className="block text-sm text-muted-foreground">
                       {o?.addresses ? `${o.addresses.prefecture} ${o.addresses.city}` : "—"}
                     </span>
                   </td>
@@ -126,7 +127,7 @@ export default async function AdminShipmentsPage({
                   </td>
                   <td className={`${TD} text-ink`}>
                     <span className="block">{CARRIER_LABEL[s.carrier]}</span>
-                    <span className="block text-[10px] text-muted-foreground">{s.service_name ?? "—"}</span>
+                    <span className="block text-sm text-muted-foreground">{s.service_name ?? "—"}</span>
                   </td>
                   <td className={`${TD} num text-ink`}>{s.tracking_number ?? "—"}</td>
                   <td className={`${TD} num text-right text-ink`}>

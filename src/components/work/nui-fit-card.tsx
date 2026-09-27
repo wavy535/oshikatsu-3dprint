@@ -43,16 +43,16 @@ export function NuiFitCard({
   if (!signedIn || !hasNui) {
     return (
       <div className="flex flex-col gap-1.5 rounded-lg border border-dashed border-line bg-ground/60 p-3">
-        <p className="flex items-center gap-1.5 text-[12px] font-semibold text-ink">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
           <Ruler className="size-3.5" aria-hidden />
           マイぬいとの相性
         </p>
-        <p className="text-[11.5px] leading-4 text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground">
           うちの子の採寸値を登録すると、この作品に入るかどうかを数値で判定します。
         </p>
         <Link
           href={signedIn ? "/mypage/nuis" : "/login?redirect=/mypage/nuis"}
-          className="text-[11.5px] font-semibold text-brand hover:underline"
+          className="text-sm font-semibold text-brand hover:underline"
         >
           {signedIn ? "マイぬいを登録する" : "ログインして登録する"}
         </Link>
@@ -67,13 +67,13 @@ export function NuiFitCard({
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-line bg-ground/60 p-3">
       <div className="flex items-center gap-2">
-        <p className="flex items-center gap-1.5 text-[12px] font-semibold text-ink">
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
           <Ruler className="size-3.5" aria-hidden />
           {nuiName}との相性
         </p>
         <span
           className={cn(
-            "ml-auto rounded-full px-2 py-0.5 text-[10.5px] font-semibold",
+            "ml-auto rounded-full px-2 py-0.5 text-sm font-semibold",
             verdict.className
           )}
         >
@@ -81,7 +81,7 @@ export function NuiFitCard({
         </span>
       </div>
 
-      <table className="w-full text-[11.5px]">
+      <table className="w-full text-sm">
         <tbody>
           {fit.axes.map((a) => (
             <tr key={a.axis} className="border-t border-line/70 first:border-t-0">
@@ -96,7 +96,7 @@ export function NuiFitCard({
           ))}
         </tbody>
       </table>
-      <p className="text-[10.5px] text-muted-foreground">作品の内寸 / うちの子の採寸値（差）</p>
+      <p className="text-sm text-muted-foreground">作品の内寸 / うちの子の採寸値（差）</p>
     </div>
   );
 }

@@ -69,11 +69,11 @@ export default async function Step3Page({
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">作品を投稿する</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">作品を投稿する</h1>
         <Link
           href="/studio/works"
-          className="ml-auto text-[11.5px] text-brand hover:underline"
+          className="ml-auto text-sm text-brand hover:underline"
         >
           作品管理へ戻る
         </Link>

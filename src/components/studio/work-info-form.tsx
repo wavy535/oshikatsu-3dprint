@@ -128,7 +128,7 @@ export function WorkInfoForm({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="使い方や、飾ったときの見え方など"
-            className="rounded-lg border border-line bg-white px-3 py-2 text-[12.5px] text-ink outline-none focus:border-brand"
+            className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
           />
         </div>
 
@@ -137,7 +137,7 @@ export function WorkInfoForm({
           { label: "世界観", items: worldviews },
         ].map(({ label, items }) => (
           <div key={label} className="flex flex-col gap-1.5">
-            <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+            <p className="text-sm font-semibold text-muted-foreground">{label}</p>
             <div className="flex flex-wrap gap-2">
               {items.map((t) => {
                 const on = tagIds.includes(t.id);
@@ -152,7 +152,7 @@ export function WorkInfoForm({
                       )
                     }
                     className={cn(
-                      "rounded-full px-3 py-1 text-[12px] transition-colors",
+                      "rounded-full px-3 py-1 text-sm transition-colors",
                       on ? "bg-brand text-white" : "bg-ground text-muted-foreground hover:text-ink"
                     )}
                   >
@@ -167,12 +167,12 @@ export function WorkInfoForm({
 
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
         <div className="flex items-center gap-2">
-          <h2 className="text-[13px] font-semibold text-ink">内寸（相性判定に使います）</h2>
-          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[10.5px] font-semibold text-accent-foreground">
+          <h2 className="text-lg leading-normal font-semibold text-ink">内寸（相性判定に使います）</h2>
+          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-sm font-semibold text-accent-foreground">
             原寸だけ入力
           </span>
         </div>
-        <p className="text-[11.5px] leading-4 text-muted-foreground">
+        <p className="text-sm leading-6 text-muted-foreground">
           ぬいが収まる部分の内側の寸法です。買う人のマイぬいの採寸値と比べて「入るかどうか」を出します。
           他のサイズは倍率から自動で計算されます。
         </p>
@@ -204,8 +204,8 @@ export function WorkInfoForm({
       </section>
 
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-[13px] font-semibold text-ink">サイズ展開と価格</h2>
-        <p className="flex items-start gap-2 text-[11.5px] leading-4 text-muted-foreground">
+        <h2 className="text-lg leading-normal font-semibold text-ink">サイズ展開と価格</h2>
+        <p className="flex items-start gap-2 text-sm leading-6 text-muted-foreground">
           <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           印刷代行費は解析結果から自動で出ています。
           {feeBilling === "separate"
@@ -214,9 +214,9 @@ export function WorkInfoForm({
         </p>
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-[12px]">
+          <table className="w-full min-w-[560px] text-sm">
             <thead>
-              <tr className="border-b border-line text-[10.5px] text-muted-foreground">
+              <tr className="border-b border-line text-sm text-muted-foreground">
                 <th className="py-2 text-left font-semibold">サイズ</th>
                 <th className="py-2 text-right font-semibold">見積り</th>
                 <th className="py-2 text-right font-semibold">代行費</th>
@@ -249,12 +249,12 @@ export function WorkInfoForm({
                     <td className="py-2 text-ink">
                       {v.sizeLabel}
                       {v.isBase && (
-                        <span className="ml-1 rounded bg-ground px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        <span className="ml-1 rounded bg-ground px-1.5 py-0.5 text-sm text-muted-foreground">
                           原寸
                         </span>
                       )}
                       {!v.isPrintable && (
-                        <p className="text-[10.5px] text-danger">{v.unprintableReason}</p>
+                        <p className="text-sm text-danger">{v.unprintableReason}</p>
                       )}
                     </td>
                     <td className="num py-2 text-right text-muted-foreground">
@@ -322,7 +322,7 @@ export function WorkInfoForm({
       </section>
 
       <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-5">
-        <h2 className="text-[13px] font-semibold text-ink">オーダーメイドで受けられる相談</h2>
+        <h2 className="text-lg leading-normal font-semibold text-ink">オーダーメイドで受けられる相談</h2>
         <div className="flex flex-wrap gap-2">
           {ACCEPTS.map((a) => {
             const on = Boolean(accepts[a.key]);
@@ -333,7 +333,7 @@ export function WorkInfoForm({
                 aria-pressed={on}
                 onClick={() => setAccepts((prev) => ({ ...prev, [a.key]: !on }))}
                 className={cn(
-                  "rounded-full px-3 py-1 text-[12px] transition-colors",
+                  "rounded-full px-3 py-1 text-sm transition-colors",
                   on ? "bg-brand text-white" : "bg-ground text-muted-foreground hover:text-ink"
                 )}
               >
@@ -344,7 +344,7 @@ export function WorkInfoForm({
         </div>
       </section>
 
-      {state.error && <p className="text-[12px] text-danger">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="self-end">
         {pending ? "保存しています..." : "公開の設定へ進む"}

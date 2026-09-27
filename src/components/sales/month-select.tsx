@@ -12,7 +12,7 @@ export function MonthSelect({ value, months, basePath }: { value: string; months
       aria-label="月"
       value={value}
       onChange={(e) => router.push(`${basePath}?month=${e.target.value}`)}
-      className="num rounded-lg border border-line bg-white px-2.5 py-1.5 text-[11.5px] text-ink outline-none focus:border-brand"
+      className="num rounded-lg border border-line bg-white px-2.5 py-1.5 text-sm text-ink outline-none focus:border-brand"
     >
       {months.map((m) => (
         <option key={m} value={m}>

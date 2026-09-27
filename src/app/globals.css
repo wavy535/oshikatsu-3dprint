@@ -1,32 +1,24 @@
 @import "tailwindcss";
 
-/*
- * OshiNest のデザイントークン。値は Figma「推し活2」の Design System と
- * プロトタイプ（oshikatsu-3dprint/docs/screen-flow.html）に合わせてある。
- *
- * 素のトークン（--brand など）を :root に置き、shadcn のセマンティック
- * トークンはそこへの割り当てとして定義する。色を直に書かず必ず素の
- * トークンを経由させることで、運営コンソールの暗色面（.dark）を
- * 差し替えるだけで済むようにしている。
- */
+/* Shared UI tokens. See docs/ui-redesign.md for the visual hierarchy. */
 :root {
   /* ── 素のトークン ── */
-  --brand: #0096fa;
-  --brand-soft: #e6f4ff;
-  --ground: #f5f7fb;
-  --ink: #1f2328;
-  --line: #e4e7ed;
-  --star: #ffb020;
-  --ok: #2fa36b;
+  --brand: #205b57;
+  --brand-soft: #eaf3ef;
+  --ground: #f7f8f5;
+  --ink: #24352f;
+  --line: #d9e1db;
+  --star: #956416;
+  --ok: #236646;
   --ok-bg: #e7f6ee;
   --ok-line: #b7e4cc;
-  --warn: #d97706;
+  --warn: #94520d;
   --warn-bg: #fff4e5;
-  --danger: #e5484d;
+  --danger: #b52d3a;
   --danger-bg: #fdecec;
   /* 運営コンソールの暗色面 */
-  --console: #111827;
-  --console-2: #1f2937;
+  --console: #182c27;
+  --console-2: #243d35;
   --console-line: #2c3542;
   --console-ink: #e8ecf2;
   --console-muted: #9aa4b4;
@@ -45,13 +37,13 @@
   --secondary: #ffffff;
   --secondary-foreground: var(--ink);
   --muted: var(--ground);
-  --muted-foreground: #6b7280;
+  --muted-foreground: #59675f;
   --accent: var(--brand-soft);
-  --accent-foreground: #0074c2;
+  --accent-foreground: #205b57;
   --destructive: var(--danger);
   --destructive-foreground: #ffffff;
   --border: var(--line);
-  --input: var(--line);
+  --input: #a1b2a7;
   --ring: var(--brand);
 }
 
@@ -125,8 +117,9 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-full: 9999px;
 
-  --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic",
-    "Segoe UI", system-ui, sans-serif;
+  --font-sans:
+    "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI",
+    system-ui, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", monospace;
 }
 
@@ -134,6 +127,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.75;
 }
 
 /* 価格・件数は Figma 同様に等幅寄りの数字で揃える */
@@ -148,12 +143,91 @@ main {
 
 /* Keep editable fields legible and avoid focus zoom on mobile Safari. */
 @media (width < 640px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="range"]):not([type="color"]),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not(
+      [type="range"]
+    ):not([type="color"]),
   select,
   textarea {
     min-width: 0;
     max-width: 100%;
     min-height: 44px;
     font-size: 16px;
+  }
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  a,
+  button,
+  input,
+  select,
+  textarea,
+  summary {
+    -webkit-tap-highlight-color: transparent;
+  }
+  :where(a, button, input, select, textarea, summary):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 4px;
+  }
+  :where(input, select, textarea) {
+    accent-color: var(--brand);
+  }
+  :where(select, textarea) {
+    min-height: 44px;
+  }
+  :where(th, td) {
+    vertical-align: top;
+  }
+  :where(th) {
+    font-weight: 600;
+  }
+  :where(main h1) {
+    scroll-margin-top: 6rem;
+  }
+}
+
+@layer components {
+  .page-title {
+    font-size: clamp(1.5rem, 2.2vw, 2rem);
+    font-weight: 700;
+    line-height: 1.4;
+    color: var(--ink);
+  }
+  .page-shell {
+    width: 100%;
+    max-width: 1270px;
+    margin-inline: auto;
+    padding: 2rem 1rem;
+  }
+  .workspace {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+  .mobile-nav-space {
+    padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+  @media (width >= 640px) {
+    .page-shell {
+      padding: 2.5rem 1.5rem;
+    }
+  }
+  @media (width >= 1024px) {
+    .workspace {
+      flex-direction: row;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+    .mobile-nav-space {
+      padding-bottom: 0;
+    }
   }
 }

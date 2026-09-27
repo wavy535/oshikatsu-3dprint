@@ -46,13 +46,13 @@ export function CartLineRow({ line }: { line: CartLine }) {
       </Link>
 
       <div className="flex min-w-0 flex-1 flex-col gap-1">
-        <Link href={`/works/${line.workId}`} className="truncate text-[13px] font-semibold text-ink">
+        <Link href={`/works/${line.workId}`} className="truncate text-sm font-semibold text-ink">
           {line.workTitle}
         </Link>
-        <p className="text-[11px] text-muted-foreground">サイズ {line.sizeLabel}</p>
+        <p className="text-sm text-muted-foreground">サイズ {line.sizeLabel}</p>
 
         {unavailable && (
-          <p className="flex items-center gap-1 text-[11px] text-danger">
+          <p className="flex items-center gap-1 text-sm text-danger">
             <AlertTriangle className="size-3.5" aria-hidden />
             現在購入できません（在庫切れまたは出品停止）
           </p>
@@ -71,7 +71,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
             >
               <Minus className="size-3.5" aria-hidden />
             </button>
-            <span className="num w-6 text-center text-[13px] text-ink">{line.quantity}</span>
+            <span className="num w-6 text-center text-sm text-ink">{line.quantity}</span>
             <button
               type="submit"
               name="quantity"
@@ -93,7 +93,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
             <button
               type="submit"
               disabled={removing}
-              className="flex min-h-11 items-center gap-1 rounded-lg px-2 py-1.5 text-[11.5px] text-muted-foreground hover:text-danger"
+              className="flex min-h-11 items-center gap-1 rounded-lg px-2 py-1.5 text-sm text-muted-foreground hover:text-danger"
             >
               <Trash2 className="size-3.5" aria-hidden />
               削除
@@ -102,7 +102,7 @@ export function CartLineRow({ line }: { line: CartLine }) {
         </div>
 
         {(qtyState.error || removeState.error) && (
-          <p className="text-[11px] text-danger">{qtyState.error ?? removeState.error}</p>
+          <p className="text-sm text-danger">{qtyState.error ?? removeState.error}</p>
         )}
       </div>
     </div>

@@ -36,7 +36,7 @@ export function PreferenceToggle({
   if (locked) {
     return (
       <span
-        className="flex items-center gap-1 rounded-full bg-ground px-2.5 py-1 text-[11px] text-muted-foreground"
+        className="flex items-center gap-1 rounded-full bg-ground px-2.5 py-1 text-sm text-muted-foreground"
         title="この通知はオフにできません"
       >
         <Lock className="size-3" aria-hidden />
@@ -67,7 +67,7 @@ export function PreferenceToggle({
           )}
         />
       </button>
-      {state.error && <p className="mt-1 text-[10px] text-danger">{state.error}</p>}
+      {state.error && <p className="mt-1 text-sm text-danger">{state.error}</p>}
     </form>
   );
 }

@@ -87,7 +87,7 @@ export function PrintInstructionsForm({
     <form action={formAction} className="flex flex-col gap-4">
       <input type="hidden" name="payload" value={payload} />
 
-      <p className="flex items-start gap-2 rounded-lg bg-brand-soft px-3 py-2 text-[12px] leading-5 text-accent-foreground">
+      <p className="flex items-start gap-2 rounded-lg bg-brand-soft px-3 py-2 text-sm leading-6 text-accent-foreground">
         <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
         ここで決めた置き方とサポートは、運営の印刷ジョブ詳細にそのまま届きます。
         解析結果から既定値を入れてあるので、問題なければそのまま進めます。
@@ -96,12 +96,12 @@ export function PrintInstructionsForm({
       {parts.map((part) => (
         <section key={part.instructionId} className="flex flex-col gap-3 rounded-xl border border-line bg-white p-4">
           <div className="flex items-baseline gap-2">
-            <h2 className="text-[13px] font-semibold text-ink">{part.name}</h2>
-            <span className="num text-[11px] text-muted-foreground">{part.bbox}</span>
+            <h2 className="text-lg leading-normal font-semibold text-ink">{part.name}</h2>
+            <span className="num text-sm text-muted-foreground">{part.bbox}</span>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <p className="text-[11px] font-semibold text-muted-foreground">置き方</p>
+            <p className="text-sm font-semibold text-muted-foreground">置き方</p>
             <div className="flex flex-wrap gap-2">
               {ORIENTATIONS.map((o) => (
                 <button
@@ -116,8 +116,8 @@ export function PrintInstructionsForm({
                       : "border-line bg-white hover:border-brand/40"
                   )}
                 >
-                  <span className="text-[12px] font-semibold text-ink">{o.label}</span>
-                  <span className="text-[10.5px] text-muted-foreground">{o.hint}</span>
+                  <span className="text-sm font-semibold text-ink">{o.label}</span>
+                  <span className="text-sm text-muted-foreground">{o.hint}</span>
                 </button>
               ))}
             </div>
@@ -125,7 +125,7 @@ export function PrintInstructionsForm({
 
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-semibold text-muted-foreground">サポート</span>
+              <span className="text-sm font-semibold text-muted-foreground">サポート</span>
               <div className="flex gap-1">
                 {SUPPORTS.map((s) => (
                   <button
@@ -134,7 +134,7 @@ export function PrintInstructionsForm({
                     aria-pressed={part.support === s.value}
                     onClick={() => updatePart(part.instructionId, { support: s.value })}
                     className={cn(
-                      "rounded-lg px-3 py-1.5 text-[12px] transition-colors",
+                      "rounded-lg px-3 py-1.5 text-sm transition-colors",
                       part.support === s.value
                         ? "bg-brand text-white"
                         : "bg-ground text-muted-foreground hover:text-ink"
@@ -146,7 +146,7 @@ export function PrintInstructionsForm({
               </div>
             </div>
 
-            <label className="flex items-center gap-2 text-[12px] text-ink">
+            <label className="flex items-center gap-2 text-sm text-ink">
               <input
                 type="checkbox"
                 checked={part.noRotate}
@@ -160,7 +160,7 @@ export function PrintInstructionsForm({
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor={`note-${part.instructionId}`}
-              className="text-[11px] font-semibold text-muted-foreground"
+              className="text-sm font-semibold text-muted-foreground"
             >
               運営へのメモ（任意）
             </label>
@@ -171,16 +171,16 @@ export function PrintInstructionsForm({
               value={part.note ?? ""}
               onChange={(e) => updatePart(part.instructionId, { note: e.target.value })}
               placeholder="はめ合いがきついので、サポートは内側に付けないでください など"
-              className="rounded-lg border border-line bg-white px-3 py-2 text-[12.5px] text-ink outline-none focus:border-brand"
+              className="rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
             />
           </div>
         </section>
       ))}
 
       <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-4">
-        <h2 className="text-[13px] font-semibold text-ink">色の割り当て</h2>
+        <h2 className="text-lg leading-normal font-semibold text-ink">色の割り当て</h2>
         {slots.length === 0 ? (
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             このデータは色情報を持っていません（STLは単色）。運営の在庫から1色で印刷します。
           </p>
         ) : (
@@ -191,7 +191,7 @@ export function PrintInstructionsForm({
                 style={{ backgroundColor: slot.sourceHex }}
                 aria-hidden
               />
-              <span className="text-[12.5px] text-ink">
+              <span className="text-sm text-ink">
                 スロット{slot.slotIndex}：{slot.sourceName}
               </span>
               <select
@@ -203,7 +203,7 @@ export function PrintInstructionsForm({
                     )
                   )
                 }
-                className="ml-auto h-9 rounded-lg border border-line bg-white px-2 text-[12.5px] text-ink outline-none focus:border-brand"
+                className="ml-auto h-9 rounded-lg border border-line bg-white px-2 text-sm text-ink outline-none focus:border-brand"
               >
                 <option value="">運営におまかせ</option>
                 {filaments.map((f) => (
@@ -217,7 +217,7 @@ export function PrintInstructionsForm({
         )}
       </section>
 
-      {state.error && <p className="text-[12px] text-danger">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="self-end">
         {pending ? "保存しています..." : "作品情報へ進む"}

@@ -37,15 +37,15 @@ export default async function MyCustomOrderPage({ params }: { params: Promise<{ 
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <Link href="/mypage/custom-orders" className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-[11px] text-muted-foreground hover:bg-ground">
+        <Link href="/mypage/custom-orders" className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-ground">
           <ChevronLeft className="size-3" aria-hidden />
           相談一覧へ
         </Link>
-        <h1 className="text-[15px] font-bold text-ink">
+        <h1 className="page-title font-bold text-ink">
           オーダーメイド相談{active?.quote_no ? <span className="num">　{active.quote_no}</span> : ""}
         </h1>
-        <span className="rounded-full bg-ground px-2 py-0.5 text-[10.5px] font-semibold text-ink">{REQUEST_STATUS_LABEL[req.status]}</span>
-        <Link href={`/mypage/messages?with=${req.creator_id}`} className="ml-auto text-[11px] text-brand hover:underline">
+        <span className="rounded-full bg-ground px-2 py-0.5 text-sm font-semibold text-ink">{REQUEST_STATUS_LABEL[req.status]}</span>
+        <Link href={`/mypage/messages?with=${req.creator_id}`} className="ml-auto text-sm text-brand hover:underline">
           相談スレッドを開く
         </Link>
       </div>
@@ -55,19 +55,19 @@ export default async function MyCustomOrderPage({ params }: { params: Promise<{ 
           <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
             <div className="flex items-center gap-2.5">
               <Avatar src={req.profiles?.avatar_url} name={req.profiles?.display_name} className="size-8" />
-              <span className="text-[12.5px] font-semibold text-ink">{req.profiles?.display_name}</span>
+              <span className="text-sm font-semibold text-ink">{req.profiles?.display_name}</span>
               {req.works && (
-                <Link href={`/works/${req.works.id}`} className="text-[11px] text-brand hover:underline">
+                <Link href={`/works/${req.works.id}`} className="text-sm text-brand hover:underline">
                   参考作品：{req.works.title}
                 </Link>
               )}
-              <span className="num ml-auto text-[10px] text-muted-foreground">{shortDateTime(req.created_at)}</span>
+              <span className="num ml-auto text-sm text-muted-foreground">{shortDateTime(req.created_at)}</span>
             </div>
-            <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-[12px] leading-5 text-ink">{req.message}</p>
+            <p className="whitespace-pre-wrap rounded-lg bg-ground px-3 py-2.5 text-sm leading-6 text-ink">{req.message}</p>
           </section>
 
           {quotes.length === 0 ? (
-            <section className="flex items-center gap-2 rounded-xl border border-line bg-white p-4 text-[12px] text-muted-foreground">
+            <section className="flex items-center gap-2 rounded-xl border border-line bg-white p-4 text-sm text-muted-foreground">
               <Clock className="size-4" aria-hidden />
               クリエイターからの見積りを待っています。やりとりはメッセージで行えます。
             </section>
@@ -79,20 +79,20 @@ export default async function MyCustomOrderPage({ params }: { params: Promise<{ 
               return (
                 <section key={q.id} className={cn("flex flex-col gap-3 rounded-xl border bg-white p-4", q.status === "sent" && !expired ? "border-brand" : "border-line")}>
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="num text-[13px] font-bold text-ink">{q.quote_no}</span>
-                    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold", QUOTE_TONE[expired ? "expired" : q.status])}>
+                    <span className="num text-sm font-bold text-ink">{q.quote_no}</span>
+                    <span className={cn("rounded-full px-2 py-0.5 text-sm font-semibold", QUOTE_TONE[expired ? "expired" : q.status])}>
                       {expired ? "期限切れ" : QUOTE_STATUS_LABEL[q.status]}
                     </span>
                     {q.status === "sent" && (
-                      <span className={cn("num text-[11px]", expired ? "text-danger" : "text-warn")}>有効期限 {shortDateTime(q.expires_at)}</span>
+                      <span className={cn("num text-sm", expired ? "text-danger" : "text-warn")}>有効期限 {shortDateTime(q.expires_at)}</span>
                     )}
-                    <span className="num ml-auto text-[10px] text-muted-foreground">{shortDateTime(q.created_at)}</span>
+                    <span className="num ml-auto text-sm text-muted-foreground">{shortDateTime(q.created_at)}</span>
                   </div>
 
                   {spec.length > 0 && (
-                    <table className="w-full border-collapse text-[11px]">
+                    <table className="w-full border-collapse text-sm">
                       <thead>
-                        <tr className="bg-ground text-[10.5px] text-muted-foreground">
+                        <tr className="bg-ground text-sm text-muted-foreground">
                           <th className="px-2.5 py-1.5 text-left font-semibold">項目</th>
                           <th className="px-2.5 py-1.5 text-left font-semibold">確定内容</th>
                           <th className="px-2.5 py-1.5 text-left font-semibold">相談時のご希望</th>
@@ -118,15 +118,15 @@ export default async function MyCustomOrderPage({ params }: { params: Promise<{ 
                       ["お届け目安", `承認から${q.lead_time_days}日`],
                     ].map(([l, v]) => (
                       <span key={l} className="flex flex-col rounded-lg border border-line bg-ground px-3 py-2">
-                        <span className="text-[9.5px] text-muted-foreground">{l}</span>
-                        <span className="num text-[14px] font-bold text-ink">{v}</span>
+                        <span className="text-sm text-muted-foreground">{l}</span>
+                        <span className="num text-sm font-bold text-ink">{v}</span>
                       </span>
                     ))}
                   </div>
-                  {q.note && <p className="text-[11.5px] text-ink">{q.note}</p>}
+                  {q.note && <p className="text-sm text-ink">{q.note}</p>}
 
                   <div className="flex flex-col gap-3 border-t border-line pt-3 sm:flex-row">
-                    <dl className="flex flex-1 flex-col gap-1 text-[11.5px]">
+                    <dl className="flex flex-1 flex-col gap-1 text-sm">
                       <div className="flex justify-between"><dt className="text-muted-foreground">作品代金（オーダーメイド）</dt><dd className="num text-ink">{yen(q.price_jpy)}</dd></div>
                       <div className="flex justify-between"><dt className="text-muted-foreground">印刷代行費</dt><dd className="num text-ink">{yen(q.print_fee_jpy)}</dd></div>
                       <div className="flex justify-between"><dt className="text-muted-foreground">送料</dt><dd className="num text-ink">{yen(q.shipping_fee_jpy)}</dd></div>
@@ -136,12 +136,12 @@ export default async function MyCustomOrderPage({ params }: { params: Promise<{ 
                       {q.status === "sent" ? (
                         <QuoteActions quoteId={q.id} requestId={req.id} creatorId={req.creator_id} expired={expired} />
                       ) : q.status === "accepted" ? (
-                        <div className="flex flex-col gap-2 rounded-lg bg-ok-bg p-3 text-[11.5px] text-ok">
+                        <div className="flex flex-col gap-2 rounded-lg bg-ok-bg p-3 text-sm text-ok">
                           <span className="flex items-center gap-1.5 font-semibold"><CheckCircle2 className="size-4" aria-hidden />承認済み。カートから支払いに進めます</span>
                           <Link href="/cart" className="font-semibold underline">カートへ</Link>
                         </div>
                       ) : q.status === "ordered" ? (
-                        <p className="rounded-lg bg-ok-bg p-3 text-[11.5px] font-semibold text-ok">注文済み。進み具合は購入履歴で確認できます</p>
+                        <p className="rounded-lg bg-ok-bg p-3 text-sm font-semibold text-ok">注文済み。進み具合は購入履歴で確認できます</p>
                       ) : null}
                     </div>
                   </div>
@@ -153,14 +153,14 @@ export default async function MyCustomOrderPage({ params }: { params: Promise<{ 
 
         <aside className="flex w-full flex-col gap-3 lg:w-[300px] lg:flex-none">
           <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
-            <h2 className="text-[12px] font-semibold text-ink">承認前にご確認ください</h2>
+            <h2 className="text-lg leading-normal font-semibold text-ink">承認前にご確認ください</h2>
             {[
               "この作品はあなた専用として1点だけ作られ、他の方は購入できません。",
               "承認すると専用のサイズがカートに入ります。支払いは通常の決済と同じです。",
               "印刷が始まるとキャンセルできません。",
               "有効期限を過ぎると見積りは無効になり、メッセージから再依頼が必要です。",
             ].map((t) => (
-              <p key={t} className="text-[10.5px] leading-4 text-muted-foreground">・{t}</p>
+              <p key={t} className="text-sm leading-6 text-muted-foreground">・{t}</p>
             ))}
           </section>
         </aside>

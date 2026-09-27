@@ -13,7 +13,7 @@ export const metadata = { title: "検品・発送登録" };
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-3.5">
-      <h2 className="text-[12.5px] font-semibold text-ink">{title}</h2>
+      <h2 className="text-lg leading-normal font-semibold text-ink">{title}</h2>
       {children}
     </section>
   );
@@ -22,8 +22,8 @@ function Card({ title, children }: { title: string; children: React.ReactNode })
 function Row({ label, value, warn }: { label: string; value: React.ReactNode; warn?: boolean }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="flex-1 text-[11px] text-muted-foreground">{label}</span>
-      <span className={`text-[11px] font-semibold ${warn ? "text-warn" : "text-ink"}`}>{value}</span>
+      <span className="flex-1 text-sm text-muted-foreground">{label}</span>
+      <span className={`text-sm font-semibold ${warn ? "text-warn" : "text-ink"}`}>{value}</span>
     </div>
   );
 }
@@ -49,7 +49,7 @@ export default async function QcPage({ params }: { params: Promise<{ id: string 
       <div className="flex flex-wrap items-center gap-3">
         <Link
           href="/admin/print-queue"
-          className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-ground"
+          className="inline-flex items-center gap-1 rounded-md border border-line bg-white px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-ground"
         >
           <ChevronLeft className="size-3" aria-hidden />
           一覧へ戻る
@@ -61,7 +61,7 @@ export default async function QcPage({ params }: { params: Promise<{ id: string 
         <JobStatusBadge status={job.status!} />
         <Link
           href={`/admin/print-queue/${job.id}`}
-          className="ml-auto text-[11px] text-brand hover:underline"
+          className="ml-auto text-sm text-brand hover:underline"
         >
           ジョブ詳細へ
         </Link>
@@ -86,14 +86,14 @@ export default async function QcPage({ params }: { params: Promise<{ id: string 
             {order?.gift_wrapping && (
               <div className="flex items-center gap-1.5 rounded-lg bg-warn-bg px-2.5 py-1.5">
                 <Gift className="size-3 text-warn" aria-hidden />
-                <p className="text-[10.5px] font-semibold text-warn">ラッピング希望あり</p>
+                <p className="text-sm font-semibold text-warn">ラッピング希望あり</p>
               </div>
             )}
           </Card>
 
           <Card title="この注文のほかのジョブ">
             {siblings.length === 0 ? (
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 このジョブだけです。検品が通れば発送できます。
               </p>
             ) : (
@@ -101,11 +101,11 @@ export default async function QcPage({ params }: { params: Promise<{ id: string 
                 <div key={s.id} className="flex items-center gap-2">
                   <Link
                     href={`/admin/print-queue/${s.id}`}
-                    className="num text-[11px] font-semibold text-brand hover:underline"
+                    className="num text-sm font-semibold text-brand hover:underline"
                   >
                     {s.job_no}
                   </Link>
-                  <span className="flex-1 truncate text-[11px] text-ink">{s.work_title}</span>
+                  <span className="flex-1 truncate text-sm text-ink">{s.work_title}</span>
                   <JobStatusBadge status={s.status!} />
                 </div>
               ))
@@ -120,17 +120,17 @@ export default async function QcPage({ params }: { params: Promise<{ id: string 
                     <Pill tone={i.result === "passed" ? "ok" : "danger"}>
                       {i.result === "passed" ? "合格" : "不合格"}
                     </Pill>
-                    <span className="num text-[10.5px] text-muted-foreground">
+                    <span className="num text-sm text-muted-foreground">
                       {shortDateTime(i.created_at)}
                     </span>
                   </div>
                   {i.reprint_cause && (
-                    <p className="text-[10.5px] text-danger">
+                    <p className="text-sm text-danger">
                       原因：{REPRINT_CAUSE_LABEL[i.reprint_cause]}
                     </p>
                   )}
-                  {i.memo && <p className="text-[10.5px] text-ink">{i.memo}</p>}
-                  <p className="text-[10px] text-muted-foreground">
+                  {i.memo && <p className="text-sm text-ink">{i.memo}</p>}
+                  <p className="text-sm text-muted-foreground">
                     NG項目：
                     {i.qc_check_results.filter((r) => !r.passed).map((r) => r.code).join("・") ||
                       "なし"}
@@ -148,7 +148,7 @@ export default async function QcPage({ params }: { params: Promise<{ id: string 
             <QcForm jobId={job.id!} workId={job.work_id} checks={checks} />
           ) : (
             <Card title="検品">
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 このジョブは
                 {job.status === "qc_passed"
                   ? "検品を通っています。"
@@ -182,7 +182,7 @@ export default async function QcPage({ params }: { params: Promise<{ id: string 
                   label="発送日時"
                   value={<span className="num">{shortDateTime(shipment.shipped_at)}</span>}
                 />
-                <p className="pt-1 text-[10.5px] text-ok">
+                <p className="pt-1 text-sm text-ok">
                   発送済みです。購入者の注文詳細に追跡番号が出ています。
                 </p>
               </div>

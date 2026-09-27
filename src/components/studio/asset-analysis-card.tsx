@@ -35,10 +35,10 @@ export function AssetAnalysisCard({ asset }: { asset: Asset }) {
   return <div className="flex min-w-0 flex-col gap-3">
           <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
             <div className="flex flex-wrap items-center gap-2">
-              <h2 className="text-[13px] font-semibold text-ink">自動検証の結果</h2>
+              <h2 className="text-lg leading-normal font-semibold text-ink">自動検証の結果</h2>
               <span
                 className={cn(
-                  "rounded-full px-2 py-0.5 text-[10.5px] font-semibold",
+                  "rounded-full px-2 py-0.5 text-sm font-semibold",
                   asset.validation_status === "passed"
                     ? "bg-ok-bg text-ok"
                     : asset.validation_status === "warning"
@@ -52,7 +52,7 @@ export function AssetAnalysisCard({ asset }: { asset: Asset }) {
                     ? "注意あり"
                     : "修正が必要"}
               </span>
-              <span className="num ml-auto min-w-0 break-all text-[11px] text-muted-foreground">
+              <span className="num ml-auto min-w-0 break-all text-sm text-muted-foreground">
                 {asset.file_name}（{Math.round((asset.file_size_bytes ?? 0) / 1024)} KB）
               </span>
             </div>
@@ -73,10 +73,10 @@ export function AssetAnalysisCard({ asset }: { asset: Asset }) {
                       aria-hidden
                     />
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="text-[12.5px] text-ink">
+                      <span className="text-sm text-ink">
                         {CHECK_LABEL[issue.code] ?? issue.code}
                       </span>
-                      <span className="text-[11.5px] text-muted-foreground">{issue.message}</span>
+                      <span className="text-sm text-muted-foreground">{issue.message}</span>
                     </span>
                   </li>
                 );
@@ -85,7 +85,7 @@ export function AssetAnalysisCard({ asset }: { asset: Asset }) {
           </section>
 
           <section className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
-            <h2 className="text-[13px] font-semibold text-ink">読み取った内容</h2>
+            <h2 className="text-lg leading-normal font-semibold text-ink">読み取った内容</h2>
             <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {[
                 ["パーツ数", `${asset.object_count}`],
@@ -96,17 +96,17 @@ export function AssetAnalysisCard({ asset }: { asset: Asset }) {
                 ],
               ].map(([label, value]) => (
                 <div key={label} className="flex flex-col gap-0.5">
-                  <dt className="text-[10.5px] text-muted-foreground">{label}</dt>
-                  <dd className="num text-[12.5px] text-ink">{value}</dd>
+                  <dt className="text-sm text-muted-foreground">{label}</dt>
+                  <dd className="num text-sm text-ink">{value}</dd>
                 </div>
               ))}
             </dl>
 
             {objects.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[420px] text-[11.5px]">
+                <table className="w-full min-w-[420px] text-sm">
                   <thead>
-                    <tr className="border-b border-line text-[10.5px] text-muted-foreground">
+                    <tr className="border-b border-line text-sm text-muted-foreground">
                       <th className="py-1.5 text-left font-semibold">パーツ</th>
                       <th className="py-1.5 text-right font-semibold">寸法（mm）</th>
                       <th className="py-1.5 text-right font-semibold">三角形</th>

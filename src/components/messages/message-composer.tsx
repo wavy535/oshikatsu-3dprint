@@ -41,14 +41,14 @@ export function MessageComposer({ recipientId, orderId, latestHref }: { recipien
               formRef.current?.requestSubmit();
             }
           }}
-          className="flex-1 resize-none rounded-2xl border border-line bg-ground px-3.5 py-2.5 text-[12px] text-ink outline-none focus:border-brand"
+          className="flex-1 resize-none rounded-2xl border border-line bg-ground px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand"
         />
         <Button type="submit" disabled={pending} className="rounded-full px-4">
           <Send className="size-3.5" aria-hidden />
           送信
         </Button>
       </div>
-      {state.error && <p className="text-[11px] text-danger">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
     </form>
   );
 }

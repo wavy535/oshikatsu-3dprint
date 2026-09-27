@@ -42,6 +42,7 @@ export default async function AdminOrdersPage({
 
   return (
     <>
+      <div className="mb-2"><h1 className="page-title">注文一覧</h1><p className="mt-2 text-sm text-muted-foreground">注文ごとの進行状況と、お届けまでの期限を確認できます。</p></div>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="進行中" tone="info" value={summary.open} note="決済完了〜発送待ち" />
         <StatCard label="発送待ち" tone="warn" value={summary.packaging} note="全ジョブが検品OK" />
@@ -72,9 +73,9 @@ export default async function AdminOrdersPage({
       </Suspense>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-white">
-        <table className="w-full min-w-[980px] border-collapse text-[11px]">
+        <table className="w-full min-w-[980px] border-collapse text-sm">
           <thead>
-            <tr className="bg-ground text-[10.5px] text-muted-foreground">
+            <tr className="bg-ground text-sm text-muted-foreground">
               <th className={TH}>注文</th>
               <th className={TH}>受注日時</th>
               <th className={TH}>購入者</th>
@@ -89,7 +90,7 @@ export default async function AdminOrdersPage({
           <tbody>
             {orders.length === 0 && (
               <tr>
-                <td colSpan={9} className="px-3 py-10 text-center text-[12px] text-muted-foreground">
+                <td colSpan={9} className="px-3 py-10 text-center text-sm text-muted-foreground">
                   条件に合う注文はありません。
                 </td>
               </tr>
@@ -154,7 +155,7 @@ export default async function AdminOrdersPage({
                       <Link
                         prefetch={false}
                         href={`/admin/print-queue/${jobs[0].id}/qc`}
-                        className="inline-flex items-center rounded-md bg-brand px-2.5 py-1.5 text-[11px] font-semibold text-white hover:opacity-90"
+                        className="inline-flex items-center rounded-md bg-brand px-2.5 py-1.5 text-sm font-semibold text-white hover:opacity-90"
                       >
                         発送登録
                       </Link>
@@ -162,7 +163,7 @@ export default async function AdminOrdersPage({
                       <Link
                         prefetch={false}
                         href={`/admin/orders/${o.id}`}
-                        className="inline-flex items-center rounded-md border border-line bg-white px-2.5 py-1.5 text-[11px] font-semibold text-ink hover:bg-ground"
+                        className="inline-flex items-center rounded-md border border-line bg-white px-2.5 py-1.5 text-sm font-semibold text-ink hover:bg-ground"
                       >
                         詳細
                       </Link>

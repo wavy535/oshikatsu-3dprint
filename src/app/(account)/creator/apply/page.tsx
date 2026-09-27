@@ -23,7 +23,7 @@ export default async function CreatorApplyPage() {
   const { db, user } = await requireUser("/creator/apply");
   if (!creatorApplicationsEnabled()) return (
     <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-6">
-      <h1 className="text-base font-bold text-ink">クリエイター申請は準備中です</h1>
+      <h1 className="page-title font-bold text-ink">クリエイター申請は準備中です</h1>
       <p className="text-sm text-muted-foreground">一般会員として作品の閲覧やお気に入り登録をご利用いただけます。申請の受付開始はこのページでお知らせします。</p>
       <Link href="/" className="text-sm text-brand hover:underline">作品を見る</Link>
     </div>
@@ -58,10 +58,10 @@ export default async function CreatorApplyPage() {
 
   return (
     <>
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-bold text-ink">クリエイター登録</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="page-title font-bold text-ink">クリエイター登録</h1>
         {profile?.role === "buyer" && !latestPending && (
-          <span className="text-[12px] text-muted-foreground">
+          <span className="text-sm text-muted-foreground">
             メール確認 → 利用規約に同意 → 運営の審査
           </span>
         )}
@@ -84,12 +84,12 @@ export default async function CreatorApplyPage() {
         <div className="flex flex-col gap-3 rounded-xl border border-line bg-white p-5">
           <div className="flex items-center gap-2">
             <Badge variant="brand">審査中</Badge>
-            <span className="num text-[12px] text-muted-foreground">
+            <span className="num text-sm text-muted-foreground">
               申請日{" "}
               {new Date(latestPending.created_at).toLocaleDateString("ja-JP")}
             </span>
           </div>
-          <p className="text-[12px] text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             運営が確認しています。結果は通知でお知らせします。
           </p>
         </div>
@@ -99,12 +99,12 @@ export default async function CreatorApplyPage() {
 
       {applications && applications.length > 0 && (
         <div className="flex flex-col gap-2">
-          <h2 className="text-[12.5px] font-semibold text-ink">申請履歴</h2>
+          <h2 className="text-lg leading-normal font-semibold text-ink">申請履歴</h2>
           <div className="overflow-hidden rounded-xl border border-line bg-white">
             {applications.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center gap-3 border-b border-line px-4 py-2.5 text-[12.5px] last:border-b-0"
+                className="flex items-center gap-3 border-b border-line px-4 py-2.5 text-sm last:border-b-0"
               >
                 <span className="num text-ink">
                   {new Date(a.created_at).toLocaleDateString("ja-JP")}
@@ -113,12 +113,12 @@ export default async function CreatorApplyPage() {
                   {STATUS_LABEL[a.status]}
                 </span>
                 {a.terms_version && (
-                  <span className="num text-[11px] text-muted-foreground">
+                  <span className="num text-sm text-muted-foreground">
                     規約 {a.terms_version} 版に同意
                   </span>
                 )}
                 {a.status === "rejected" && a.admin_note && (
-                  <span className="ml-auto text-[11.5px] text-muted-foreground">
+                  <span className="ml-auto text-sm text-muted-foreground">
                     運営より：{a.admin_note}
                   </span>
                 )}

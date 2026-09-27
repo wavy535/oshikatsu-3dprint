@@ -17,8 +17,8 @@ import type { RevisionResolution, RevisionStatus } from "@/types/db";
 const initial: RevisionActionState = { error: null };
 
 function Notice({ state }: { state: RevisionActionState }) {
-  if (state.error) return <p className="text-[11px] text-danger">{state.error}</p>;
-  if (state.message) return <p className="text-[11px] text-ok">{state.message}</p>;
+  if (state.error) return <p className="text-sm text-danger">{state.error}</p>;
+  if (state.message) return <p className="text-sm text-ok">{state.message}</p>;
   return null;
 }
 
@@ -49,14 +49,14 @@ export function RevisionActions({
   if (status === "resolved" || status === "cancelled") {
     return (
       <section className="flex flex-col gap-2 rounded-xl border border-line bg-white p-4">
-        <p className="text-[12.5px] font-semibold text-ink">
+        <p className="text-sm font-semibold text-ink">
           {status === "resolved" ? "対応済みです" : "取り消されました"}
         </p>
         {resolution && (
-          <p className="text-[11.5px] text-muted-foreground">対応方法：{RESOLUTION_LABEL[resolution]}</p>
+          <p className="text-sm text-muted-foreground">対応方法：{RESOLUTION_LABEL[resolution]}</p>
         )}
         {status === "resolved" && !isListed && resolution !== "unlist" && (
-          <p className="text-[11px] text-warn">
+          <p className="text-sm text-warn">
             このサイズはまだ出品停止のままです。作品管理の STEP3 から出品に戻せます。
           </p>
         )}
@@ -72,7 +72,7 @@ export function RevisionActions({
       {status === "open" || status === "disputed" ? (
         <form action={start} className="flex flex-col gap-2.5 rounded-xl border border-line bg-white p-4">
           <input type="hidden" name="id" value={id} />
-          <h2 className="text-[12.5px] font-semibold text-ink">対応方法を選んでください</h2>
+          <h2 className="text-lg leading-normal font-semibold text-ink">対応方法を選んでください</h2>
           {(["reupload", "instruction", "unlist"] as RevisionResolution[]).map((r) => (
             <label
               key={r}
@@ -87,8 +87,8 @@ export function RevisionActions({
                 className="mt-0.5 accent-brand"
               />
               <span className="flex flex-col gap-0.5">
-                <span className="text-[11.5px] font-semibold text-ink">{RESOLUTION_LABEL[r]}</span>
-                <span className="text-[10px] text-muted-foreground">{RESOLUTION_NOTE[r]}</span>
+                <span className="text-sm font-semibold text-ink">{RESOLUTION_LABEL[r]}</span>
+                <span className="text-sm text-muted-foreground">{RESOLUTION_NOTE[r]}</span>
               </span>
             </label>
           ))}
@@ -99,7 +99,7 @@ export function RevisionActions({
         </form>
       ) : (
         <section className="flex flex-col gap-2.5 rounded-xl border border-line bg-white p-4">
-          <h2 className="text-[12.5px] font-semibold text-ink">
+          <h2 className="text-lg leading-normal font-semibold text-ink">
             対応中：{resolution ? RESOLUTION_LABEL[resolution] : "—"}
           </h2>
           <Button asChild variant="outline" className="w-full">
@@ -112,16 +112,16 @@ export function RevisionActions({
           <form action={resolve} className="flex flex-col gap-2 border-t border-line pt-2.5">
             <input type="hidden" name="id" value={id} />
             <label className="flex flex-col gap-1">
-              <span className="text-[10.5px] text-muted-foreground">直した内容（運営に伝わります）</span>
+              <span className="text-sm text-muted-foreground">直した内容（運営に伝わります）</span>
               <textarea
                 name="note"
                 rows={2}
                 maxLength={1000}
                 placeholder="例：ダボ径を 0.3mm 細くしてクリアランスを確保しました"
-                className="w-full rounded-lg border border-line bg-white px-3 py-2 text-[11.5px] text-ink outline-none focus:border-brand"
+                className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
               />
             </label>
-            <label className="flex items-center gap-2 text-[11.5px] text-ink">
+            <label className="flex items-center gap-2 text-sm text-ink">
               <input type="checkbox" name="relist" defaultChecked className="accent-brand" />
               このサイズを再出品する
             </label>
@@ -139,7 +139,7 @@ export function RevisionActions({
           <button
             type="button"
             onClick={() => setShowDispute(true)}
-            className="flex items-center justify-center gap-1.5 text-[11.5px] font-semibold text-brand hover:underline"
+            className="flex items-center justify-center gap-1.5 text-sm font-semibold text-brand hover:underline"
           >
             <MessageCircle className="size-3.5" aria-hidden />
             判定に納得できない場合は運営に相談
@@ -152,7 +152,7 @@ export function RevisionActions({
               rows={3}
               required
               placeholder="どこに納得できないかを書いてください（10文字以上）"
-              className="w-full rounded-lg border border-line bg-white px-3 py-2 text-[11.5px] text-ink outline-none focus:border-brand"
+              className="w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-brand"
             />
             <Button type="submit" variant="outline" disabled={disputing} className="w-full">
               運営に相談する

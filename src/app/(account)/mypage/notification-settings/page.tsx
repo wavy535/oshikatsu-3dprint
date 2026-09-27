@@ -13,15 +13,15 @@ export default async function NotificationSettingsPage() {
 
   return (
     <>
-      <h1 className="text-base font-bold text-ink">通知設定</h1>
-      <p className="rounded-lg bg-brand-soft px-3 py-2 text-[12px] leading-5 text-accent-foreground">
+      <h1 className="page-title font-bold text-ink">通知設定</h1>
+      <p className="rounded-lg bg-brand-soft px-3 py-2 text-sm leading-6 text-accent-foreground">
         注文・発送とクリエイター向けの通知は、届かないこと自体がトラブルになるためオフにできません。
       </p>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-white">
-        <table className="w-full min-w-[420px] text-[12.5px]">
+        <table className="w-full min-w-[420px] text-sm">
           <thead>
-            <tr className="border-b border-line text-[11px] text-muted-foreground">
+            <tr className="border-b border-line text-sm text-muted-foreground">
               <th className="px-4 py-2.5 text-left font-semibold">種類</th>
               <th className="px-3 py-2.5 text-center font-semibold">アプリ内</th>
               <th className="px-3 py-2.5 text-center font-semibold">メール</th>
@@ -69,10 +69,10 @@ export default async function NotificationSettingsPage() {
         </table>
       </div>
 
-      <p className="text-[11.5px] text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         メールの宛先: <span className="text-ink">{email}</span>
       </p>
-      <p className="text-[11.5px] text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         学習環境の通知メールは、管理者が送信操作をした時に届きます。
         登録時の確認メールは、その場で送信します。
       </p>

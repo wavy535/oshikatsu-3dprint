@@ -14,7 +14,7 @@ const STEPS = [
 export function OrderStatusStepper({ status }: { status: OrderStatus }) {
   if (status === "cancelled" || status === "refunded" || status === "payment_pending") {
     return (
-      <p className="rounded-lg bg-ground px-3 py-2 text-[12px] text-muted-foreground">
+      <p className="rounded-lg bg-ground px-3 py-2 text-sm text-muted-foreground">
         {status === "payment_pending" ? "お支払いの確認を待っています" : "この注文は取引が終了しています"}
       </p>
     );
@@ -29,13 +29,13 @@ export function OrderStatusStepper({ status }: { status: OrderStatus }) {
             <span className="flex flex-col items-center gap-1">
               <span
                 className={cn(
-                  "flex size-6 items-center justify-center rounded-full text-[10px] font-semibold",
+                  "flex size-6 items-center justify-center rounded-full text-sm font-semibold",
                   done ? "bg-brand text-white" : "bg-ground text-muted-foreground"
                 )}
               >
                 {done ? <Check className="size-3.5" aria-hidden /> : i + 1}
               </span>
-              <span className={cn("text-[10.5px]", done ? "text-ink" : "text-muted-foreground")}>
+              <span className={cn("text-sm", done ? "text-ink" : "text-muted-foreground")}>
                 {step.label}
               </span>
             </span>

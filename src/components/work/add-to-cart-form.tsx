@@ -25,7 +25,7 @@ export function AddToCartForm({
 
   if (!variantId) {
     return (
-      <p className="rounded-lg bg-ground px-3 py-2 text-[12px] text-muted-foreground">
+      <p className="rounded-lg bg-ground px-3 py-2 text-sm text-muted-foreground">
         購入できるサイズがありません
       </p>
     );
@@ -45,7 +45,7 @@ export function AddToCartForm({
       <input type="hidden" name="quantity" value={quantity} />
 
       <div className="flex items-center gap-3">
-        <span className="text-[11px] font-semibold text-muted-foreground">数量</span>
+        <span className="text-sm font-semibold text-muted-foreground">数量</span>
         <div className="flex items-center gap-1 rounded-lg border border-line">
           <button
             type="button"
@@ -56,7 +56,7 @@ export function AddToCartForm({
           >
             <Minus className="size-3.5" aria-hidden />
           </button>
-          <span className="num w-6 text-center text-[13px] text-ink">{quantity}</span>
+          <span className="num w-6 text-center text-sm text-ink">{quantity}</span>
           <button
             type="button"
             aria-label="数量を増やす"
@@ -67,7 +67,7 @@ export function AddToCartForm({
             <Plus className="size-3.5" aria-hidden />
           </button>
         </div>
-        <span className="num text-[11px] text-muted-foreground">在庫 {stock}</span>
+        <span className="num text-sm text-muted-foreground">在庫 {stock}</span>
       </div>
 
       <Button type="submit" disabled={pending || stock <= 0} className="w-full">
@@ -75,9 +75,9 @@ export function AddToCartForm({
         {stock <= 0 ? "在庫がありません" : pending ? "追加しています..." : "カートに追加"}
       </Button>
 
-      {state.error && <p className="text-[12px] text-danger">{state.error}</p>}
+      {state.error && <p className="text-sm text-danger">{state.error}</p>}
       {state.ok && (
-        <p className="text-[12px] text-ok">
+        <p className="text-sm text-ok">
           カートに追加しました。
           <Link href="/cart" className="ml-1 font-semibold underline">
             カートを見る
