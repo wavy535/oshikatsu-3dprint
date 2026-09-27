@@ -1,0 +1,1768 @@
+{
+  "date": "2026-09-28",
+  "route": "/",
+  "before": {
+    "commit": "970efad",
+    "deployment": "6eb0f51f-28f5-4b53-b010-b7363ce44c52"
+  },
+  "after": {
+    "commit": "8a523bf",
+    "deployment": "869d6a6b-d4fd-4c55-b013-e8ea97580232"
+  },
+  "notes": [
+    "Anonymous public homepage; no account or production data created.",
+    "One warmup then three fresh browser contexts per variant, same CPU and network emulation.",
+    "No concurrent builds or browser tests during performance measurements.",
+    "Resource query strings removed; changes are a redesign, not an additional speed optimization."
+  ],
+  "measurements": {
+    "beforeMobile": {
+      "browser": "153.0.8010.12",
+      "baseURL": "https://oshinest.yumaboda-official.workers.dev",
+      "viewport": "390x844",
+      "authenticated": false,
+      "cpuSlowdown": 4,
+      "network": {
+        "offline": false,
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "cache": "disabled",
+      "samples": [
+        {
+          "route": "/",
+          "run": 1,
+          "lcp": 980,
+          "cls": 0,
+          "lcpElement": "p.mt-5.max-w-lg.text-base.leading-8.text-muted-foreground",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 832.5,
+              "duration": 136
+            },
+            {
+              "start": 1863.8999999761581,
+              "duration": 83
+            }
+          ],
+          "ttfb": 746.3999999761581,
+          "fcp": 980,
+          "hydratedAt": 2186.899999976158,
+          "htmlBytes": 52557,
+          "htmlEncodedBytes": 10319,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 10619,
+          "connection": {
+            "dns": 21.80000001192093,
+            "tcpTls": 302,
+            "requestWait": 421.2999999523163
+          },
+          "responseEnd": 822.3999999761581,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Ufl7U4aH.js",
+              "type": "script",
+              "start": 808.8999999761581,
+              "end": 1797.800000011921,
+              "bytes": 164116,
+              "transfer": 43316
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 809.5,
+              "end": 969.5,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 810.3000000119209,
+              "end": 1849.3999999761581,
+              "bytes": 190103,
+              "transfer": 61123
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-DdKwiVui.js",
+              "type": "script",
+              "start": 810.5,
+              "end": 1722.300000011921,
+              "bytes": 134990,
+              "transfer": 42349
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-4q4y_cJ2.js",
+              "type": "script",
+              "start": 811,
+              "end": 1126.699999988079,
+              "bytes": 496,
+              "transfer": 644
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 811.5,
+              "end": 1137.3999999761581,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-DNJEEBP9.js",
+              "type": "script",
+              "start": 811.5,
+              "end": 1212.3999999761581,
+              "bytes": 11913,
+              "transfer": 5021
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 811.5,
+              "end": 1317.800000011921,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 811.6000000238419,
+              "end": 1126.800000011921,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BeeVJMt0.js",
+              "type": "script",
+              "start": 811.6999999880791,
+              "end": 1167.6000000238419,
+              "bytes": 2226,
+              "transfer": 1547
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 813.1000000238419,
+              "end": 1126.8999999761581,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 813.1999999880791,
+              "end": 1127,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.DnrbROV7.css",
+              "type": "link",
+              "start": 1941.800000011921,
+              "end": 2149.5,
+              "bytes": 41433,
+              "transfer": 9086
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 159,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 2,
+          "lcp": 944,
+          "cls": 0,
+          "lcpElement": "p.mt-5.max-w-lg.text-base.leading-8.text-muted-foreground",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 803.2999999523163,
+              "duration": 118
+            },
+            {
+              "start": 1832.199999988079,
+              "duration": 70
+            }
+          ],
+          "ttfb": 715.3999999761581,
+          "fcp": 944,
+          "hydratedAt": 2167.099999964237,
+          "htmlBytes": 52557,
+          "htmlEncodedBytes": 10319,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 10619,
+          "connection": {
+            "dns": 21,
+            "tcpTls": 277,
+            "requestWait": 416.69999998807907
+          },
+          "responseEnd": 785.7999999523163,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Ufl7U4aH.js",
+              "type": "other",
+              "start": 767,
+              "end": 1784.199999988079,
+              "bytes": 164116,
+              "transfer": 43292
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 767.2999999523163,
+              "end": 935.6999999880791,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 767.2999999523163,
+              "end": 1821.0999999642372,
+              "bytes": 190103,
+              "transfer": 61083
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-4q4y_cJ2.js",
+              "type": "other",
+              "start": 767.8999999761581,
+              "end": 1113.199999988079,
+              "bytes": 496,
+              "transfer": 644
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-DdKwiVui.js",
+              "type": "script",
+              "start": 767.8999999761581,
+              "end": 1716.0999999642372,
+              "bytes": 134990,
+              "transfer": 42411
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "other",
+              "start": 768.0999999642372,
+              "end": 1116.3999999761581,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-DNJEEBP9.js",
+              "type": "other",
+              "start": 768.0999999642372,
+              "end": 1198.3999999761581,
+              "bytes": 11913,
+              "transfer": 5021
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "other",
+              "start": 768.8999999761581,
+              "end": 1113.3999999761581,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BeeVJMt0.js",
+              "type": "other",
+              "start": 768.8999999761581,
+              "end": 1154,
+              "bytes": 2226,
+              "transfer": 1547
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "other",
+              "start": 768.8999999761581,
+              "end": 1303.2999999523163,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "other",
+              "start": 769.7999999523163,
+              "end": 944.5999999642372,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "other",
+              "start": 770.5999999642372,
+              "end": 1129.8999999761581,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.DnrbROV7.css",
+              "type": "link",
+              "start": 1898.5,
+              "end": 2121.5,
+              "bytes": 41433,
+              "transfer": 9086
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 159,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 3,
+          "lcp": 956,
+          "cls": 0,
+          "lcpElement": "p.mt-5.max-w-lg.text-base.leading-8.text-muted-foreground",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 1818.300000011921,
+              "duration": 76
+            }
+          ],
+          "ttfb": 727.3000000119209,
+          "fcp": 956,
+          "hydratedAt": 2134.300000011921,
+          "htmlBytes": 52557,
+          "htmlEncodedBytes": 10319,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 10619,
+          "connection": {
+            "dns": 20.399999976158142,
+            "tcpTls": 272.19999998807907,
+            "requestWait": 434
+          },
+          "responseEnd": 785.6000000238419,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Ufl7U4aH.js",
+              "type": "script",
+              "start": 770.6000000238419,
+              "end": 1767.8999999761581,
+              "bytes": 164116,
+              "transfer": 43316
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 771.8000000119209,
+              "end": 945.8999999761581,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-DdKwiVui.js",
+              "type": "script",
+              "start": 771.8999999761581,
+              "end": 1715.1000000238419,
+              "bytes": 134990,
+              "transfer": 42411
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 771.8999999761581,
+              "end": 1813.199999988079,
+              "bytes": 190103,
+              "transfer": 61123
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-4q4y_cJ2.js",
+              "type": "script",
+              "start": 773.5,
+              "end": 1096.699999988079,
+              "bytes": 496,
+              "transfer": 644
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-DNJEEBP9.js",
+              "type": "script",
+              "start": 773.5,
+              "end": 1183.3999999761581,
+              "bytes": 11913,
+              "transfer": 5090
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 773.6000000238419,
+              "end": 980.6000000238419,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 775.5,
+              "end": 1096.8999999761581,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 775.5,
+              "end": 1280.3999999761581,
+              "bytes": 27262,
+              "transfer": 9204
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BeeVJMt0.js",
+              "type": "script",
+              "start": 776.1999999880791,
+              "end": 988,
+              "bytes": 2226,
+              "transfer": 1547
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 776.6000000238419,
+              "end": 959.3999999761581,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 776.8000000119209,
+              "end": 965.6999999880791,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.DnrbROV7.css",
+              "type": "link",
+              "start": 1889.199999988079,
+              "end": 2097.5,
+              "bytes": 41433,
+              "transfer": 9089
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 159,
+          "errors": []
+        }
+      ]
+    },
+    "afterMobile": {
+      "browser": "153.0.8010.12",
+      "baseURL": "https://oshinest.yumaboda-official.workers.dev",
+      "viewport": "390x844",
+      "authenticated": false,
+      "cpuSlowdown": 4,
+      "network": {
+        "offline": false,
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "cache": "disabled",
+      "samples": [
+        {
+          "route": "/",
+          "run": 1,
+          "lcp": 880,
+          "cls": 0,
+          "lcpElement": "p.mt-5.max-w-md.text-base.leading-8.text-muted-foreground",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 711.3999999761581,
+              "duration": 160
+            },
+            {
+              "start": 1741.699999988079,
+              "duration": 79
+            }
+          ],
+          "ttfb": 651.5999999642372,
+          "fcp": 880,
+          "hydratedAt": 2124.599999964237,
+          "htmlBytes": 66939,
+          "htmlEncodedBytes": 13024,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 13324,
+          "connection": {
+            "dns": 23.19999998807907,
+            "tcpTls": 262.9000000357628,
+            "requestWait": 364.39999997615814
+          },
+          "responseEnd": 724.2999999523163,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Cd9K211f.js",
+              "type": "script",
+              "start": 691.5,
+              "end": 1706.3999999761581,
+              "bytes": 164116,
+              "transfer": 43323
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 692.8999999761581,
+              "end": 852,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 692.8999999761581,
+              "end": 1736.5999999642372,
+              "bytes": 190103,
+              "transfer": 61090
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-CpNREXpH.js",
+              "type": "script",
+              "start": 693,
+              "end": 1684.5,
+              "bytes": 134990,
+              "transfer": 42367
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-C5FC9InX.js",
+              "type": "script",
+              "start": 693.5,
+              "end": 1024.0999999642372,
+              "bytes": 496,
+              "transfer": 647
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-Du7-8AzM.js",
+              "type": "script",
+              "start": 693.5,
+              "end": 1144.5999999642372,
+              "bytes": 11913,
+              "transfer": 5022
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 693.5999999642372,
+              "end": 970.2999999523163,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 694,
+              "end": 1069.3999999761581,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 694.0999999642372,
+              "end": 970.6999999880791,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BBuW4k0f.js",
+              "type": "script",
+              "start": 694.1999999880791,
+              "end": 1077,
+              "bytes": 2226,
+              "transfer": 1545
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 695.2999999523163,
+              "end": 971.0999999642372,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 695.2999999523163,
+              "end": 970.8999999761581,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.CdTKlUrW.css",
+              "type": "link",
+              "start": 1816.5,
+              "end": 2074.2999999523163,
+              "bytes": 41824,
+              "transfer": 9091
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 220,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 2,
+          "lcp": 1152,
+          "cls": 0,
+          "lcpElement": "p.mt-5.max-w-md.text-base.leading-8.text-muted-foreground",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 998.5999999642372,
+              "duration": 138
+            },
+            {
+              "start": 2009.199999988079,
+              "duration": 84
+            }
+          ],
+          "ttfb": 925.0999999642372,
+          "fcp": 1152,
+          "hydratedAt": 2343.399999976158,
+          "htmlBytes": 66939,
+          "htmlEncodedBytes": 13024,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 13324,
+          "connection": {
+            "dns": 24.30000001192093,
+            "tcpTls": 276.39999997615814,
+            "requestWait": 623.5999999642372
+          },
+          "responseEnd": 995.5,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Cd9K211f.js",
+              "type": "other",
+              "start": 961.2999999523163,
+              "end": 1820,
+              "bytes": 164116,
+              "transfer": 43355
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 962.1999999880791,
+              "end": 1116.0999999642372,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 962.5,
+              "end": 2000.699999988079,
+              "bytes": 190103,
+              "transfer": 61090
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-CpNREXpH.js",
+              "type": "script",
+              "start": 962.5999999642372,
+              "end": 1917.5,
+              "bytes": 134990,
+              "transfer": 42367
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-C5FC9InX.js",
+              "type": "other",
+              "start": 963.5999999642372,
+              "end": 1309.5,
+              "bytes": 496,
+              "transfer": 647
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-Du7-8AzM.js",
+              "type": "other",
+              "start": 964.0999999642372,
+              "end": 1422.7999999523163,
+              "bytes": 11913,
+              "transfer": 5022
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "other",
+              "start": 964.1999999880791,
+              "end": 1235.7999999523163,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "other",
+              "start": 965.2999999523163,
+              "end": 1400.699999988079,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "other",
+              "start": 965.3999999761581,
+              "end": 1309.7999999523163,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BBuW4k0f.js",
+              "type": "other",
+              "start": 966.2999999523163,
+              "end": 1348.5,
+              "bytes": 2226,
+              "transfer": 1545
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "other",
+              "start": 966.7999999523163,
+              "end": 1130.3999999761581,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "other",
+              "start": 966.7999999523163,
+              "end": 1310.199999988079,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.CdTKlUrW.css",
+              "type": "link",
+              "start": 2082.399999976158,
+              "end": 2292.699999988079,
+              "bytes": 41824,
+              "transfer": 9091
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 220,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 3,
+          "lcp": 764,
+          "cls": 0,
+          "lcpElement": "p.mt-5.max-w-md.text-base.leading-8.text-muted-foreground",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 668.1000000238419,
+              "duration": 87
+            },
+            {
+              "start": 762.3000000119209,
+              "duration": 59
+            },
+            {
+              "start": 1709.5,
+              "duration": 79
+            }
+          ],
+          "ttfb": 612.9000000357628,
+          "fcp": 764,
+          "hydratedAt": 2041.1000000238419,
+          "htmlBytes": 66939,
+          "htmlEncodedBytes": 13024,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 13324,
+          "connection": {
+            "dns": 26,
+            "tcpTls": 238.5,
+            "requestWait": 347.60000002384186
+          },
+          "responseEnd": 687.9000000357628,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Cd9K211f.js",
+              "type": "script",
+              "start": 655.8000000119209,
+              "end": 1610.800000011921,
+              "bytes": 164116,
+              "transfer": 43323
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 656.1999999880791,
+              "end": 816,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 657.6000000238419,
+              "end": 1701.6000000238419,
+              "bytes": 190103,
+              "transfer": 61115
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-CpNREXpH.js",
+              "type": "script",
+              "start": 658.4000000357628,
+              "end": 1656,
+              "bytes": 134990,
+              "transfer": 42348
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-C5FC9InX.js",
+              "type": "script",
+              "start": 658.6000000238419,
+              "end": 1011,
+              "bytes": 496,
+              "transfer": 647
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-Du7-8AzM.js",
+              "type": "script",
+              "start": 659.4000000357628,
+              "end": 1033.4000000357628,
+              "bytes": 11913,
+              "transfer": 5090
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 660.1999999880791,
+              "end": 852.6999999880791,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 660.3000000119209,
+              "end": 942.6000000238419,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 661.1999999880791,
+              "end": 830.6999999880791,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BBuW4k0f.js",
+              "type": "script",
+              "start": 661.1999999880791,
+              "end": 1063.4000000357628,
+              "bytes": 2226,
+              "transfer": 1545
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 661.6999999880791,
+              "end": 1019.1000000238419,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 661.6999999880791,
+              "end": 1025.699999988079,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.CdTKlUrW.css",
+              "type": "link",
+              "start": 1784.5,
+              "end": 1992.6000000238419,
+              "bytes": 41824,
+              "transfer": 9090
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 220,
+          "errors": []
+        }
+      ]
+    },
+    "beforeDesktop": {
+      "browser": "153.0.8010.12",
+      "baseURL": "https://oshinest.yumaboda-official.workers.dev",
+      "viewport": "1365x844",
+      "authenticated": false,
+      "cpuSlowdown": 4,
+      "network": {
+        "offline": false,
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "cache": "disabled",
+      "samples": [
+        {
+          "route": "/",
+          "run": 1,
+          "lcp": 1028,
+          "cls": 0,
+          "lcpElement": "h1.text-3xl.font-bold.leading-normal.sm:text-4xl",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 848.6000000238419,
+              "duration": 165
+            },
+            {
+              "start": 1966.3999999761581,
+              "duration": 72
+            }
+          ],
+          "ttfb": 786.1999999880791,
+          "fcp": 1028,
+          "hydratedAt": 2310,
+          "htmlBytes": 52557,
+          "htmlEncodedBytes": 10319,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 10619,
+          "connection": {
+            "dns": 26.80000001192093,
+            "tcpTls": 319.69999998807907,
+            "requestWait": 435.30000001192093
+          },
+          "responseEnd": 844.3999999761581,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Ufl7U4aH.js",
+              "type": "script",
+              "start": 831.3999999761581,
+              "end": 1879.699999988079,
+              "bytes": 164116,
+              "transfer": 43316
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 832.8000000119209,
+              "end": 1085.800000011921,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 832.8000000119209,
+              "end": 1955,
+              "bytes": 190103,
+              "transfer": 61083
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-DdKwiVui.js",
+              "type": "script",
+              "start": 832.8999999761581,
+              "end": 1835.199999988079,
+              "bytes": 134990,
+              "transfer": 42370
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-4q4y_cJ2.js",
+              "type": "script",
+              "start": 833.5,
+              "end": 1248.699999988079,
+              "bytes": 496,
+              "transfer": 644
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 833.6999999880791,
+              "end": 1175,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-DNJEEBP9.js",
+              "type": "script",
+              "start": 833.6999999880791,
+              "end": 1241.699999988079,
+              "bytes": 11913,
+              "transfer": 5021
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 834.3999999761581,
+              "end": 1324.8999999761581,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 834.5,
+              "end": 1115.3999999761581,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BeeVJMt0.js",
+              "type": "script",
+              "start": 835.8000000119209,
+              "end": 1182.6000000238419,
+              "bytes": 2226,
+              "transfer": 1547
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 835.8999999761581,
+              "end": 1108.5,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 835.8999999761581,
+              "end": 1249,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.DnrbROV7.css",
+              "type": "link",
+              "start": 2031.6000000238419,
+              "end": 2262.300000011921,
+              "bytes": 41433,
+              "transfer": 9086
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 159,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 2,
+          "lcp": 928,
+          "cls": 0,
+          "lcpElement": "h1.text-3xl.font-bold.leading-normal.sm:text-4xl",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 768.1999999880791,
+              "duration": 146
+            },
+            {
+              "start": 1813,
+              "duration": 76
+            }
+          ],
+          "ttfb": 714.8999999761581,
+          "fcp": 928,
+          "hydratedAt": 2161.899999976158,
+          "htmlBytes": 52557,
+          "htmlEncodedBytes": 10319,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 10619,
+          "connection": {
+            "dns": 23.399999976158142,
+            "tcpTls": 268.69999998807907,
+            "requestWait": 421.89999997615814
+          },
+          "responseEnd": 770.7999999523163,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Ufl7U4aH.js",
+              "type": "script",
+              "start": 753.7999999523163,
+              "end": 1723.8999999761581,
+              "bytes": 164116,
+              "transfer": 43316
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 754.8999999761581,
+              "end": 944.2999999523163,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 755.2999999523163,
+              "end": 1799,
+              "bytes": 190103,
+              "transfer": 61123
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-DdKwiVui.js",
+              "type": "script",
+              "start": 755.3999999761581,
+              "end": 1625.5999999642372,
+              "bytes": 134990,
+              "transfer": 42411
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-4q4y_cJ2.js",
+              "type": "script",
+              "start": 756.3999999761581,
+              "end": 958.3999999761581,
+              "bytes": 496,
+              "transfer": 644
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-DNJEEBP9.js",
+              "type": "script",
+              "start": 756.7999999523163,
+              "end": 1153.8999999761581,
+              "bytes": 11913,
+              "transfer": 5021
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 756.8999999761581,
+              "end": 1094,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 757,
+              "end": 1258.2999999523163,
+              "bytes": 27262,
+              "transfer": 9204
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 758.5,
+              "end": 981.8999999761581,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BeeVJMt0.js",
+              "type": "script",
+              "start": 758.5,
+              "end": 1004.0999999642372,
+              "bytes": 2226,
+              "transfer": 1547
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 759.1999999880791,
+              "end": 966.3999999761581,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 759.2999999523163,
+              "end": 974.1999999880791,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.DnrbROV7.css",
+              "type": "link",
+              "start": 1884.3999999761581,
+              "end": 2120.899999976158,
+              "bytes": 41433,
+              "transfer": 9086
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 159,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 3,
+          "lcp": 920,
+          "cls": 0,
+          "lcpElement": "h1.text-3xl.font-bold.leading-normal.sm:text-4xl",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 1776.699999988079,
+              "duration": 88
+            }
+          ],
+          "ttfb": 670.3999999761581,
+          "fcp": 920,
+          "hydratedAt": 2105.399999976158,
+          "htmlBytes": 52557,
+          "htmlEncodedBytes": 10319,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 10619,
+          "connection": {
+            "dns": 24,
+            "tcpTls": 269.4000000357628,
+            "requestWait": 376
+          },
+          "responseEnd": 725.8000000119209,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Ufl7U4aH.js",
+              "type": "script",
+              "start": 714.8000000119209,
+              "end": 1731.199999988079,
+              "bytes": 164116,
+              "transfer": 43316
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 715.6000000238419,
+              "end": 1017.8999999761581,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-DdKwiVui.js",
+              "type": "script",
+              "start": 715.6999999880791,
+              "end": 1686.5,
+              "bytes": 134990,
+              "transfer": 42411
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 715.6999999880791,
+              "end": 1768.800000011921,
+              "bytes": 190103,
+              "transfer": 61123
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-4q4y_cJ2.js",
+              "type": "script",
+              "start": 716.6000000238419,
+              "end": 883.6999999880791,
+              "bytes": 496,
+              "transfer": 644
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-DNJEEBP9.js",
+              "type": "script",
+              "start": 716.6999999880791,
+              "end": 1130.5,
+              "bytes": 11913,
+              "transfer": 5090
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 717.1000000238419,
+              "end": 1055.300000011921,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 717.6000000238419,
+              "end": 1043.8999999761581,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 717.6000000238419,
+              "end": 1235.800000011921,
+              "bytes": 27262,
+              "transfer": 9221
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BeeVJMt0.js",
+              "type": "script",
+              "start": 717.6999999880791,
+              "end": 1077.8999999761581,
+              "bytes": 2226,
+              "transfer": 1547
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 718.6000000238419,
+              "end": 1044.1000000238419,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 719,
+              "end": 1044.300000011921,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.DnrbROV7.css",
+              "type": "link",
+              "start": 1853.1000000238419,
+              "end": 2053.199999988079,
+              "bytes": 41433,
+              "transfer": 9086
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 159,
+          "errors": []
+        }
+      ]
+    },
+    "afterDesktop": {
+      "browser": "153.0.8010.12",
+      "baseURL": "https://oshinest.yumaboda-official.workers.dev",
+      "viewport": "1365x844",
+      "authenticated": false,
+      "cpuSlowdown": 4,
+      "network": {
+        "offline": false,
+        "latency": 150,
+        "downloadThroughput": 200000,
+        "uploadThroughput": 93750
+      },
+      "cache": "disabled",
+      "samples": [
+        {
+          "route": "/",
+          "run": 1,
+          "lcp": 944,
+          "cls": 0,
+          "lcpElement": "h1.text-4xl.font-bold.leading-tight.sm:text-5xl",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 748.5,
+              "duration": 172
+            },
+            {
+              "start": 1785.699999988079,
+              "duration": 91
+            }
+          ],
+          "ttfb": 686.3000000119209,
+          "fcp": 944,
+          "hydratedAt": 2119.600000023842,
+          "htmlBytes": 66939,
+          "htmlEncodedBytes": 13024,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 13324,
+          "connection": {
+            "dns": 35.60000002384186,
+            "tcpTls": 238,
+            "requestWait": 410.9000000357628
+          },
+          "responseEnd": 758.8999999761581,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Cd9K211f.js",
+              "type": "script",
+              "start": 728.3999999761581,
+              "end": 1696.6000000238419,
+              "bytes": 164116,
+              "transfer": 43323
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 729.3000000119209,
+              "end": 1004.8000000119209,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 729.5,
+              "end": 1779.1000000238419,
+              "bytes": 190103,
+              "transfer": 61083
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-CpNREXpH.js",
+              "type": "script",
+              "start": 732.8000000119209,
+              "end": 1718.800000011921,
+              "bytes": 134990,
+              "transfer": 42348
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-C5FC9InX.js",
+              "type": "script",
+              "start": 733.1000000238419,
+              "end": 1026.8999999761581,
+              "bytes": 496,
+              "transfer": 647
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-Du7-8AzM.js",
+              "type": "script",
+              "start": 733.6999999880791,
+              "end": 1088.800000011921,
+              "bytes": 11913,
+              "transfer": 5022
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 734.1000000238419,
+              "end": 1027.1000000238419,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 735.1999999880791,
+              "end": 1193.699999988079,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BBuW4k0f.js",
+              "type": "script",
+              "start": 735.3000000119209,
+              "end": 908.8000000119209,
+              "bytes": 2226,
+              "transfer": 1545
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 735.3000000119209,
+              "end": 1027.199999988079,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 735.3999999761581,
+              "end": 1027.5,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 735.3999999761581,
+              "end": 1027.300000011921,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.CdTKlUrW.css",
+              "type": "link",
+              "start": 1862.1000000238419,
+              "end": 2071.699999988079,
+              "bytes": 41824,
+              "transfer": 9090
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 220,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 2,
+          "lcp": 916,
+          "cls": 0,
+          "lcpElement": "h1.text-4xl.font-bold.leading-tight.sm:text-5xl",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 1760,
+              "duration": 81
+            }
+          ],
+          "ttfb": 671.3000000119209,
+          "fcp": 916,
+          "hydratedAt": 2100.300000011921,
+          "htmlBytes": 66939,
+          "htmlEncodedBytes": 13024,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 13324,
+          "connection": {
+            "dns": 24.19999998807907,
+            "tcpTls": 257.80000001192093,
+            "requestWait": 388.2000000476837
+          },
+          "responseEnd": 739.6999999880791,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Cd9K211f.js",
+              "type": "script",
+              "start": 709.0999999642372,
+              "end": 1693.199999988079,
+              "bytes": 164116,
+              "transfer": 43323
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 709.8999999761581,
+              "end": 868.5,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 710.0999999642372,
+              "end": 1753.3999999761581,
+              "bytes": 190103,
+              "transfer": 61083
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-C5FC9InX.js",
+              "type": "script",
+              "start": 710.8999999761581,
+              "end": 1020.5,
+              "bytes": 496,
+              "transfer": 647
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-CpNREXpH.js",
+              "type": "script",
+              "start": 710.8999999761581,
+              "end": 1662.699999988079,
+              "bytes": 134990,
+              "transfer": 42348
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-Du7-8AzM.js",
+              "type": "script",
+              "start": 711.3000000119209,
+              "end": 988.6999999880791,
+              "bytes": 11913,
+              "transfer": 5022
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 711.3000000119209,
+              "end": 1025.8999999761581,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 711.3999999761581,
+              "end": 1189.8999999761581,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 711.5,
+              "end": 1020.8000000119209,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BBuW4k0f.js",
+              "type": "script",
+              "start": 712.3000000119209,
+              "end": 1047.800000011921,
+              "bytes": 2226,
+              "transfer": 1545
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 712.6999999880791,
+              "end": 1020.8999999761581,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 712.8000000119209,
+              "end": 1021.0999999642372,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.CdTKlUrW.css",
+              "type": "link",
+              "start": 1835.5,
+              "end": 2045.199999988079,
+              "bytes": 41824,
+              "transfer": 9076
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 220,
+          "errors": []
+        },
+        {
+          "route": "/",
+          "run": 3,
+          "lcp": 964,
+          "cls": 0,
+          "lcpElement": "h1.text-4xl.font-bold.leading-tight.sm:text-5xl",
+          "lcpUrl": "",
+          "longTasks": [
+            {
+              "start": 776.2999999523163,
+              "duration": 162
+            },
+            {
+              "start": 1804.199999988079,
+              "duration": 94
+            }
+          ],
+          "ttfb": 700.6999999880791,
+          "fcp": 964,
+          "hydratedAt": 2152.699999988079,
+          "htmlBytes": 66939,
+          "htmlEncodedBytes": 13024,
+          "contentEncoding": "br",
+          "htmlTransferBytes": 13324,
+          "connection": {
+            "dns": 23.600000023841858,
+            "tcpTls": 291.89999997615814,
+            "requestWait": 384.10000002384186
+          },
+          "responseEnd": 770,
+          "resources": [
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/index-Cd9K211f.js",
+              "type": "script",
+              "start": 748.7999999523163,
+              "end": 1776.199999988079,
+              "bytes": 164116,
+              "transfer": 43323
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/rolldown-runtime-hePW80VL.js",
+              "type": "script",
+              "start": 749.7999999523163,
+              "end": 913.7999999523163,
+              "bytes": 716,
+              "transfer": 740
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/layout-segment-context-C5FC9InX.js",
+              "type": "script",
+              "start": 750.5999999642372,
+              "end": 1101.5999999642372,
+              "bytes": 496,
+              "transfer": 647
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/vinext-CpNREXpH.js",
+              "type": "script",
+              "start": 750.5999999642372,
+              "end": 1722.5999999642372,
+              "bytes": 134990,
+              "transfer": 42410
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/framework-A1pNZAzD.js",
+              "type": "script",
+              "start": 750.5999999642372,
+              "end": 1798.3999999761581,
+              "bytes": 190103,
+              "transfer": 61083
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/button-CPuroCcT.js",
+              "type": "script",
+              "start": 751.5999999642372,
+              "end": 1108.699999988079,
+              "bytes": 4576,
+              "transfer": 2405
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/link-Du7-8AzM.js",
+              "type": "script",
+              "start": 751.5999999642372,
+              "end": 1190.8999999761581,
+              "bytes": 11913,
+              "transfer": 5022
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/utils-DojpP95n.js",
+              "type": "script",
+              "start": 751.6999999880791,
+              "end": 1288,
+              "bytes": 27262,
+              "transfer": 9308
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/Icon-KV5ZHEi6.js",
+              "type": "script",
+              "start": 752.3999999761581,
+              "end": 1101.8999999761581,
+              "bytes": 1082,
+              "transfer": 974
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/createLucideIcon-DdMXlZR4.js",
+              "type": "script",
+              "start": 754,
+              "end": 1102,
+              "bytes": 558,
+              "transfer": 683
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/site-navigation-BBuW4k0f.js",
+              "type": "script",
+              "start": 754,
+              "end": 1137.8999999761581,
+              "bytes": 2226,
+              "transfer": 1545
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/chunks/search-CGi-rgzR.js",
+              "type": "script",
+              "start": 754.7999999523163,
+              "end": 1102.0999999642372,
+              "bytes": 174,
+              "transfer": 462
+            },
+            {
+              "url": "https://oshinest.yumaboda-official.workers.dev/_next/static/css/layout.CdTKlUrW.css",
+              "type": "link",
+              "start": 1892.0999999642372,
+              "end": 2097.599999964237,
+              "bytes": 41824,
+              "transfer": 9090
+            }
+          ],
+          "scriptBytes": 538212,
+          "scriptRequests": 12,
+          "domNodes": 220,
+          "errors": []
+        }
+      ]
+    }
+  }
+}
