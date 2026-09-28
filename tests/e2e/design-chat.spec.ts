@@ -72,7 +72,7 @@ test("login errors retain prompt for retry and invalid proposals leave design un
   await expect(page.getByRole("link", { name: "ログインしてAIを使う" })).toBeVisible();
   await expect(page.getByLabel("変えたいところ", { exact: true })).toHaveValue("板厚を変えて");
   await page.getByRole("button", { name: "送信して編集" }).click();
-  await expect(page.getByRole("alert")).toContainText("板厚を2mm以上");
+  await expect(page.getByRole("alert")).toContainText("現在のモデルは変更していません");
   await expect(page.getByLabel("板厚", { exact: true })).toHaveValue("3");
 });
 

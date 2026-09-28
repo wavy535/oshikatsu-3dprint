@@ -5,6 +5,13 @@ import { parse, type AnyNode, type Node } from "acorn";
 export type ScriptValue = number | boolean | null | ScriptValue[];
 export type ModelApi = Readonly<Record<string, (...args: ScriptValue[]) => ScriptValue>>;
 const fail = (message: string): never => { throw new Error(`モデリングコード: ${message}`); };
+export const modelSignatures: Readonly<Record<string, readonly [number, number, string]>> = {
+  box: [1, 1, "box([幅,奥行,高さ])"], sphere: [1, 1, "sphere(半径)"], cylinder: [2, 2, "cylinder(高さ,半径)"],
+  move: [2, 2, "move(立体,[x,y,z])"], rotate: [2, 2, "rotate(立体,[X度,Y度,Z度])"], scale: [2, 2, "scale(立体,[倍率x,倍率y,倍率z])"],
+  union: [2, 16, "union(a,b,...): 2〜16個の立体をすべて結合"], subtract: [2, 2, "subtract(a,b)"], intersect: [2, 2, "intersect(a,b)"],
+  extrude: [2, 2, "extrude([[x,y],...],高さ)"], revolve: [1, 1, "revolve([[半径,高さ],...])"],
+  mesh: [2, 2, "mesh(頂点配列,三角形配列)"], loft: [1, 1, "loft(断面配列)"], tube: [2, 2, "tube(点配列,半径)"],
+};
 const supported = new Set(["Program", "BlockStatement", "VariableDeclaration", "VariableDeclarator", "Identifier", "Literal", "ArrayExpression", "ExpressionStatement", "ForStatement", "IfStatement", "ReturnStatement", "BinaryExpression", "LogicalExpression", "UnaryExpression", "UpdateExpression", "AssignmentExpression", "MemberExpression", "CallExpression", "ConditionalExpression", "EmptyStatement"]);
 export function parseModelScript(source: string) {
   if (new TextEncoder().encode(source).length > 12000) fail("コードは12KBまでです。");
@@ -13,8 +20,22 @@ export function parseModelScript(source: string) {
   const inspect = (value: unknown, depth: number) => {
     if (depth > 64 || ++count > 10000) fail("式の入れ子が深すぎます。");
     if (!value || typeof value !== "object") return;
-    const node = value as { type?: string };
-    if (node.type && !supported.has(node.type)) fail(`${node.type}は使えません。`);
+    const node = value as AnyNode;
+    const at = (message: string): never => fail(`[script-validation] ${source.slice(0, node.start).split("\n").length}行目: ${message}`);
+    if (node.type === "CallExpression") {
+      if (node.callee.type === "Identifier") {
+        const name = node.callee.name;
+        if (!Object.hasOwn(modelSignatures, name)) at(`${name}は未対応です。定義済みのモデリングAPIのみ使用してください。`);
+        const [min, max, usage] = modelSignatures[name];
+        if (node.arguments.length < min || node.arguments.length > max) at(`引数数が不正です。正しい仕様: ${usage}`);
+      } else if (node.callee.type === "MemberExpression") {
+        const c = node.callee;
+        const name = !c.computed && c.property.type === "Identifier" ? c.property.name : "";
+        const allowed = c.object.type === "Identifier" && c.object.name === "Math" ? ["sin", "cos", "sqrt", "abs", "min", "max", "pow"] : ["push"];
+        if (!allowed.includes(name)) at("このメソッドは未対応です。map/reduceやスプレッドの代わりにforと配列.pushを使ってください。");
+      } else at("関数の呼び出し方が不正です。");
+    }
+    if (node.type && !supported.has(node.type)) at(`${node.type}は使えません。関数定義・スプレッドは使わず、forと配列.pushで表現してください。`);
     for (const v of Object.values(value)) if (v && typeof v === "object") {
       if (Array.isArray(v)) for (const item of v) inspect(item, depth + 1); else inspect(v, depth + 1);
     }
@@ -98,8 +119,9 @@ export function runModelScript(source: string, api: ModelApi): ScriptValue {
         const args = n.arguments.map((a) => walk(a, scope));
         if (n.callee.type === "Identifier" && Object.hasOwn(api, n.callee.name)) {
           const fn = api[n.callee.name];
-          if (args.length !== fn.length) return fail(`${n.callee.name}の引数は${fn.length}個です。`);
-          return fn(...args);
+          // Arity is checked against explicit public signatures before execution.
+          try { return fn(...args); }
+          catch (error) { return fail(`[script-runtime] ${source.slice(0, n.start).split("\n").length}行目: ${error instanceof Error ? error.message : "API実行に失敗しました。"}`); }
         }
         if (n.callee.type === "MemberExpression" && !n.callee.computed && n.callee.property.type === "Identifier") {
           const name = n.callee.property.name;

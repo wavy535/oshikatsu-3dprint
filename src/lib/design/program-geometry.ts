@@ -26,7 +26,7 @@ export function buildProgram(module: ManifoldToplevel, source: string, envelope:
     move: (id, offset) => keep(get(id).translate(vec(offset))),
     rotate: (id, angles) => keep(get(id).rotate(vec(angles))),
     scale: (id, factors) => { const f = vec(factors); f.forEach((x) => num(x, 0.01, 100)); return keep(get(id).scale(f)); },
-    union: (a, b) => keep(get(a).add(get(b))),
+    union: (...ids) => { let result = get(ids[0]); for (const id of ids.slice(1)) result = get(keep(result.add(get(id)))); return keep(result); },
     subtract: (a, b) => keep(get(a).subtract(get(b))),
     intersect: (a, b) => keep(get(a).intersect(get(b))),
     extrude: (points, height) => {

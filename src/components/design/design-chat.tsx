@@ -6,6 +6,7 @@ import { ArrowUp, Paperclip, Square, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { changeSummary, type ChatRequest, type Proposal } from "@/lib/design/ai-contract";
+import { RecoveryExhausted, RECOVERY_MESSAGE } from "@/lib/design/recovery";
 import { runChatEditing } from "@/lib/design/chat-edit";
 import { MAX_REFERENCE_IMAGES, prepareReferenceImage, type ReferenceImage } from "@/lib/design/reference-images";
 import type { Design } from "@/lib/design/document";
@@ -22,7 +23,7 @@ export function DesignChat({ snapshot, selected, apply }: {
   const [entries, setEntries] = useState<Entry[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
-  const [login, setLogin] = useState(false);
+  const [login, setLogin] = useState(false), [retryable, setRetryable] = useState(false);
   const controller = useRef<AbortController | null>(null);
   const log = useRef<HTMLDivElement>(null), inputRef = useRef<HTMLTextAreaElement>(null), fileRef = useRef<HTMLInputElement>(null);
   const nextId = useRef(0), follow = useRef(true);
@@ -52,7 +53,7 @@ export function DesignChat({ snapshot, selected, apply }: {
     follow.current = true;
     setEntries((old) => [...old, { id: userId, role: "user" as const, content: instruction, images: [...images], status: "pending" as const }].slice(-20));
     setInput(""); setCleared(null);
-    setBusy(true); setError(""); setLogin(false); setRepairing(false);
+    setBusy(true); setError(""); setRetryable(false); setLogin(false); setRepairing(false);
     try {
       const { reply, proposal, geometryRepaired } = await runChatEditing({
         design: current.design, selected, message: instruction, images,
@@ -66,7 +67,11 @@ export function DesignChat({ snapshot, selected, apply }: {
           });
           const data = await response.json();
           if (response.status === 401) setLogin(true);
-          if (!response.ok) throw new Error(data && typeof data === "object" && "error" in data && typeof data.error === "string" ? data.error : "AI編集を完了できませんでした。");
+          if (!response.ok) {
+            if (response.status === 401) throw new Error("ログインしてから送信してください。");
+            if (response.status === 429) throw new Error("利用上限に達したか、送信間隔が短すぎます。少し待って再送してください。");
+            throw new RecoveryExhausted(`chat-http-${response.status}`);
+          }
           return data;
         },
       });
@@ -81,7 +86,12 @@ export function DesignChat({ snapshot, selected, apply }: {
       if (controller.current === abort) {
         setEntries((old) => old.map((entry) => entry.id === userId ? { ...entry, status: "failed" } : entry));
         setInput(instruction);
-        setError(abort.signal.aborted ? "中止しました。設計は変更していません。" : e instanceof Error && e.name === "TimeoutError" ? "応答が時間内に届きませんでした。元の設計は保持しています。再送してください。" : e instanceof Error ? e.message : "AI編集を完了できませんでした。");
+        if (e instanceof RecoveryExhausted) console.warn("OshiNest: modelling repair stopped", { diagnostic: e.diagnostic.slice(0, 1000) });
+        const cancelled = abort.signal.aborted;
+        const changed = e instanceof Error && e.message.startsWith("AIの応答中に設計が変わりました");
+        const access = e instanceof Error && /^(ログインしてから|利用上限に達した)/.test(e.message);
+        setRetryable(!cancelled && !changed && !access);
+        setError(cancelled ? "中止しました。設計は変更していません。" : changed || access ? (e as Error).message : RECOVERY_MESSAGE);
       }
     } finally {
       if (controller.current === abort) { controller.current = null; setBusy(false); }
@@ -123,6 +133,10 @@ export function DesignChat({ snapshot, selected, apply }: {
     {cleared && <div className="flex items-center justify-between gap-2 border-t border-line px-4 text-xs"><span>会話をクリアしました</span><Button type="button" variant="ghost" size="sm" onClick={() => { setEntries(cleared); setCleared(null); }}>会話を戻す</Button></div>}
     <form className="border-t border-line bg-white p-3" onSubmit={(e) => { e.preventDefault(); void send(); }}>
       {error && <p role="alert" className="mb-3 text-pretty text-sm text-danger">{error}</p>}
+      {error && retryable && !busy && <div className="mb-3 flex flex-wrap gap-2">
+        <Button type="button" size="sm" variant="outline" onClick={() => void send()}>もう一度試す</Button>
+        <Button type="button" size="sm" variant="ghost" onClick={() => { setInput(`「${input.slice(0, 750)}」について、まだ編集せず、実現できる作り方を相談したいです。`); setError(""); setRetryable(false); inputRef.current?.focus(); }}>作り方を相談する</Button>
+      </div>}
       {login && <Link href="/login?redirect=%2Fcreate" className="mb-3 inline-block py-2 text-sm font-semibold text-brand underline">ログインしてAIを使う</Link>}
       <div className="rounded-2xl border border-line bg-ground p-2 focus-within:ring-2 focus-within:ring-brand">
         <input ref={fileRef} aria-label="参考画像" type="file" accept="image/jpeg,image/png" multiple disabled={busy || preparing || images.length >= MAX_REFERENCE_IMAGES}

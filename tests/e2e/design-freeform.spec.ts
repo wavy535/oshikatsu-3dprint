@@ -55,3 +55,26 @@ test("standalone armor sample loads, renders and exports", async ({ page }, info
   await page.getByRole("button", { name: "GLBを保存" }).click();
   expect((await readFile((await (await downloading).path())!)).length).toBeGreaterThan(1000);
 });
+
+test("failed geometry repairs automatically and hides technical errors on repeated failure", async ({ page }) => {
+  let calls=0;
+  await page.route("**/api/design/chat",async(route)=>{
+    const body=route.request().postDataJSON();calls++;
+    if(calls===2) expect(body.geometryFeedback.error).toContain("分離");
+    const value={...curvedArmor,source:'return union(box([5,5,5]),move(box([5,5,5]),[30,0,0]));'};
+    const p={message:"作りました",changes:[{path:"program.upsert",value}]};
+    await route.fulfill({json:{...p,design:applyProposal(body.design,p).design,attempts:1}});
+  });
+  await page.goto("/create");
+  await expect(page.getByTestId("design-status")).toHaveText("プレビューを更新しました");
+  await page.getByLabel("変えたいところ",{exact:true}).fill("装飾のある椅子を作って");
+  await page.getByRole("button",{name:"送信して編集"}).click();
+  await expect(page.getByRole("log")).toContainText("修正しています");
+  await expect(page.getByRole("alert")).toContainText("現在のモデルは変更していません",{timeout:20000});
+  await expect(page.getByRole("alert")).not.toContainText(/model-1|union|分離|モデリングコード/);
+  await expect(page.getByRole("button",{name:"取り消し",exact:true})).toBeDisabled();
+  await expect(page.getByRole("button",{name:"もう一度試す",exact:true})).toBeVisible();
+  await page.getByRole("button",{name:"作り方を相談する",exact:true}).click();
+  await expect(page.getByLabel("変えたいところ",{exact:true})).toHaveValue(/装飾のある椅子.*まだ編集せず/);
+  expect(calls).toBe(2);
+});
