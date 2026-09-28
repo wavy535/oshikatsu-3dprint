@@ -211,7 +211,7 @@ export default function HomePage() {
       <details className="border-y border-line py-3">
         <summary className="cursor-pointer py-3 font-semibold">作品をつくりたい方へ</summary>
         <p className="max-w-3xl pb-3 text-sm leading-7 text-muted-foreground">
-          部品と寸法を選んでおうちをつくる試作版を利用できます。AIモデリングは開発予定です。新規のクリエイター申請は受付を停止しています。
+          部品と寸法を選んでおうちをつくる試作版を利用できます。ログインするとAIとの会話で寸法や色を編集できます。新規のクリエイター申請は受付を停止しています。
         </p>
         <Link href="/create" prefetch={false} className="inline-flex min-h-11 items-center font-semibold text-brand underline underline-offset-4">おうちをつくる</Link>
       </details>
