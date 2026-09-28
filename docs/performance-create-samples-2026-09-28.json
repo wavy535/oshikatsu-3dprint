@@ -1,0 +1,461 @@
+[
+  {
+    "browser": "153.0.8010.12",
+    "baseURL": "https://oshinest.yumaboda-official.workers.dev",
+    "viewport": "390x844",
+    "authenticated": false,
+    "serverWarmup": false,
+    "cpuSlowdown": 4,
+    "network": {
+      "offline": false,
+      "latency": 150,
+      "downloadThroughput": 200000,
+      "uploadThroughput": 93750
+    },
+    "cache": "disabled",
+    "samples": [
+      {
+        "route": "/create",
+        "run": 1,
+        "lcp": 1248,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 952.9000000003725,
+        "fcp": 1248,
+        "hydratedAt": 2626.2999999988824,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 11335,
+        "contentEncoding": "br",
+        "htmlTransferBytes": 11635,
+        "serverTiming": [],
+        "connection": {
+          "dns": 44.5,
+          "tcpTls": 293.8999999985099,
+          "requestWait": 609.4000000003725
+        },
+        "responseEnd": 1008,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 2,
+        "lcp": 1500,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 1276.800000000745,
+        "fcp": 1500,
+        "hydratedAt": 3094,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 11335,
+        "contentEncoding": "br",
+        "htmlTransferBytes": 11635,
+        "serverTiming": [],
+        "connection": {
+          "dns": 66.40000000037253,
+          "tcpTls": 333.59999999962747,
+          "requestWait": 876
+        },
+        "responseEnd": 1332.800000000745,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 3,
+        "lcp": 1072,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 859.4000000003725,
+        "fcp": 1072,
+        "hydratedAt": 2553.5,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 11335,
+        "contentEncoding": "br",
+        "htmlTransferBytes": 11635,
+        "serverTiming": [],
+        "connection": {
+          "dns": 65.80000000074506,
+          "tcpTls": 310,
+          "requestWait": 483
+        },
+        "responseEnd": 913.5,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      }
+    ],
+    "case": "public-no-warmup"
+  },
+  {
+    "browser": "153.0.8010.12",
+    "baseURL": "http://localhost:3000",
+    "viewport": "390x844",
+    "authenticated": false,
+    "serverWarmup": true,
+    "cpuSlowdown": 4,
+    "network": {
+      "offline": false,
+      "latency": 150,
+      "downloadThroughput": 200000,
+      "uploadThroughput": 93750
+    },
+    "cache": "disabled",
+    "samples": [
+      {
+        "route": "/create",
+        "run": 1,
+        "lcp": 456,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 25.699999999254942,
+        "fcp": 456,
+        "hydratedAt": 1785,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 12519,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 12819,
+        "serverTiming": [],
+        "connection": {
+          "dns": 0.09999999962747097,
+          "tcpTls": 1.5,
+          "requestWait": 21.300000000745058
+        },
+        "responseEnd": 221.69999999925494,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 2,
+        "lcp": 360,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 20.300000000745058,
+        "fcp": 360,
+        "hydratedAt": 1694.300000000745,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 12519,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 12819,
+        "serverTiming": [],
+        "connection": {
+          "dns": 0.09999999962747097,
+          "tcpTls": 0.5,
+          "requestWait": 19.100000001490116
+        },
+        "responseEnd": 215.69999999925494,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 3,
+        "lcp": 352,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 21.40000000037253,
+        "fcp": 352,
+        "hydratedAt": 1687.5,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 12519,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 12819,
+        "serverTiming": [],
+        "connection": {
+          "dns": 0.09999999962747097,
+          "tcpTls": 0.5,
+          "requestWait": 20.40000000037253
+        },
+        "responseEnd": 215.90000000037253,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      }
+    ],
+    "case": "local-control"
+  },
+  {
+    "browser": "153.0.8010.12",
+    "baseURL": "http://localhost:3000",
+    "viewport": "390x844",
+    "authenticated": false,
+    "serverWarmup": true,
+    "cpuSlowdown": 4,
+    "network": {
+      "offline": false,
+      "latency": 150,
+      "downloadThroughput": 200000,
+      "uploadThroughput": 93750
+    },
+    "cache": "disabled",
+    "samples": [
+      {
+        "route": "/create",
+        "run": 1,
+        "lcp": 448,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 22.899999998509884,
+        "fcp": 448,
+        "hydratedAt": 1688.3999999985099,
+        "htmlBytes": 90123,
+        "htmlEncodedBytes": 17553,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 17853,
+        "serverTiming": [],
+        "connection": {
+          "dns": 0.10000000149011612,
+          "tcpTls": 1.099999999627471,
+          "requestWait": 20.699999999254942
+        },
+        "responseEnd": 237.7999999988824,
+        "scriptBytes": 810360,
+        "scriptRequests": 15,
+        "domNodes": 230,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 2,
+        "lcp": 420,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 20.5,
+        "fcp": 420,
+        "hydratedAt": 1696.800000000745,
+        "htmlBytes": 90123,
+        "htmlEncodedBytes": 17553,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 17853,
+        "serverTiming": [],
+        "connection": {
+          "dns": 0.09999999962747097,
+          "tcpTls": 1.099999999627471,
+          "requestWait": 18.800000000745058
+        },
+        "responseEnd": 238.59999999962747,
+        "scriptBytes": 810360,
+        "scriptRequests": 15,
+        "domNodes": 230,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 3,
+        "lcp": 396,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 18.199999999254942,
+        "fcp": 396,
+        "hydratedAt": 1691.699999999255,
+        "htmlBytes": 90123,
+        "htmlEncodedBytes": 17553,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 17853,
+        "serverTiming": [],
+        "connection": {
+          "dns": 0,
+          "tcpTls": 0.599999999627471,
+          "requestWait": 17
+        },
+        "responseEnd": 238.40000000037253,
+        "scriptBytes": 810360,
+        "scriptRequests": 15,
+        "domNodes": 230,
+        "errors": []
+      }
+    ],
+    "case": "local-streaming-rejected"
+  },
+  {
+    "browser": "153.0.8010.12",
+    "baseURL": "http://localhost:3000",
+    "viewport": "390x844",
+    "authenticated": false,
+    "serverWarmup": true,
+    "cpuSlowdown": 4,
+    "network": {
+      "offline": false,
+      "latency": 150,
+      "downloadThroughput": 200000,
+      "uploadThroughput": 93750
+    },
+    "cache": "disabled",
+    "samples": [
+      {
+        "route": "/create",
+        "run": 1,
+        "lcp": 356,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 18.90000000037253,
+        "fcp": 356,
+        "hydratedAt": 1684.199999999255,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 12516,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 12816,
+        "serverTiming": [
+          {
+            "name": "ssr",
+            "duration": 10
+          },
+          {
+            "name": "html",
+            "duration": 1
+          },
+          {
+            "name": "css",
+            "duration": 1
+          },
+          {
+            "name": "rewrite",
+            "duration": 0
+          },
+          {
+            "name": "encode",
+            "duration": 1
+          },
+          {
+            "name": "worker",
+            "duration": 13
+          }
+        ],
+        "connection": {
+          "dns": 0.10000000149011612,
+          "tcpTls": 0.6999999992549419,
+          "requestWait": 17.200000001117587
+        },
+        "responseEnd": 214.90000000037253,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 2,
+        "lcp": 404,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 23.5,
+        "fcp": 404,
+        "hydratedAt": 1679.9000000003725,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 12516,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 12816,
+        "serverTiming": [
+          {
+            "name": "ssr",
+            "duration": 16
+          },
+          {
+            "name": "html",
+            "duration": 0
+          },
+          {
+            "name": "css",
+            "duration": 1
+          },
+          {
+            "name": "rewrite",
+            "duration": 0
+          },
+          {
+            "name": "encode",
+            "duration": 1
+          },
+          {
+            "name": "worker",
+            "duration": 18
+          }
+        ],
+        "connection": {
+          "dns": 0.09999999962747097,
+          "tcpTls": 0.6000000014901161,
+          "requestWait": 22.199999999254942
+        },
+        "responseEnd": 216.19999999925494,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      },
+      {
+        "route": "/create",
+        "run": 3,
+        "lcp": 400,
+        "cls": 0,
+        "lcpElement": "p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground",
+        "lcpUrl": "",
+        "ttfb": 29.09999999962747,
+        "fcp": 400,
+        "hydratedAt": 1692.300000000745,
+        "htmlBytes": 59701,
+        "htmlEncodedBytes": 12516,
+        "contentEncoding": "gzip",
+        "htmlTransferBytes": 12816,
+        "serverTiming": [
+          {
+            "name": "ssr",
+            "duration": 17
+          },
+          {
+            "name": "html",
+            "duration": 1
+          },
+          {
+            "name": "css",
+            "duration": 1
+          },
+          {
+            "name": "rewrite",
+            "duration": 2
+          },
+          {
+            "name": "encode",
+            "duration": 2
+          },
+          {
+            "name": "worker",
+            "duration": 23
+          }
+        ],
+        "connection": {
+          "dns": 0,
+          "tcpTls": 0.6999999992549419,
+          "requestWait": 27.59999999962747
+        },
+        "responseEnd": 215.59999999962747,
+        "scriptBytes": 810229,
+        "scriptRequests": 15,
+        "domNodes": 229,
+        "errors": []
+      }
+    ],
+    "case": "local-diagnostics-final"
+  }
+]

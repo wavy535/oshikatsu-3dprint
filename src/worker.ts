@@ -1,6 +1,7 @@
 import handler from "vinext/server/fetch-handler";
 import { createProcessor, type CompactPlan } from "beasties/runtime";
 import { readBoundedHtml } from "./lib/render/bounded-html";
+import { createRenderTiming } from "./lib/render/server-timing";
 import { compressHtml } from "./lib/render/compress-html";
 export * from "vinext/server/fetch-handler";
 
@@ -14,7 +15,9 @@ let processor: ReturnType<typeof createProcessor> | undefined;
 
 export default {
   async fetch(request, env, ctx) {
+    const timing = createRenderTiming();
     const response = await handler.fetch(request, env, ctx);
+    timing.mark("ssr");
     if (
       request.method !== "GET" || response.status !== 200 || !response.body ||
       !response.headers.get("content-type")?.startsWith("text/html") ||
@@ -22,19 +25,21 @@ export default {
     ) return response;
 
     const body = await readBoundedHtml(response.body, 256 * 1024);
-    if ("stream" in body) return new Response(body.stream, response);
-    if (!body.html.includes("data-vinext-inline-css")) return new Response(body.html, response);
+    timing.mark("html");
+    if ("stream" in body) return timing.finish(new Response(body.stream, response));
+    if (!body.html.includes("data-vinext-inline-css")) return timing.finish(new Response(body.html, response));
 
     let css: string;
     try {
       processor ??= createProcessor(globalThis.__OSHINEST_CSS_PLANS__, { cache: false });
       css = processor.extract(body.html).css;
+      timing.mark("css");
     } catch {
       // Optimizing styles must never turn a successful page into an error.
       console.warn("Critical CSS extraction failed; serving complete styles");
-      return new Response(body.html, response);
+      return timing.finish(new Response(body.html, response));
     }
-    if (!css) return new Response(body.html, response);
+    if (!css) return timing.finish(new Response(body.html, response));
     const headers = new Headers(response.headers);
     headers.delete("content-length");
     headers.delete("etag");
@@ -63,6 +68,7 @@ export default {
     // This document is already bounded and buffered. Coalesce the rewrite so
     // compression can see the entire document without intermediate flushes.
     const html = await optimized.text();
+    timing.mark("rewrite");
     // Cloudflare normalizes Accept-Encoding before invoking the Worker. Use
     // its client capability list; quality parameters are honored when present.
     // The edge can strip q values (see the performance report's limitation).
@@ -72,11 +78,12 @@ export default {
     let compressed: Uint8Array<ArrayBuffer> | null;
     try {
       compressed = compressHtml(html, accepted);
+      timing.mark("encode");
     } catch {
       console.warn("HTML compression failed; using automatic encoding");
-      return new Response(html, { status: response.status, headers });
+      return timing.finish(new Response(html, { status: response.status, headers }));
     }
-    if (!compressed) return new Response(html, { status: response.status, headers });
+    if (!compressed) return timing.finish(new Response(html, { status: response.status, headers }));
     headers.set("content-encoding", "br");
     // The edge otherwise decodes this body and recompresses it as Zstandard,
     // undoing the size benefit and adding another compression step.
@@ -84,6 +91,6 @@ export default {
     if (!cacheControl?.split(",").some((directive) => directive.trim().toLowerCase() === "no-transform")) {
       headers.set("cache-control", cacheControl ? `${cacheControl}, no-transform` : "no-transform");
     }
-    return new Response(compressed, { status: response.status, headers, encodeBody: "manual" });
+    return timing.finish(new Response(compressed, { status: response.status, headers, encodeBody: "manual" }));
   },
 } satisfies ExportedHandler<CloudflareEnv>;

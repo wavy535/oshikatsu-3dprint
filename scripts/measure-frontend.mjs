@@ -5,6 +5,9 @@ import { chromium } from "@playwright/test";
 // Never commit storage-state files: they contain session cookies.
 const baseURL = process.env.PERF_BASE_URL ?? "http://localhost:3000";
 const storageState = process.env.PERF_STORAGE_STATE;
+const warmServer = process.env.PERF_WARMUP !== "0";
+const runs = Number(process.env.PERF_RUNS ?? 3);
+if (!Number.isInteger(runs) || runs < 1 || runs > 10) throw new Error("PERF_RUNS must be 1..10");
 const viewport = { width: Number(process.env.PERF_WIDTH ?? 390), height: 844 };
 if (!Number.isInteger(viewport.width) || viewport.width < 320)
   throw new Error("Invalid PERF_WIDTH");
@@ -24,21 +27,23 @@ const samples = [];
 try {
   for (const route of routes) {
     // Warm the server separately; each recorded sample still gets a fresh browser context.
-    const warmContext = await browser.newContext({ storageState });
-    try {
-      const warmup = await warmContext.request.get(
-        new URL(route, baseURL).href,
-        { maxRedirects: 0 },
-      );
-      if (!warmup.ok())
-        throw new Error(
-          `${route}: warmup HTTP ${warmup.status()} (check authentication)`,
+    if (warmServer) {
+      const warmContext = await browser.newContext({ storageState });
+      try {
+        const warmup = await warmContext.request.get(
+          new URL(route, baseURL).href,
+          { maxRedirects: 0 },
         );
-      await warmup.body();
-    } finally {
-      await warmContext.close();
+        if (!warmup.ok())
+          throw new Error(
+            `${route}: warmup HTTP ${warmup.status()} (check authentication)`,
+          );
+        await warmup.body();
+      } finally {
+        await warmContext.close();
+      }
     }
-    for (let run = 1; run <= 3; run++) {
+    for (let run = 1; run <= runs; run++) {
       const context = await browser.newContext({
         viewport,
         storageState,
@@ -119,6 +124,7 @@ try {
             htmlEncodedBytes: navigation.encodedBodySize,
             contentEncoding: navigation.contentEncoding ?? null,
             htmlTransferBytes: navigation.transferSize,
+            serverTiming: navigation.serverTiming.map((entry) => ({ name: entry.name, duration: entry.duration })),
             connection: {
               dns: navigation.domainLookupEnd - navigation.domainLookupStart,
               tcpTls: navigation.connectEnd - navigation.connectStart,
@@ -157,6 +163,7 @@ try {
         baseURL,
         viewport: `${viewport.width}x${viewport.height}`,
         authenticated: Boolean(storageState),
+        serverWarmup: warmServer,
         cpuSlowdown: 4,
         network,
         cache: "disabled",
