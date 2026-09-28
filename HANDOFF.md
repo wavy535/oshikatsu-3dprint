@@ -1,3 +1,10 @@
+# 2026-09-28: AIチャット編集をPR用ブランチに実装
+
+- `feat/ai-house-chat`。既存の壁・屋根・窓・棚をOpenAIとの会話で編集。構造化差分、サーバー検査と1回の修正、WASM再検証、revision照合、履歴/中止を接続。
+- 実モデル比較でGPT-4.1 miniを採用。初回8/8、追加ケースは依頼外の変更を検出して指示と履歴の渡し方を修正し3/4→4/4。API評価26回＋ブラウザ実接続1回。単体299件、ブラウザ15件成功。詳細は [AIチャット編集](docs/design-ai-chat.md)。
+- キーはGit対象外のローカル `.dev.vars` に設定済み。D1の `0009` はローカルのみ適用。公開にはリモートマイグレーションと `OPENAI_API_KEY` secret登録が必要。今回のAI機能はPRまでで、マージ・配備は未実施。
+- 先行PR #6はユーザー承認により `a72fadb` でmasterへマージし、Web version `ec64f2d7-29cf-4491-b929-ac623219fb32` として配備済み。公開ブラウザ10件成功。以下は当時の記録。
+
 # 2026-09-28: ブラウザ制作機能をPR用ブランチに実装
 
 - `feat/browser-house-editor` に `/create` を追加。TypeScriptのヘッドレスコア、Manifold WASMのWeb Worker、Three.js表示。寸法・部品編集、履歴、端末保存、JSON、部品別3MF ZIP、GLB/USDZ・ARデータ生成に対応。

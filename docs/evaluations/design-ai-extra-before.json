@@ -1,0 +1,87 @@
+{
+  "date": "2026-09-28T03:27:09.605Z",
+  "calls": 4,
+  "conservativeReservedUsd": 0.2,
+  "results": [
+    {
+      "model": "gpt-4.1-mini",
+      "case": "selected-roof",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1453,
+      "inputTokens": 1316,
+      "outputTokens": 39,
+      "changes": [
+        {
+          "path": "house.roofColor",
+          "value": "#ff0000"
+        }
+      ],
+      "message": "屋根の色を赤色 (#ff0000) に変更します。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "shrink-with-shelf",
+      "passed": false,
+      "attempts": 1,
+      "milliseconds": 1339,
+      "inputTokens": 1412,
+      "outputTokens": 97,
+      "changes": [
+        {
+          "path": "house.width",
+          "value": 120
+        },
+        {
+          "path": "house.depth",
+          "value": 140
+        },
+        {
+          "path": "shelf.x",
+          "value": 62
+        },
+        {
+          "path": "shelf.y",
+          "value": 102
+        }
+      ],
+      "message": "幅を120mmに縮め、棚を同じサイズで内側の右奥に移動します。ぬいの幅90mmに対し十分な内寸確保のため、奥行も調整します。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "flat-roof",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1074,
+      "inputTokens": 1456,
+      "outputTokens": 51,
+      "changes": [
+        {
+          "path": "house.roofRise",
+          "value": 0
+        }
+      ],
+      "message": "屋根の立ち上がりを0にして平らに変更します。壁の高さは175mmのまま維持します。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "window-shrink",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1208,
+      "inputTokens": 1530,
+      "outputTokens": 93,
+      "changes": [
+        {
+          "path": "house.width",
+          "value": 100
+        },
+        {
+          "path": "window.width",
+          "value": 88
+        }
+      ],
+      "message": "幅を100mmに縮め、その内寸に合わせて窓の幅を小さくします。高さは60mmのまま窓の幅を壁厚を考慮して調整します。屋根は平らのまま、壁の高さは175mmで維持します。"
+    }
+  ]
+}
