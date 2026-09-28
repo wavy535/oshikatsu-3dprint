@@ -5,3 +5,6 @@ MAIL_PROVIDER=none
 AUTH_EMAIL_VERIFICATION=disabled
 CREATOR_APPLICATIONS_ENABLED=false
 DEMO_GUEST_ENABLED=false
+
+# AI design chat (server only). Optional; manual editor works without it.
+OPENAI_API_KEY=
