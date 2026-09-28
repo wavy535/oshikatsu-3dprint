@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, ShoppingBag, Smile, UserRound } from "lucide-react";
+import { Search, ShoppingBag, Smile, UserRound, House } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/works", label: "さがす", icon: Search },
+  { href: "/create", label: "つくる", icon: House },
   { href: "/mypage/nuis", label: "マイぬい", icon: Smile },
   { href: "/cart", label: "カート", icon: ShoppingBag },
   { href: "/mypage", label: "マイページ", icon: UserRound },
@@ -21,7 +22,7 @@ export function SiteNavigation({ cartCount }: { cartCount: number }) {
   return (
     <nav
       aria-label="メインメニュー"
-      className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-line bg-white px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:static lg:flex lg:shrink-0 lg:gap-1 lg:border-0 lg:p-0"
+      className="fixed inset-x-0 bottom-0 z-50 grid grid-cols-5 border-t border-line bg-white px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] lg:static lg:flex lg:shrink-0 lg:gap-1 lg:border-0 lg:p-0"
     >
       {ITEMS.map(({ href, label, icon: Icon }) => (
         <Link
