@@ -146,11 +146,14 @@ export function HouseEditor() {
     <p role="status" className="text-sm text-muted-foreground">{notice || "保存はこの端末だけです。設計ファイルを保存すると、別の端末でも編集できます。"}</p>
     {operationError && <p role="alert" className="border-l-2 border-danger pl-3 text-sm text-danger">{operationError}</p>}
 
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
-      <section aria-label="プレビューと出力" className="min-w-0 lg:sticky lg:top-4">
+    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="min-w-0 lg:col-start-2 lg:row-start-1">
+        <DesignChat snapshot={store.getSnapshot} selected={selected as ChatRequest["selected"]} apply={applyChat} />
+      </div>
+      <section aria-label="プレビューと出力" className="min-w-0 lg:sticky lg:top-4 lg:col-start-1 lg:row-start-1 lg:row-span-2">
         <div className="border border-line" aria-busy={pending && !activeError}>
           <div className="flex items-center justify-between gap-3 border-b border-line p-3">
-            <h2 className="text-balance font-semibold">組み立てたおうち</h2>
+            <h2 className="text-balance font-semibold">{d.scene === "object" ? "制作中のモデル" : "組み立てたおうち"}</h2>
             <Button size="sm" variant="outline" onClick={() => setView((n) => n + 1)}>視点を戻す</Button>
           </div>
           {built ? <Suspense fallback={<div className="flex h-80 items-center justify-center bg-ground sm:h-96 lg:h-[480px]">3D表示を準備しています…</div>}>
@@ -178,8 +181,8 @@ export function HouseEditor() {
         {ar && ar.revision === state.revision && <div className="mt-4"><Button variant="outline" size="sm" onClick={() => setAr(null)}>ARを閉じる</Button><DesignAr glb={ar.glb} usdz={ar.usdz} /></div>}
       </section>
 
-      <section aria-label="おうちの編集" className="min-w-0 space-y-5">
-        <DesignChat snapshot={store.getSnapshot} selected={selected as ChatRequest["selected"]} apply={applyChat} />
+      <section aria-label="おうちの編集" className="min-w-0 space-y-5 lg:col-start-2 lg:row-start-2">
+        <h2 className="text-balance font-semibold">手動で調整</h2>
         <label className="flex flex-col gap-2 text-sm font-semibold">設計の名前<Input key={d.name} defaultValue={d.name} maxLength={80} onBlur={(e) => { if (!update({ ...d, name: e.target.value })) e.currentTarget.value = d.name; }} /></label>
         <label className="flex flex-col gap-2 text-sm font-semibold">制作対象
           <select aria-label="制作対象" className="min-h-11 border border-line bg-white px-3" value={d.scene} onChange={(e) => update({ ...d, scene: e.target.value as Design["scene"] })}>
