@@ -8,6 +8,8 @@ import { createDesignStore, DESIGN_FILE_LIMIT, readDesign, type Design } from "@
 import type { DesignBuild } from "@/lib/design/geometry";
 import type { ExportFormat } from "@/lib/design/export";
 import { createWorkerClient, Superseded } from "@/lib/design/worker-client";
+import { DesignChat } from "./design-chat";
+import { applyProposal, type ChatRequest, type Proposal } from "@/lib/design/ai-contract";
 import { DesignAr } from "./design-ar";
 
 const Viewport = lazy(() => import("./viewport"));
@@ -84,6 +86,25 @@ export function HouseEditor() {
   };
   const house = <K extends keyof Design["house"]>(key: K, value: Design["house"][K]) => update({ ...d, house: { ...d.house, [key]: value } });
   const shelf = <K extends keyof Design["shelf"]>(key: K, value: Design["shelf"][K]) => update({ ...d, shelf: { ...d.shelf, [key]: value } });
+
+  async function applyChat(proposal: Proposal, revision: number, signal: AbortSignal) {
+    const assertCurrent = () => {
+      signal.throwIfAborted();
+      if (!mounted.current || store.getSnapshot().revision !== revision)
+        throw new Error("AIの応答中に設計が変わりました。現在の設計からもう一度送信してください。");
+    };
+    assertCurrent();
+    const { design } = applyProposal(store.getSnapshot().design, proposal);
+    if (!proposal.changes.length) return;
+    if (!client.current) throw new Error("制作エンジンの準備ができていません。再試行してください。");
+    const result = await client.current.request(design);
+    assertCurrent();
+    if (result.kind !== "build" || result.build.issues.some((issue) => issue.level === "error"))
+      throw new Error("形状の検査に通らなかったため変更していません。寸法を調整して再送してください。");
+    store.replace(design);
+    setOperationError("");
+    setNotice("AIの変更を反映しました。取り消しで元に戻せます。残す場合は保存してください。");
+  }
 
   async function openFile(file: File | undefined) {
     if (!file) return;
@@ -177,6 +198,7 @@ export function HouseEditor() {
       </section>
 
       <section aria-label="おうちの編集" className="min-w-0 space-y-5">
+        <DesignChat snapshot={store.getSnapshot} selected={selected as ChatRequest["selected"]} apply={applyChat} />
         <label className="flex flex-col gap-2 text-sm font-semibold">設計の名前<Input key={d.name} defaultValue={d.name} maxLength={80} onBlur={(e) => { if (!update({ ...d, name: e.target.value })) e.currentTarget.value = d.name; }} /></label>
         <fieldset className="border-t border-line pt-3"><legend className="text-balance pr-3 font-semibold">おうちの寸法</legend>
           <p className="mb-3 text-sm text-muted-foreground">幅・奥行きは外寸。壁の高さは床の上から測ります。入力後、欄の外を押すと反映されます。</p>

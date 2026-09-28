@@ -1,0 +1,87 @@
+{
+  "date": "2026-09-28T03:28:23.241Z",
+  "calls": 4,
+  "conservativeReservedUsd": 0.2,
+  "results": [
+    {
+      "model": "gpt-4.1-mini",
+      "case": "selected-roof",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1251,
+      "inputTokens": 1473,
+      "outputTokens": 38,
+      "changes": [
+        {
+          "path": "house.roofColor",
+          "value": "#ff0000"
+        }
+      ],
+      "message": "屋根の色を赤色 #ff0000 に変更します。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "shrink-with-shelf",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1400,
+      "inputTokens": 1573,
+      "outputTokens": 105,
+      "changes": [
+        {
+          "path": "house.width",
+          "value": 120
+        },
+        {
+          "path": "shelf.x",
+          "value": 62
+        },
+        {
+          "path": "shelf.y",
+          "value": 122
+        }
+      ],
+      "message": "幅を190mmから120mmに縮めます。棚は幅55mmのため、右奥に配置するとx=120-3=117mm-55=62mm、y=160-3=157mm-35=122mmに変更します。奥行きは160mmのままです。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "flat-roof",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1148,
+      "inputTokens": 1606,
+      "outputTokens": 60,
+      "changes": [
+        {
+          "path": "house.roofRise",
+          "value": 0
+        }
+      ],
+      "message": "屋根は外さず、屋根の立ち上がりを0にして平らな屋根にします。壁の高さは175mmのまま維持します。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "window-shrink",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1484,
+      "inputTokens": 1670,
+      "outputTokens": 88,
+      "changes": [
+        {
+          "path": "house.width",
+          "value": 100
+        },
+        {
+          "path": "window.width",
+          "value": 88
+        },
+        {
+          "path": "window.height",
+          "value": 60
+        }
+      ],
+      "message": "幅を100mmに縮め、窓の幅と高さを板厚4倍以下かつ壁に収まる最大値に調整しました。屋根は引き続き平らで壁の高さは維持しています。"
+    }
+  ]
+}

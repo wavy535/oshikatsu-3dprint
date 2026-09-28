@@ -1,0 +1,293 @@
+{
+  "date": "2026-09-28T03:22:05.917Z",
+  "calls": 18,
+  "conservativeReservedUsd": 0.9000000000000002,
+  "results": [
+    {
+      "model": "gpt-4.1-mini",
+      "case": "colors",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 2505,
+      "inputTokens": 1324,
+      "outputTokens": 64,
+      "changes": [
+        {
+          "path": "house.wallColor",
+          "value": "#ffffff"
+        },
+        {
+          "path": "house.roofColor",
+          "value": "#ff0000"
+        }
+      ],
+      "message": "壁を白色(#ffffff)、屋根を赤色(#ff0000)に変更しました。その他の部分は変更していません。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "relative-followup",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 2163,
+      "inputTokens": 1374,
+      "outputTokens": 42,
+      "changes": [
+        {
+          "path": "house.width",
+          "value": 210
+        }
+      ],
+      "message": "幅を2cm（20mm）広げました。その他の寸法や色は変更していません。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "shelf-placement",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 3861,
+      "inputTokens": 1449,
+      "outputTokens": 111,
+      "changes": [
+        {
+          "path": "shelf.enabled",
+          "value": true
+        },
+        {
+          "path": "shelf.width",
+          "value": 55
+        },
+        {
+          "path": "shelf.depth",
+          "value": 35
+        },
+        {
+          "path": "shelf.height",
+          "value": 65
+        },
+        {
+          "path": "shelf.x",
+          "value": 152
+        },
+        {
+          "path": "shelf.y",
+          "value": 122
+        }
+      ],
+      "message": "棚を幅55mm、奥行35mm、高さ65mmで設置し、右奥にぴったり配置しました。色やおうちの寸法は維持しています。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "manual-change-wins",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1053,
+      "inputTokens": 1537,
+      "outputTokens": 41,
+      "changes": [
+        {
+          "path": "window.width",
+          "value": 65
+        }
+      ],
+      "message": "窓の幅を10mm広げました。その他の寸法や色は変更していません。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "nui-fit",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1893,
+      "inputTokens": 1621,
+      "outputTokens": 79,
+      "changes": [
+        {
+          "path": "nui.height",
+          "value": 200
+        },
+        {
+          "path": "house.height",
+          "value": 210
+        }
+      ],
+      "message": "ぬいの高さを200mmに更新し、おうちの高さを10mm余裕を持つ210mmに調整しました。幅と奥行きは現在のまま190mmと160mmを維持しています。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "unsupported-round-window",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 964,
+      "inputTokens": 1625,
+      "outputTokens": 27,
+      "changes": [],
+      "message": "丸い窓は対応できません。四角い窓のままです。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "thin-wall-refusal",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1635,
+      "inputTokens": 1625,
+      "outputTokens": 26,
+      "changes": [],
+      "message": "板厚は2mm以上で指定してください。0.5mmにはできません。"
+    },
+    {
+      "model": "gpt-4.1-mini",
+      "case": "printer-immutable",
+      "passed": true,
+      "attempts": 2,
+      "milliseconds": 2966,
+      "inputTokens": 3370,
+      "outputTokens": 116,
+      "changes": [],
+      "message": "幅を400mmにすることはプリンタの造形範囲（256mm）を超えるため対応できません。幅は現在のまま190mmを維持してください。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "colors",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1522,
+      "inputTokens": 1322,
+      "outputTokens": 78,
+      "changes": [
+        {
+          "path": "house.wallColor",
+          "value": "#ffffff"
+        },
+        {
+          "path": "house.roofColor",
+          "value": "#ff0000"
+        }
+      ],
+      "message": "指定の通り、壁を白、屋根を赤に変更します。他は変更しません。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "relative-followup",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1138,
+      "inputTokens": 1364,
+      "outputTokens": 60,
+      "changes": [
+        {
+          "path": "house.width",
+          "value": 210
+        }
+      ],
+      "message": "幅を20mm（2cm）拡張します。他の属性は維持します。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "shelf-placement",
+      "passed": false,
+      "attempts": 1,
+      "milliseconds": 2450,
+      "inputTokens": 1435,
+      "outputTokens": 179,
+      "changes": [
+        {
+          "path": "shelf.width",
+          "value": 55
+        },
+        {
+          "path": "shelf.depth",
+          "value": 35
+        },
+        {
+          "path": "shelf.height",
+          "value": 65
+        },
+        {
+          "path": "shelf.enabled",
+          "value": true
+        },
+        {
+          "path": "shelf.color",
+          "value": "#D7BD99"
+        },
+        {
+          "path": "shelf.x",
+          "value": 150
+        },
+        {
+          "path": "shelf.y",
+          "value": 122
+        }
+      ],
+      "message": "指定の棚を右奥に配置します。寸法は現状の制約内で有効なので、幅のみ前回の変更（+20mm）を含む設計を維持します。棚を右奥にぴったり置くためxとyを計算して設定しました。他の属性は変更しません。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "manual-change-wins",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1193,
+      "inputTokens": 1555,
+      "outputTokens": 56,
+      "changes": [
+        {
+          "path": "window.width",
+          "value": 65
+        }
+      ],
+      "message": "窓の幅を10mm増やします。他は維持します。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "nui-fit",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1476,
+      "inputTokens": 1632,
+      "outputTokens": 90,
+      "changes": [
+        {
+          "path": "nui.height",
+          "value": 200
+        },
+        {
+          "path": "house.height",
+          "value": 210
+        }
+      ],
+      "message": "ぬいの高さを200mmに更新し、ぬい高さ+10mmの内寸確保のためhouse.heightを210mmに変更します。他は維持します。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "unsupported-round-window",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1197,
+      "inputTokens": 1633,
+      "outputTokens": 59,
+      "changes": [],
+      "message": "丸窓は対応できません。代案として現在の四角窓を維持したままの変更は不要です。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "thin-wall-refusal",
+      "passed": true,
+      "attempts": 1,
+      "milliseconds": 1268,
+      "inputTokens": 1647,
+      "outputTokens": 79,
+      "changes": [],
+      "message": "リクエストのうち実行可能な変更だけ反映します。丸窓は不可のため窓は四角のままです。その他は現行設計を維持し、変更はありません。"
+    },
+    {
+      "model": "gpt-5-mini",
+      "case": "printer-immutable",
+      "passed": true,
+      "attempts": 2,
+      "milliseconds": 3551,
+      "inputTokens": 3496,
+      "outputTokens": 297,
+      "changes": [],
+      "message": "幅を400mmにするリクエストを元の設計（現在のcurrentDesign）から適用しようとしましたが、プリンタの造形範囲（bed）制約により床／奥の壁が造形範囲を超えるため、そのまま幅400mmにはできません。プリンタ寸法は変更不可のため、希望を満たせません。必要な理由を説明します。"
+    }
+  ]
+}
