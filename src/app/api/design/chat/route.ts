@@ -1,5 +1,6 @@
 import { getOptionalUser } from "@/lib/auth/guards";
 import { platform } from "@/lib/platform";
+import { CHAT_BODY_LIMIT } from "@/lib/design/reference-images";
 import { chatRequestSchema } from "@/lib/design/ai-contract";
 import { boundedJson } from "@/lib/design/ai/bounded-json";
 import { runDesignChat, openAiCall } from "@/lib/design/ai/harness";
@@ -16,8 +17,8 @@ export async function POST(request: Request) {
     const env = platform();
     if (!env.OPENAI_API_KEY) return json({ error: "AI編集の接続を準備中です。手動編集は利用できます。" }, 503);
     let input;
-    try { input = chatRequestSchema.parse(await boundedJson(request.body, 24 * 1024)); }
-    catch { return json({ error: "入力を確認してください。指示は1000文字までです。" }, 400); }
+    try { input = chatRequestSchema.parse(await boundedJson(request.body, CHAT_BODY_LIMIT)); }
+    catch { return json({ error: "入力を確認してください。指示は1000文字、添付画像は2枚までです。" }, 400); }
     if (!await reserveChat(env.DATABASE, user.id)) return json({ error: "利用上限に達したか、送信間隔が短すぎます。8秒以上待って再送してください（1人1日30回まで）。" }, 429);
     try {
       const reply = await runDesignChat(input, { call: openAiCall(env.OPENAI_API_KEY), signal: request.signal });

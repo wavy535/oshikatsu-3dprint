@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "波形の紋様を持つ湾曲した装甲",
+  "house": {
+    "width": 190,
+    "depth": 160,
+    "height": 175,
+    "thickness": 3,
+    "roofRise": 40,
+    "leftWall": true,
+    "rightWall": true,
+    "roof": true,
+    "wallColor": "#F5F1E8",
+    "floorColor": "#D7BD99",
+    "roofColor": "#2563EB"
+  },
+  "window": {
+    "shape": "rectangle",
+    "enabled": true,
+    "width": 55,
+    "height": 60
+  },
+  "shelf": {
+    "enabled": false,
+    "width": 55,
+    "depth": 35,
+    "height": 65,
+    "x": 125,
+    "y": 90,
+    "color": "#D7BD99"
+  },
+  "furniture": [],
+  "custom": [],
+  "programs": [
+    {
+      "id": "model-1",
+      "name": "波形の紋様を持つ湾曲した装甲",
+      "x": 10,
+      "y": 10,
+      "color": "#7489aa",
+      "size": [
+        60,
+        40,
+        75
+      ],
+      "source": "// Parametric curved armor shell with a changing, pointed outline.\nconst rings=[];\nfor(let j=0;j<17;j++) {\n  const t=j/16;\n  const ring=[];\n  const width=4+22*Math.sin(Math.PI*(0.1+0.85*t));\n  for(let i=0;i<24;i++) {\n    const a=i*2*Math.PI/24;\n    ring.push([30+width*Math.cos(a),8+22*t*t+3*Math.sin(a),70*t]);\n  }\n  rings.push(ring);\n}\nlet armor=loft(rings);\nfor(let side=0;side<2;side++) {\n  const path=[];\n  for(let j=0;j<18;j++) {\n    const t=0.12+0.75*j/17;\n    path.push([30+(side===0?-1:1)*8*Math.sin(Math.PI*t),8+22*t*t-2.4,70*t]);\n  }\n  armor=union(armor,tube(path,1.5));\n}\nreturn armor;"
+    }
+  ],
+  "scene": "object",
+  "nui": {
+    "width": 90,
+    "depth": 80,
+    "height": 150
+  },
+  "bed": {
+    "width": 256,
+    "depth": 256,
+    "height": 256
+  }
+}

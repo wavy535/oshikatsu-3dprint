@@ -13,7 +13,7 @@ test("edit, undo, local restore and 3MF export use the same design on mobile", a
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto("/create");
   await ready(page);
-  await expect(page.getByRole("img", { name: /おうちの3Dプレビュー/ })).toBeVisible();
+  await expect(page.getByRole("img", { name: /制作物の3Dプレビュー/ })).toBeVisible();
   await page.getByRole("button", { name: "視点を戻す" }).click();
   await page.screenshot({ path: testInfo.outputPath("editor-mobile.png") });
   await page.getByLabel("幅", { exact: true }).fill("210");
@@ -95,8 +95,8 @@ test("desktop preview and measured editing latency with 4x CPU slowdown", async 
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   await page.goto("/create");
   await ready(page);
-  await expect(page.getByRole("img", { name: /おうちの3Dプレビュー/ })).toBeVisible();
-  await expect.poll(() => page.getByRole("img", { name: /おうちの3Dプレビュー/ }).evaluate((el) => el.parentElement!.clientHeight)).toBe(480);
+  await expect(page.getByRole("img", { name: /制作物の3Dプレビュー/ })).toBeVisible();
+  await expect.poll(() => page.getByRole("img", { name: /制作物の3Dプレビュー/ }).evaluate((el) => el.parentElement!.clientHeight)).toBe(480);
   const times: number[] = [];
   for (let i = 0; i < 20; i++) {
     await page.getByLabel("幅", { exact: true }).fill(String(190 + i * 2));

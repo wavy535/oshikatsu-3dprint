@@ -1,3 +1,4 @@
+import { CompositeGeometryError } from "./composite.ts";
 import Module from "manifold-3d";
 import wasmUrl from "manifold-3d/manifold.wasm?url";
 import { createGeometryEngine } from "./geometry.ts";
@@ -22,6 +23,6 @@ self.onmessage = async (event: MessageEvent<EngineRequest>) => {
       send({ id, kind: "build", build }, build.parts.flatMap((p) => [p.positions.buffer as ArrayBuffer, p.indices.buffer as ArrayBuffer]));
     }
   } catch (error) {
-    send({ id, kind: "error", message: error instanceof Error ? error.message : "形状を生成できませんでした。" });
+    send({ id, kind: "error", repairable: error instanceof CompositeGeometryError, message: error instanceof Error ? error.message : "形状を生成できませんでした。" });
   }
 };

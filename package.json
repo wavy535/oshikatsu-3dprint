@@ -56,7 +56,8 @@
     "tailwind-merge": "^3.6.0",
     "three": "^0.183.2",
     "vinext": "1.0.0-beta.13",
-    "zod": "^4.5.4"
+    "zod": "^4.5.4",
+    "acorn": "8.18.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.60.2",

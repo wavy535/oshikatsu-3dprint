@@ -10,6 +10,9 @@ import type { ExportFormat } from "@/lib/design/export";
 import { createWorkerClient, Superseded } from "@/lib/design/worker-client";
 import { DesignChat } from "./design-chat";
 import { applyProposal, type ChatRequest, type Proposal } from "@/lib/design/ai-contract";
+import { NumberField, Toggle, ColorField } from "./fields";
+import { FurnitureEditor } from "./furniture-editor";
+import { CustomPartsEditor } from "./custom-parts-editor";
 import { DesignAr } from "./design-ar";
 
 const Viewport = lazy(() => import("./viewport"));
@@ -21,28 +24,6 @@ function download(bytes: Uint8Array | string, filename: string, type: string) {
   const url = URL.createObjectURL(blob), a = document.createElement("a");
   a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);
-}
-
-function NumberField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (n: number) => boolean | void }) {
-  return <label className="flex min-w-0 flex-col gap-1 text-sm font-medium">
-    {label}<span className="flex items-center gap-2">
-      <Input key={value} aria-label={label} type="number" inputMode="decimal" defaultValue={value} min={min} max={max} step="0.5" className="tabular-nums"
-        onBlur={(e) => {
-          const next = e.currentTarget.valueAsNumber;
-          if (onChange(next) === false || !Number.isFinite(next)) e.currentTarget.value = String(value);
-        }}
-        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); } }} />
-      <span className="shrink-0 whitespace-nowrap text-muted-foreground">mm</span>
-    </span>
-  </label>;
-}
-
-function Toggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <label className="flex min-h-11 cursor-pointer items-center gap-3 text-sm font-medium"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="size-5 accent-brand" />{label}</label>;
-}
-
-function ColorField({ label, value, onChange }: { label: string; value: string; onChange: (color: string) => void }) {
-  return <label className="flex min-h-11 items-center justify-between gap-3 text-sm">{label}<input type="color" value={value} onChange={(e) => onChange(e.target.value)} className="h-11 w-16 cursor-pointer border border-line bg-white p-1" /></label>;
 }
 
 export function HouseEditor() {
@@ -111,7 +92,7 @@ export function HouseEditor() {
     // Do not let a slow file read replace edits made after the user selected it.
     const revision = store.getSnapshot().revision;
     try {
-      if (file.size > DESIGN_FILE_LIMIT) throw new Error("設計ファイルは32KiBまでです。");
+      if (file.size > DESIGN_FILE_LIMIT) throw new Error("設計ファイルは128KiBまでです。");
       const imported = readDesign(await file.text());
       if (!mounted.current) return;
       if (store.getSnapshot().revision !== revision) throw new Error("読み込み中に編集されました。ファイルをもう一度開いてください。");
@@ -200,6 +181,13 @@ export function HouseEditor() {
       <section aria-label="おうちの編集" className="min-w-0 space-y-5">
         <DesignChat snapshot={store.getSnapshot} selected={selected as ChatRequest["selected"]} apply={applyChat} />
         <label className="flex flex-col gap-2 text-sm font-semibold">設計の名前<Input key={d.name} defaultValue={d.name} maxLength={80} onBlur={(e) => { if (!update({ ...d, name: e.target.value })) e.currentTarget.value = d.name; }} /></label>
+        <label className="flex flex-col gap-2 text-sm font-semibold">制作対象
+          <select aria-label="制作対象" className="min-h-11 border border-line bg-white px-3" value={d.scene} onChange={(e) => update({ ...d, scene: e.target.value as Design["scene"] })}>
+            <option value="house">おうちと家具</option><option value="object">単体の家具・装備</option>
+          </select>
+        </label>
+        {d.scene === "object" && <p className="text-sm text-muted-foreground">床・壁・屋根を外して、部品だけを制作・保存します。おうちの設定は保持されます。</p>}
+        {d.scene === "house" && <>
         <fieldset className="border-t border-line pt-3"><legend className="text-balance pr-3 font-semibold">おうちの寸法</legend>
           <p className="mb-3 text-sm text-muted-foreground">幅・奥行きは外寸。壁の高さは床の上から測ります。入力後、欄の外を押すと反映されます。</p>
           <div className="grid grid-cols-2 gap-3">
@@ -217,8 +205,14 @@ export function HouseEditor() {
         </fieldset>
         <fieldset className="border-t border-line pt-3"><legend className="text-balance pr-3 font-semibold">窓</legend>
           <Toggle label="奥の壁に窓をつける" checked={d.window.enabled} onChange={(v) => update({ ...d, window: { ...d.window, enabled: v } })} />
+          {d.window.enabled && <label className="mb-3 flex flex-col gap-1 text-sm font-medium">窓の形
+            <select aria-label="窓の形" className="min-h-11 border border-line bg-white px-3" value={d.window.shape} onChange={(e) => update({ ...d, window: { ...d.window, shape: e.target.value as Design["window"]["shape"] } })}>
+              <option value="rectangle">四角</option><option value="ellipse">丸・楕円（幅と高さが同じなら真円）</option>
+            </select>
+          </label>}
           {d.window.enabled && <div className="grid grid-cols-2 gap-3"><NumberField label="窓の幅" value={d.window.width} min={10} max={200} onChange={(v) => update({ ...d, window: { ...d.window, width: v } })} /><NumberField label="窓の高さ" value={d.window.height} min={10} max={200} onChange={(v) => update({ ...d, window: { ...d.window, height: v } })} /></div>}
         </fieldset>
+        </>}
         <fieldset className="border-t border-line pt-3"><legend className="text-balance pr-3 font-semibold">棚</legend>
           <Toggle label="棚を置く" checked={d.shelf.enabled} onChange={(v) => shelf("enabled", v)} />
           {d.shelf.enabled && <><div className="grid grid-cols-2 gap-3">
@@ -229,6 +223,8 @@ export function HouseEditor() {
             <NumberField label="手前からの位置" value={d.shelf.y} min={0} max={350} onChange={(n) => shelf("y", n)} />
           </div><ColorField label="棚の色" value={d.shelf.color} onChange={(v) => shelf("color", v)} /></>}
         </fieldset>
+        <FurnitureEditor design={d} update={update} />
+        <CustomPartsEditor design={d} update={update} />
         <details className="border-t border-line pt-2"><summary className="min-h-11 cursor-pointer py-3 font-semibold">ぬい・プリンタの寸法</summary>
           <p className="mb-3 text-sm text-muted-foreground">初期値は15cmぬいの目安です。腕・足を含め、飾る姿勢で測ってください。</p>
           <div className="grid grid-cols-2 gap-3">{(["width", "depth", "height"] as const).map((key, i) => <NumberField key={key} label={`ぬいの${["幅", "奥行き", "高さ"][i]}`} value={d.nui[key]} min={10} max={300} onChange={(n) => update({ ...d, nui: { ...d.nui, [key]: n } })} />)}</div>

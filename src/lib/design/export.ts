@@ -1,3 +1,4 @@
+import { designFrame } from "./framing.ts";
 import { strToU8, zipSync } from "fflate";
 import { encodeGlb } from "../ar/glb.ts";
 import { encodeUsdz } from "../ar/usdz.ts";
@@ -24,14 +25,15 @@ export function encodePart3mf(part: PartMesh): Uint8Array {
 
 /** Common assembled geometry for both AR formats; normals are flat per triangle. */
 export function arMeshes(design: Design, build: DesignBuild): ArMesh[] {
+  const frame = designFrame(design, build);
   return build.parts.map((part) => {
     const positions = new Float32Array(part.indices.length * 3), normals = new Float32Array(positions.length);
     for (let i = 0; i < part.indices.length; i++) {
       const k = part.indices[i] * 3;
       positions.set([
-        (part.positions[k] + part.position[0] - design.house.width / 2) / 1000,
+        (part.positions[k] + part.position[0] - frame.x) / 1000,
         (part.positions[k + 2] + part.position[2]) / 1000,
-        -(part.positions[k + 1] + part.position[1] - design.house.depth / 2) / 1000,
+        -(part.positions[k + 1] + part.position[1] - frame.y) / 1000,
       ], i * 3);
     }
     for (let i = 0; i < positions.length; i += 9) {

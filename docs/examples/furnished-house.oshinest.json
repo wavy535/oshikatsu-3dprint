@@ -1,0 +1,99 @@
+{
+  "version": 1,
+  "name": "15cmぬいのおうち",
+  "house": {
+    "width": 190,
+    "depth": 160,
+    "height": 175,
+    "thickness": 3,
+    "roofRise": 40,
+    "leftWall": true,
+    "rightWall": true,
+    "roof": true,
+    "wallColor": "#F5F1E8",
+    "floorColor": "#D7BD99",
+    "roofColor": "#2563EB"
+  },
+  "window": {
+    "enabled": true,
+    "shape": "ellipse",
+    "width": 60,
+    "height": 60
+  },
+  "shelf": {
+    "enabled": false,
+    "width": 55,
+    "depth": 35,
+    "height": 65,
+    "x": 125,
+    "y": 90,
+    "color": "#D7BD99"
+  },
+  "furniture": [
+    {
+      "id": "furniture-1",
+      "kind": "shelf",
+      "name": "棚 1",
+      "width": 40,
+      "depth": 40,
+      "height": 40,
+      "x": 8,
+      "y": 5,
+      "color": "#D7BD99"
+    },
+    {
+      "id": "furniture-2",
+      "kind": "shelf",
+      "name": "棚 2",
+      "width": 40,
+      "depth": 40,
+      "height": 40,
+      "x": 53,
+      "y": 5,
+      "color": "#D7BD99"
+    },
+    {
+      "id": "furniture-3",
+      "kind": "table",
+      "name": "テーブル 3",
+      "width": 40,
+      "depth": 40,
+      "height": 40,
+      "x": 98,
+      "y": 5,
+      "color": "#D7BD99"
+    },
+    {
+      "id": "furniture-4",
+      "kind": "box",
+      "name": "四角い台座 4",
+      "width": 40,
+      "depth": 40,
+      "height": 15,
+      "x": 143,
+      "y": 5,
+      "color": "#D7BD99"
+    },
+    {
+      "id": "furniture-5",
+      "kind": "cylinder",
+      "name": "丸い台座 5",
+      "width": 40,
+      "depth": 40,
+      "height": 15,
+      "x": 8,
+      "y": 50,
+      "color": "#D7BD99"
+    }
+  ],
+  "nui": {
+    "width": 90,
+    "depth": 80,
+    "height": 150
+  },
+  "bed": {
+    "width": 256,
+    "depth": 256,
+    "height": 256
+  }
+}

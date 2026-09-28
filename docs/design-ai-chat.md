@@ -1,5 +1,7 @@
 # AIとの会話によるおうち編集
 
+追記：丸・楕円の窓、複数家具と検証・修正の拡張は [AI制作能力の拡張](ai-design-parts.md) を参照。以下は初回実装時の記録です。
+
 2026-09-28。`feat/ai-house-chat` で実装。先行する手動エディタはPR #6でマージ・配備済みだが、このAI機能は別PRでレビューし、マージ・公開はまだ行わない。
 
 ## 利用者の操作
@@ -60,3 +62,5 @@ node --experimental-strip-types scripts/evaluate-design-ai.ts --live --extra --m
 単体299件成功、外部サービス依存7件対象外。型・lint・本番ビルド成功。ブラウザ15件で連続編集・取り消し・競合・中止・不正提案・ログイン誘導と既存制作/ホームを検証。通常の自動テストはモデルをモックし、API費用を発生させない。実キーがクライアント配信資産に含まれないことも検査した。実機AR・実プリントは引き続き未検証。
 
 設計の根拠: [OpenAI Structured Outputs](https://developers.openai.com/api/docs/guides/structured-outputs)、[Cloudflare Workers Best Practices](https://developers.cloudflare.com/workers/best-practices/workers-best-practices/)。
+
+自由形状コード、画像入力、実メッシュ修正の追加仕様・検証状況は [自由形状のAIモデリング](freeform-modelling.md) を参照。
