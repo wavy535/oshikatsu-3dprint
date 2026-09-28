@@ -6,4 +6,4 @@ export type EngineRequest = { id: number; design: Design; format?: ExportFormat 
 export type EngineResponse =
   | { id: number; kind: "build"; build: DesignBuild }
   | { id: number; kind: "export"; bytes: Uint8Array; format: ExportFormat }
-  | { id: number; kind: "error"; message: string };
+  | { id: number; kind: "error"; message: string; repairable?: boolean };

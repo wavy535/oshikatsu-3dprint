@@ -1,10 +1,15 @@
+import { compositeSize, type SolidStep } from "./composite.ts";
 import type { Design } from "./document.ts";
 
 export type Vector = [number, number, number];
 export type Shape =
+  | { kind: "program"; size: Vector; source: string }
+  | { kind: "composite"; size: Vector; steps: SolidStep[] }
   | { kind: "box"; size: Vector }
-  | { kind: "wall"; size: Vector; opening: [number, number] }
+  | { kind: "wall"; size: Vector; opening: [number, number]; openingShape: "rectangle" | "ellipse" }
   | { kind: "roof"; width: number; depth: number; rise: number; thickness: number; side: "left" | "right" }
+  | { kind: "cylinder"; size: Vector }
+  | { kind: "table"; size: Vector; thickness: number }
   | { kind: "shelf"; size: Vector; thickness: number };
 export type PartSpec = { id: string; label: string; color: string; position: Vector; shape: Shape; printRotation: Vector };
 
@@ -14,7 +19,7 @@ export function designParts(d: Design): PartSpec[] {
   const parts: PartSpec[] = [
     { id: "floor", label: "床", color: h.floorColor, position: [0, 0, 0], shape: { kind: "box", size: [h.width, h.depth, t] }, printRotation: [0, 0, 0] },
     { id: "back", label: "奥の壁", color: h.wallColor, position: [0, h.depth - t, t],
-      shape: d.window.enabled ? { kind: "wall", size: [h.width, t, h.height], opening: [d.window.width, d.window.height] } : { kind: "box", size: [h.width, t, h.height] }, printRotation: [90, 0, 0] },
+      shape: d.window.enabled ? { kind: "wall", size: [h.width, t, h.height], opening: [d.window.width, d.window.height], openingShape: d.window.shape } : { kind: "box", size: [h.width, t, h.height] }, printRotation: [90, 0, 0] },
   ];
   for (const side of ["left", "right"] as const) {
     if (side === "left" ? h.leftWall : h.rightWall) parts.push({ id: side, label: side === "left" ? "左の壁" : "右の壁", color: h.wallColor,
@@ -32,5 +37,16 @@ export function designParts(d: Design): PartSpec[] {
   }
   if (d.shelf.enabled) parts.push({ id: "shelf", label: "棚", color: d.shelf.color,
     position: [d.shelf.x, d.shelf.y, t], shape: { kind: "shelf", size: [d.shelf.width, d.shelf.depth, d.shelf.height], thickness: t }, printRotation: [90, 0, 0] });
+  for (const f of d.furniture) parts.push({
+    id: f.id, label: f.name, color: f.color, position: [f.x, f.y, t],
+    shape: f.kind === "shelf" || f.kind === "table"
+      ? { kind: f.kind, size: [f.width, f.depth, f.height], thickness: t }
+      : { kind: f.kind, size: [f.width, f.depth, f.height] },
+    printRotation: f.kind === "shelf" ? [90, 0, 0] : f.kind === "table" ? [180, 0, 0] : [0, 0, 0],
+  });
+  for (const p of d.custom) parts.push({ id: p.id, label: p.name, color: p.color,
+    position: [p.x, p.y, t], shape: { kind: "composite", size: compositeSize(p.steps), steps: p.steps }, printRotation: [0, 0, 0] });
+  for (const p of d.programs) parts.push({ id: p.id, label: p.name, color: p.color, position: [p.x, p.y, t], shape: { kind: "program", size: p.size as Vector, source: p.source }, printRotation: [0, 0, 0] });
+  if (d.scene === "object") return parts.filter((p) => !["floor", "back", "left", "right", "roof", "roof-left", "roof-right"].includes(p.id)).map((p) => ({ ...p, position: [p.position[0], p.position[1], 0] }));
   return parts;
 }

@@ -1,3 +1,4 @@
+import { CompositeGeometryError } from "./composite.ts";
 import type { EngineRequest, EngineResponse } from "./protocol.ts";
 import type { Design } from "./document.ts";
 import type { ExportFormat } from "./export.ts";
@@ -29,7 +30,7 @@ export function createWorkerClient() {
   worker.onmessage = ({ data }: MessageEvent<EngineResponse>) => {
     if (data.id !== active?.request.id) return;
     clearTimeout(timer);
-    if (data.kind === "error") active.reject(new Error(data.message)); else active.resolve(data);
+    if (data.kind === "error") active.reject(data.repairable ? new CompositeGeometryError(data.message) : new Error(data.message)); else active.resolve(data);
     active = undefined;
     pump();
   };

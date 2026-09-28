@@ -1,5 +1,7 @@
 import { beforeEach, expect, test, vi } from "vitest";
 import { defaultDesign } from "../src/lib/design/document";
+import { readFileSync } from "node:fs";
+import { CHAT_BODY_LIMIT } from "../src/lib/design/reference-images";
 const mocks = vi.hoisted(() => ({ user: vi.fn(), platform: vi.fn(), reserve: vi.fn(), run: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ getOptionalUser: mocks.user }));
 vi.mock("@/lib/platform", () => ({ platform: mocks.platform }));
@@ -39,4 +41,16 @@ test("valid response is private; arbitrary provider/DB exceptions cannot leak", 
   expect(bad.status).toBe(502); expect(await bad.text()).not.toContain("test-secret-not-real");
   mocks.reserve.mockRejectedValueOnce(new Error("database secret"));
   expect((await POST(request())).status).toBe(503);
+});
+
+test("image requests retain origin, size, authentication and quota boundaries", async () => {
+  expect((await POST(request({ ...payload(), images: [{ dataUrl: "https://internal.test/image" }] }))).status).toBe(400);
+  expect((await POST(request({ ...payload(), images: [{ dataUrl: "x".repeat(CHAT_BODY_LIMIT + 1) }] }))).status).toBe(400);
+  expect(mocks.reserve).not.toHaveBeenCalled();
+  const dataUrl = `data:image/jpeg;base64,${readFileSync("tests/fixtures/reference-white.jpg").toString("base64")}`;
+  expect((await POST(request({ ...payload(), images: [{ dataUrl }] }))).status).toBe(200);
+  expect(mocks.run.mock.calls[0][0].images).toEqual([{ dataUrl }]);
+  mocks.reserve.mockResolvedValueOnce(false);
+  expect((await POST(request({ ...payload(), images: [{ dataUrl }], geometryFeedback: { error: "分離", proposal: { message: "test", changes: [] } } }))).status).toBe(429);
+  expect(mocks.run).toHaveBeenCalledTimes(1);
 });

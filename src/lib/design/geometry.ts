@@ -1,3 +1,5 @@
+import { buildProgram } from "./program-geometry.ts";
+import { CompositeGeometryError } from "./composite.ts";
 import type { CrossSection, Manifold, ManifoldToplevel } from "manifold-3d";
 import { checkDesign, parseDesign, type Design, type Issue } from "./document.ts";
 import { designParts, type PartSpec, type Shape, type Vector } from "./parts.ts";
@@ -36,7 +38,26 @@ function makeShape(module: ManifoldToplevel, shape: Shape) {
   const cube = (size: Vector) => own(module.Manifold.cube(size));
   try {
     let solid: Manifold;
-    if (shape.kind === "roof") {
+    if (shape.kind === "program") {
+      solid = buildProgram(module, shape.source, shape.size, own);
+    } else if (shape.kind === "composite") {
+      let result: Manifold | undefined;
+      for (const step of shape.steps) {
+        const s = step.size, c = step.center, r = step.rotation;
+        let primitive = step.primitive === "box" ? own(module.Manifold.cube([s.x, s.y, s.z], true))
+          : step.primitive === "cylinder" ? own(own(module.Manifold.cylinder(s.z, 1, 1, 48, true)).scale([s.x / 2, s.y / 2, 1]))
+          : own(own(module.Manifold.sphere(1, 32)).scale([s.x / 2, s.y / 2, s.z / 2]));
+        primitive = own(own(primitive.rotate([r.x, r.y, r.z])).translate([c.x, c.y, c.z]));
+        result = result ? own(step.operation === "add" ? result.add(primitive) : result.subtract(primitive)) : primitive;
+        if (result.numTri() > 20000) throw new CompositeGeometryError("複合部品が複雑すぎます。形の数や重なりを減らしてください。");
+      }
+      if (!result || result.isEmpty() || result.status() !== "NoError" || result.volume() < 0.001)
+        throw new CompositeGeometryError("複合部品が空です。差し引く形を小さくし、残る立体を作ってください。");
+      const pieces = result.decompose(); pieces.forEach(own);
+      if (pieces.length !== 1) throw new CompositeGeometryError("複合部品が分離しています。加える形を重ねて、1つにつながるよう修正してください。");
+      const { min } = result.boundingBox();
+      solid = own(result.translate(min.map((v) => -v) as Vector));
+    } else if (shape.kind === "roof") {
       const { width: w, depth: d, rise: r, thickness: t, side } = shape;
       const dz = t * Math.hypot(w, r) / w;
       const low = side === "left" ? 0 : r, high = side === "left" ? r : 0;
@@ -48,8 +69,17 @@ function makeShape(module: ManifoldToplevel, shape: Shape) {
       const [w, d, h] = shape.size;
       if (shape.kind === "wall") {
         const [ow, oh] = shape.opening;
-        const hole = own(cube([ow, d + 2, oh]).translate([(w - ow) / 2, -1, (h - oh) / 2]));
+        const hole = shape.openingShape === "ellipse"
+          ? own(own(own(own(module.Manifold.cylinder(d + 2, 1, 1, 64)).scale([ow / 2, oh / 2, 1])).rotate([90, 0, 0])).translate([w / 2, d + 1, h / 2]))
+          : own(cube([ow, d + 2, oh]).translate([(w - ow) / 2, -1, (h - oh) / 2]));
         solid = own(solid.subtract(hole));
+      } else if (shape.kind === "cylinder") {
+        solid = own(own(own(module.Manifold.cylinder(h, 1, 1, 64)).scale([w / 2, d / 2, 1])).translate([w / 2, d / 2, 0]));
+      } else if (shape.kind === "table") {
+        const t = shape.thickness;
+        const acrossX = own(cube([w - 2 * t, d + 2, h - t + 1]).translate([t, -1, -1]));
+        const acrossY = own(cube([w + 2, d - 2 * t, h - t + 1]).translate([-1, t, -1]));
+        solid = own(own(solid.subtract(acrossX)).subtract(acrossY));
       } else if (shape.kind === "shelf") {
         const t = shape.thickness;
         // One open cubby, printed on its back. Top, bottom and sides are connected.
@@ -77,7 +107,11 @@ export function createGeometryEngine(module: ManifoldToplevel) {
         const key = JSON.stringify(spec.shape);
         let mesh = cache.get(key);
         if (!mesh) {
-          mesh = makeShape(module, spec.shape);
+          try { mesh = makeShape(module, spec.shape); }
+          catch (error) {
+            if (error instanceof CompositeGeometryError) throw new CompositeGeometryError(`${spec.id}: ${error.message}`);
+            throw error;
+          }
           cache.set(key, mesh);
           if (cache.size > 32) cache.delete(cache.keys().next().value!);
         }

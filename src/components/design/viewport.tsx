@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { designFrame } from "@/lib/design/framing";
 import type { Design } from "@/lib/design/document";
 import type { DesignBuild } from "@/lib/design/geometry";
 
@@ -23,7 +24,7 @@ export default function Viewport({ build, design, selected, view, onSelect }: Pr
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0xf7f8fa);
     element.appendChild(renderer.domElement);
-    renderer.domElement.setAttribute("aria-label", "おうちの3Dプレビュー。ドラッグで回転、ピンチで拡大できます。");
+    renderer.domElement.setAttribute("aria-label", "制作物の3Dプレビュー。ドラッグで回転、ピンチで拡大できます。");
     renderer.domElement.setAttribute("role", "img");
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, 1, 0.001, 10);
@@ -50,12 +51,13 @@ export default function Viewport({ build, design, selected, view, onSelect }: Pr
     function update() {
       clear();
       const { build, design, selected } = current.current;
+      const frame = designFrame(design, build);
       for (const part of build.parts) {
         const p = new Float32Array(part.positions.length);
         for (let i = 0; i < p.length; i += 3) p.set([
-          (part.positions[i] + part.position[0] - design.house.width / 2) / 1000,
+          (part.positions[i] + part.position[0] - frame.x) / 1000,
           (part.positions[i + 2] + part.position[2]) / 1000,
-          -(part.positions[i + 1] + part.position[1] - design.house.depth / 2) / 1000,
+          -(part.positions[i + 1] + part.position[1] - frame.y) / 1000,
         ], i);
         const indexed = new THREE.BufferGeometry();
         indexed.setAttribute("position", new THREE.BufferAttribute(p, 3));
@@ -71,9 +73,9 @@ export default function Viewport({ build, design, selected, view, onSelect }: Pr
       render();
     }
     function reset() {
-      const h = current.current.design.house;
-      const size = Math.max(h.width, h.depth, h.height + h.roofRise) / 1000;
-      controls.target.set(0, (h.height + h.roofRise) / 2200, 0);
+      const frame = designFrame(current.current.design, current.current.build);
+      const size = frame.size / 1000;
+      controls.target.set(0, frame.height / 2200, 0);
       camera.position.set(size * 1.55, size * 1.25, size * 2.05);
       controls.update(); render();
     }
@@ -106,7 +108,8 @@ export default function Viewport({ build, design, selected, view, onSelect }: Pr
       renderer.dispose(); renderer.domElement.remove();
     };
   }, []);
-  useEffect(() => { runtime.current?.reset(); }, [view]);
+  const empty = build.parts.length === 0;
+  useEffect(() => { runtime.current?.reset(); }, [view, design.scene, empty]);
   return <div className="relative">
     <div ref={host} className="h-80 w-full overflow-hidden sm:h-96 lg:h-[480px]" />
     {error && <p role="alert" className="absolute inset-x-0 top-0 bg-white p-4 text-sm text-danger">{error}</p>}

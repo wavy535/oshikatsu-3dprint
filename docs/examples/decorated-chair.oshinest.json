@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "曲がった脚と唐草飾りの椅子",
+  "house": {
+    "width": 190,
+    "depth": 160,
+    "height": 175,
+    "thickness": 3,
+    "roofRise": 40,
+    "leftWall": true,
+    "rightWall": true,
+    "roof": true,
+    "wallColor": "#F5F1E8",
+    "floorColor": "#D7BD99",
+    "roofColor": "#2563EB"
+  },
+  "window": {
+    "shape": "rectangle",
+    "enabled": true,
+    "width": 55,
+    "height": 60
+  },
+  "shelf": {
+    "enabled": false,
+    "width": 55,
+    "depth": 35,
+    "height": 65,
+    "x": 125,
+    "y": 90,
+    "color": "#D7BD99"
+  },
+  "furniture": [],
+  "custom": [],
+  "programs": [
+    {
+      "id": "model-1",
+      "name": "曲がった脚と唐草飾りの椅子",
+      "x": 10,
+      "y": 10,
+      "color": "#bb8844",
+      "size": [
+        65,
+        65,
+        105
+      ],
+      "source": "// Seat, four curved legs, scalloped back and repeated scrolls. Units: mm.\nlet chair = move(box([50,45,6]), [5,5,30]);\nfor (let leg=0; leg<4; leg++) {\n  const x = leg%2===0 ? 10 : 50;\n  const y = leg<2 ? 10 : 44;\n  const rings=[];\n  for (let j=0; j<9; j++) {\n    const t=j/8;\n    const ring=[];\n    for (let i=0; i<12; i++) {\n      const a=i*2*Math.PI/12;\n      const r=2.5+1.2*Math.sin(t*Math.PI);\n      ring.push([x+3*Math.sin(t*2*Math.PI)+r*Math.cos(a), y+r*Math.sin(a), 32*t]);\n    }\n    rings.push(ring);\n  }\n  chair=union(chair,loft(rings));\n}\nconst outline=[[0,0],[50,0],[50,48],[44,50],[40,58],[32,55],[25,64],[18,55],[10,58],[6,50],[0,48]];\nchair=union(chair,move(rotate(extrude(outline,5),[90,0,0]),[5,49,34]));\nfor(let motif=0;motif<5;motif++) {\n  const path=[];\n  for(let j=0;j<18;j++) {\n    const a=j*1.6*Math.PI/17;\n    const r=4-2*j/17;\n    path.push([12+motif*9+r*Math.cos(a),43.5,65+r*Math.sin(a)]);\n  }\n  chair=union(chair,tube(path,1.5));\n}\nreturn chair;"
+    }
+  ],
+  "scene": "object",
+  "nui": {
+    "width": 90,
+    "depth": 80,
+    "height": 150
+  },
+  "bed": {
+    "width": 256,
+    "depth": 256,
+    "height": 256
+  }
+}
