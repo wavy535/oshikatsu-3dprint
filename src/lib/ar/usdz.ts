@@ -1,4 +1,4 @@
-import { crc32 } from "node:zlib";
+import { crc32 } from "../binary/crc32.ts";
 import { AR_LIMITS } from "./config.ts";
 import type { ArMaterial, ArMesh } from "./mesh.ts";
 
