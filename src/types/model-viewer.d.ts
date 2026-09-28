@@ -3,6 +3,7 @@ import type { DetailedHTMLProps, HTMLAttributes } from "react";
 // <model-viewer>（@google/model-viewer）を JSX で使うための型。使う属性だけを書く
 type ModelViewerAttributes = {
   src?: string;
+  "ios-src"?: string;
   alt?: string;
   ar?: boolean;
   "ar-modes"?: string;
