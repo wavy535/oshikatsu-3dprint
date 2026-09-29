@@ -66,3 +66,39 @@ test("object mode outputs only the model and validates its actual size",()=>{
   expect(d.house).toEqual(original.house);
   expect(engine.build({...d,programs:[]}).issues.some((i)=>i.code==="empty")).toBe(true);
 });
+
+test('tapered Bezier ornament keeps a through-hole and forms a closed connected mesh', () => {
+  const d=defaultDesign();d.scene='object';
+  d.programs=[{...curvedArmor,size:[40,30,20],source:'const base=box([30,5,3]);const curl=stroke([[4,3,3],[6,18,4],[25,18,4],[26,3,3]],[2.5,3,2,1],0.6);return union(base,curl);'}];
+  const mesh=engine.build(d).parts[0];
+  const edges=new Set<string>();
+  const counts=new Map<string,number>();
+  for(let i=0;i<mesh.indices.length;i+=3) for(let k=0;k<3;k++) {
+    const edge=[mesh.indices[i+k],mesh.indices[i+(k+1)%3]].sort((a,b)=>a-b).join(':');
+    edges.add(edge);counts.set(edge,(counts.get(edge)??0)+1);
+  }
+  expect([...counts.values()].every(n=>n===2)).toBe(true);
+  // V-E+F=0 for a closed genus-one surface: the curl's hole survives union.
+  expect(mesh.positions.length/3-edges.size+mesh.indices.length/3).toBe(0);
+  expect(mesh.volume).toBeGreaterThan(450);
+  expect(mesh.printSize[2]).toBeLessThan(7);
+});
+
+test.each([
+  'stroke([[0,0,0],[1,1,1]],[1,1,1,1],1)',
+  'stroke([[0,0,0],[1,1,1],[2,2,2],[3,3,3]],[1,0,1,1],1)',
+  'stroke([[0,0,0],[1,1,1],[2,2,2],[3,3,3]],[1,1,1,1],0)',
+])('rejects invalid stroke inputs: %s', expression=>{
+  const d=defaultDesign();d.scene='object';d.programs=[{...curvedArmor,source:`return ${expression};`}];
+  expect(()=>engine.build(d)).toThrow();
+});
+
+test('rounded rectangular frame preserves exact bounds and the central through-hole',()=>{
+  const d=defaultDesign();d.scene='object';
+  d.programs=[{...curvedArmor,size:[65,95,12],source:'return subtract(roundedBox([65,95,4],8),move(roundedBox([53,83,6],3),[6,6,-1]));'}];
+  const mesh=engine.build(d).parts[0];
+  expect(mesh.printSize).toEqual([65,95,4]);
+  const edges=new Set<string>();
+  for(let i=0;i<mesh.indices.length;i+=3)for(let k=0;k<3;k++)edges.add([mesh.indices[i+k],mesh.indices[i+(k+1)%3]].sort((a,b)=>a-b).join(':'));
+  expect(mesh.positions.length/3-edges.size+mesh.indices.length/3).toBe(0);
+});

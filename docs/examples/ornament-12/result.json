@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "geometryRepaired": false,
+  "message": "bottomRight部の3本目strokeの先端半径（Rtip*0.45→1.2mm）だけを変更します。他部の寸法・制御点・倍率・色・ほかstrokeは完全に維持します。",
+  "parts": [
+    {
+      "id": "model-1",
+      "size": [
+        65,
+        95,
+        11.579928398132324
+      ],
+      "volume": 11483.66621565165,
+      "triangles": 10470
+    }
+  ],
+  "issues": [
+    {
+      "code": "custom-print",
+      "level": "warning",
+      "message": "自由形状・複合部品の細い箇所・接続強度・サポートの要否は自動判定していません。試し刷りで確認してください。"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4.1",
+  "message": "右上に位置するbottomRightだけを部分編集。4本あるstrokeのうち3本目の自由端の先端半径Rtip*0.45（現在0.585mm）だけを1.2mmへ変更して。他のstrokeの半径、すべての制御点、厚み倍率、他の部位、枠、寸法、色は完全に保持して。",
+  "imageAttached": false,
+  "input": "docs/examples/ornament-10/frame.oshinest.json",
+  "calls": 1,
+  "repairs": 0,
+  "inputTokens": 4161,
+  "outputTokens": 512,
+  "milliseconds": 4789
+}

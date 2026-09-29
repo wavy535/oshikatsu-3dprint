@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4.1",
+  "message": "最後にYが小さい右下（現コードtopRight）だけ、4本の非対称な幅広い炎の装飾へ増やして。他の部位、枠、開口、色、寸法は保持。厚さ方向は薄い扁平、根元と中腹は幅広く、先端は細い。少なくとも1本は右辺をY=40あたりまで延ばし、1本は枠へ戻る曲線で穴を作って。外寸は65×95×12mm以内で確実に枠へ接続して。",
+  "imageAttached": false,
+  "input": "docs/examples/ornament-14/frame.oshinest.json",
+  "calls": 1,
+  "repairs": 0,
+  "inputTokens": 4503,
+  "outputTokens": 569,
+  "milliseconds": 5378
+}

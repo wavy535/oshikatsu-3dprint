@@ -1,0 +1,33 @@
+import {test,expect} from '@playwright/test';
+import {readFile} from 'node:fs/promises';
+import {unzipSync,strFromU8} from 'fflate';
+import {applyProposal} from '../../src/lib/design/ai-contract';
+const dir='docs/examples/ornament-10';
+test('recorded real AI local ornament edit runs in WASM, exports and undoes without changing other regions',async({page})=>{
+ const before=JSON.parse(await readFile('docs/examples/ornament-08/frame.oshinest.json','utf8'));
+ const after=JSON.parse(await readFile(`${dir}/frame.oshinest.json`,'utf8'));
+ const raw=JSON.parse(await readFile(`${dir}/response-2.json`,'utf8'));
+ const proposal=JSON.parse(raw[0].content.find((c:{type:string})=>c.type==='output_text').text);
+ expect(proposal.changes[0].path).toBe('program.edit');
+ const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/api/design/chat',async route=>{
+  const body=route.request().postDataJSON();expect(body.design).toEqual(before);
+  await route.fulfill({json:{...proposal,design:applyProposal(body.design,proposal).design,attempts:1}});
+ });
+ await page.goto('/create');
+ await page.getByText('設計を開く・ファイルに保存',{exact:true}).click();
+ await page.getByLabel('設計ファイル',{exact:true}).setInputFiles('docs/examples/ornament-08/frame.oshinest.json');
+ await expect(page.getByLabel('制作対象',{exact:true})).toHaveValue('object');
+ await expect(page.getByTestId('design-status')).toHaveText('プレビューを更新しました');
+ await page.getByLabel('変えたいところ',{exact:true}).fill('右上の装飾だけ増やして');
+ await page.getByRole('button',{name:'送信して編集'}).click();
+ await expect(page.getByRole('log')).toContainText('部分更新');
+ const download=page.waitForEvent('download');await page.getByRole('button',{name:'印刷用3MFを保存'}).click();
+ const files=unzipSync(await readFile((await(await download).path())!));
+ expect(JSON.parse(strFromU8(files['design.oshinest.json']))).toEqual(after);
+ await page.getByRole('button',{name:'取り消し',exact:true}).click();
+ const reverted=page.waitForEvent('download');await page.getByRole('button',{name:'印刷用3MFを保存'}).click();
+ const previous=unzipSync(await readFile((await(await reverted).path())!));
+ expect(JSON.parse(strFromU8(previous['design.oshinest.json']))).toEqual(before);
+ expect(errors).toEqual([]);
+});

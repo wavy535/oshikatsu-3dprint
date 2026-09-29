@@ -1,0 +1,16 @@
+[
+  {
+    "id": "msg_02ac0caa7306f14c016abb52a9ebbc87d09f32d628fd072951",
+    "type": "message",
+    "status": "completed",
+    "content": [
+      {
+        "type": "output_text",
+        "annotations": [],
+        "logprobs": [],
+        "text": "{\"message\":\"四隅に炎や蔓のように膨らんで先細りする滑らかな非対称曲線の装飾フレームを、中央開口65x95mm、厚み12mm以内で作成します。右上の部位は別定義で後から変更可能。色はマットグレーにします。\",\"changes\":[{\"path\":\"custom.upsert\",\"value\":{\"id\":\"custom-1\",\"name\":\"装飾フレーム-左上\",\"x\":0,\"y\":0,\"color\":\"#666666\",\"steps\":[{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":10,\"y\":8,\"z\":12},\"center\":{\"x\":5,\"y\":7,\"z\":6},\"rotation\":{\"x\":45,\"y\":-15,\"z\":10}},{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":8,\"y\":5,\"z\":12},\"center\":{\"x\":15,\"y\":10,\"z\":6},\"rotation\":{\"x\":20,\"y\":-5,\"z\":5}},{\"operation\":\"subtract\",\"primitive\":\"cylinder\",\"size\":{\"x\":4,\"y\":3,\"z\":12},\"center\":{\"x\":12,\"y\":6,\"z\":6},\"rotation\":{\"x\":30,\"y\":0,\"z\":20}}]}},{\"path\":\"custom.upsert\",\"value\":{\"id\":\"custom-2\",\"name\":\"装飾フレーム-右下\",\"x\":46,\"y\":83,\"color\":\"#666666\",\"steps\":[{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":11,\"y\":7,\"z\":12},\"center\":{\"x\":9,\"y\":8,\"z\":6},\"rotation\":{\"x\":40,\"y\":10,\"z\":-10}},{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":7,\"y\":6,\"z\":12},\"center\":{\"x\":18,\"y\":12,\"z\":6},\"rotation\":{\"x\":25,\"y\":-10,\"z\":15}},{\"operation\":\"subtract\",\"primitive\":\"cylinder\",\"size\":{\"x\":5,\"y\":4,\"z\":12},\"center\":{\"x\":14,\"y\":8,\"z\":6},\"rotation\":{\"x\":35,\"y\":5,\"z\":0}}]}},{\"path\":\"custom.upsert\",\"value\":{\"id\":\"custom-3\",\"name\":\"装飾フレーム-右上\",\"x\":46,\"y\":0,\"color\":\"#666666\",\"steps\":[{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":10,\"y\":8,\"z\":12},\"center\":{\"x\":7,\"y\":9,\"z\":6},\"rotation\":{\"x\":35,\"y\":15,\"z\":5}},{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":6,\"y\":7,\"z\":12},\"center\":{\"x\":16,\"y\":13,\"z\":6},\"rotation\":{\"x\":30,\"y\":-10,\"z\":10}},{\"operation\":\"subtract\",\"primitive\":\"cylinder\",\"size\":{\"x\":4,\"y\":3,\"z\":12},\"center\":{\"x\":13,\"y\":10,\"z\":6},\"rotation\":{\"x\":30,\"y\":5,\"z\":15}}]}},{\"path\":\"custom.upsert\",\"value\":{\"id\":\"custom-1\",\"name\":\"装飾フレーム-左下\",\"x\":0,\"y\":83,\"color\":\"#666666\",\"steps\":[{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":9,\"y\":7,\"z\":12},\"center\":{\"x\":6,\"y\":7,\"z\":6},\"rotation\":{\"x\":40,\"y\":-10,\"z\":5}},{\"operation\":\"add\",\"primitive\":\"cylinder\",\"size\":{\"x\":7,\"y\":5,\"z\":12},\"center\":{\"x\":15,\"y\":9,\"z\":6},\"rotation\":{\"x\":25,\"y\":5,\"z\":-10}},{\"operation\":\"subtract\",\"primitive\":\"cylinder\",\"size\":{\"x\":4,\"y\":4,\"z\":12},\"center\":{\"x\":11,\"y\":6,\"z\":6},\"rotation\":{\"x\":35,\"y\":0,\"z\":20}}]}},{\"path\":\"custom.upsert\",\"value\":{\"id\":\"custom-1\",\"name\":\"装飾フレーム-中央枠\",\"x\":0,\"y\":0,\"color\":\"#666666\",\"steps\":[{\"operation\":\"subtract\",\"primitive\":\"box\",\"size\":{\"x\":65,\"y\":95,\"z\":12},\"center\":{\"x\":32.5,\"y\":47.5,\"z\":6},\"rotation\":{\"x\":0,\"y\":0,\"z\":0}}]}}]}"
+      }
+    ],
+    "role": "assistant"
+  }
+]

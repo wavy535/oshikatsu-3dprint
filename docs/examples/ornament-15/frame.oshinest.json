@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "15cmぬいのおうち",
+  "house": {
+    "width": 190,
+    "depth": 160,
+    "height": 175,
+    "thickness": 3,
+    "roofRise": 40,
+    "leftWall": true,
+    "rightWall": true,
+    "roof": true,
+    "wallColor": "#F5F1E8",
+    "floorColor": "#D7BD99",
+    "roofColor": "#2563EB"
+  },
+  "window": {
+    "shape": "rectangle",
+    "enabled": true,
+    "width": 55,
+    "height": 60
+  },
+  "shelf": {
+    "enabled": false,
+    "width": 55,
+    "depth": 35,
+    "height": 65,
+    "x": 125,
+    "y": 90,
+    "color": "#D7BD99"
+  },
+  "scene": "object",
+  "programs": [
+    {
+      "id": "model-1",
+      "name": "炎と蔓の盛り装飾フレーム",
+      "x": 0,
+      "y": 0,
+      "color": "#888888",
+      "size": [
+        65,
+        95,
+        12
+      ],
+      "source": "const W=65,D=95,H=12; // 外寸\nconst baseT=3; // 枠の厚み=板部分3mm\nconst decoZ0=3.5,decoZ1=11.5; // 装飾のZ範囲\nconst Rmain=4,Rtip=1.3; // 盛り装飾最大・最小半径\nconst outR=7,inR=5; // 外・内輪郭半径\nconst openW=W-18,openD=D-22; // 中央開口\n// 枠ベース\nconst outer=roundedBox([W,D,baseT],outR);\nconst inner=move(roundedBox([openW,openD,baseT+0.6],inR),[(W-openW)/2,(D-openD)/2,-0.3]);\nconst base=subtract(outer,inner);\n// === 盛り装飾定義（上下左右）===\n// 上左（+Y+X小）\nconst topLeft = (union(\n stroke([[9,11,decoZ0+0.2],[5,21,8.2],[8,30,10.1],[20,29,decoZ0+1.0]],\n   [Rmain*0.9,Rmain,Rtip*1.6,Rtip*1.0],0.74), //1本目\n stroke([[12,8,decoZ0+0.3],[2,17,7.7],[5,40,8.8],[16,35,decoZ0+1.7]],\n   [Rmain,Rmain*0.95,Rtip*1.7,Rtip*1.1],0.7), //2本目・左辺40まで\n stroke([[10,10,decoZ0],[8,21,6.9],[14,32,9.7],[25,18,decoZ0+1.5]],\n   [Rmain*0.78,Rmain*0.83,Rtip*1.25,Rtip*0.94],0.7), //3本目\n stroke([[17,15,decoZ0+1],[10,27,(decoZ0+decoZ1)/2],[13,25,10.6],[22,14,decoZ0+1.5]],\n   [Rmain*0.7,Rmain*0.7,Rtip*1.1,Rtip*0.8],0.62) //4本目\n));\n// 上右（+Y+X大）\nconst topRight=(union(\n  // 1本目: 右辺Y=40まで伸ばす太く長い炎\n  stroke([[W-12, D-15, decoZ0+1], [W-5,40,8.4], [W-7,54,7.2], [W-18,65,decoZ0+2.6]], [Rmain*1.2,4.6,3.1,0.93],0.46),\n  // 2本目: 扁平で根元幅広く、先端細く\n  stroke([[W-19,D-12,decoZ0+2.9],[W-10,D-21,10.0],[W-7,D-25,decoZ1-1.2],[W-16,D-37,decoZ0+2.3]], [Rmain*1.05,Rmain*0.9,Rtip*1.1,Rtip*0.82],0.52),\n  // 3本目: 曲線で枠へ戻り穴を作る軌道\n  stroke([[W-13,D-7,decoZ0+1.4],[W-3,D-2,10.3],[W-6,35,6.4],[W-17,32,decoZ0+1.3]], [Rmain*1.1,3.4,2.2,Rtip*0.82],0.51),\n  // 4本目: 全体が薄い・根元幅広、急カーブの小型炎\n  stroke([[W-10,D-18,decoZ0+2],[W-6,D-21,8.7],[W-10,D-26,7.9],[W-17,22,decoZ0+1.7]], [Rmain*0.95,2.6,1.5,Rtip*0.8],0.41)\n));\n// 下左（-Y+X小）\nconst bottomLeft=(union(\n stroke([[19,83,decoZ0+1.8],[7,86,7.5],[5,54,7.2],[2,50,decoZ1-1.6]],\n   [Rmain*1.2,5,4.1,1],0.45),\n // 枠から大きく張り出して戻る\n stroke([[14,89,decoZ0+1.6],[3,92,8.5],[10,73,6.8],[18,68,decoZ0+1.4]],\n   [Rmain*1.1,4.4,3.7,1.2],0.48),\n // 中型の波状にねじれる炎\n stroke([[14,80,decoZ0+2.2],[7,67,8.9],[11,62,7.4],[20,67,decoZ0+2.4]],\n   [Rmain*0.8,3.1,2.1,0.95],0.39),\n // 小型、素早く戻る炎\n stroke([[18,92,decoZ0+1.1],[10,84,7.4],[17,74,8.0],[25,83,decoZ0+1.8]],\n   [Rmain*0.7,2.1,1.5,0.8],0.36)\n));\n// 下右（-Y+X大）\nconst bottomRight=(union(\n stroke([[W-18,D-10,decoZ0],[W-2,D-15,decoZ0+2.2],[W-7,D-7,decoZ1-1.0],[W-14,D-2,decoZ0+3.1]],\n   [Rmain,Rmain*0.8,Rtip*1.2,Rtip],0.93),\n // 張り出して戻る（最大Z=11.1以下に）\n stroke([[W-15,D-11,decoZ0+0.7],[W-4,D-16,decoZ0+3.6],[W-3,D-22,decoZ1-1.2],[W-14,D-22,decoZ0+2]],\n   [Rmain*0.7,Rmain,Rtip*1.0,Rtip*0.85],0.96),\n // 先細り自由端（最大Z=11.0以下）\n stroke([[W-8,D-10,decoZ1-2.1],[W-2,D-7,decoZ1-1.2],[W-3,D-4,decoZ1-2.6],[W-6,D-2,decoZ0+4]],\n   [Rmain*0.55,Rmain*0.45,Rtip*0.7,Rtip*0.45],0.85),\n // 張り出して戻る2（最大Z=11.0以下）\n stroke([[W-22,D-18,decoZ0+0.5],[W-8,D-13,decoZ1-1.0],[W-9,D-22,decoZ1-1.9],[W-24,D-24,decoZ0+2.5]],\n   [Rmain*0.75,Rmain*0.95,Rtip,Rtip*0.82],0.72)\n ));\nreturn union(base,topLeft,topRight,bottomLeft,bottomRight);"
+    }
+  ],
+  "custom": [],
+  "furniture": [],
+  "nui": {
+    "width": 90,
+    "depth": 80,
+    "height": 150
+  },
+  "bed": {
+    "width": 256,
+    "depth": 256,
+    "height": 256
+  }
+}

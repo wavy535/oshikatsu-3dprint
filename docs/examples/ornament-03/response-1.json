@@ -1,0 +1,16 @@
+[
+  {
+    "id": "msg_0cb11e4a6e2b3033016abb5342433087d0a74a5b8c2e0ac837",
+    "type": "message",
+    "status": "completed",
+    "content": [
+      {
+        "type": "output_text",
+        "annotations": [],
+        "logprobs": [],
+        "text": "{\"message\":\"ご指定の有機的な炎・蔓のような滑らかで非対称な曲線が四隅に絡む装飾フレームを設計します。中央は開口で、幅65mm、長さ95mm、厚み12mm以内の大きさにXY平面で寝かせた形状とし、マットな灰色にします。曲線と抜け穴を確保した四隅別パーツに分けて後で右上だけ変更可能とします。外周は角丸の細い枠とし、各隅にstrokeで膨らみ細く伸びる複数根の縦横方向の炎・蔓形状を加えます。装飾間には穴があり中央開口を貫通させて抜け穴を実現します。受け取り後にソースを生成します。\",\"changes\":[{\"path\":\"program.upsert\",\"value\":{\"id\":\"model-1\",\"name\":\"有機的炎蔓装飾フレーム\",\"x\":0,\"y\":0,\"color\":\"#666666\",\"size\":[65,95,12],\"source\":\"const baseWidth=65;const baseHeight=95;const baseThickness=12;const frameWidth=4;const cornerRadius=8;const segments=32;function roundedRectPath(w,h,r){let path=[];for(let i=0;i<segments;i++){let angle=i/segments*2*Math.PI;let x=(w/2-r)*Math.cos(angle);let y=(h/2-r)*Math.sin(angle);if(x>=(w/2-r)&&y>=(h/2-r)){x=w/2-r;y=h/2-r;}else if(x>=w/2-r&&y<=-(h/2-r)){x=w/2-r;y=-(h/2-r);}else if(x<=-(w/2-r)&&y>=h/2-r){x=-(w/2-r);y=h/2-r;}else if(x<=-(w/2-r)&&y<=-(h/2-r)){x=-(w/2-r);y=-(h/2-r);}path.push([x,y]);}return path;}const outer=roundedRectPath(baseWidth,baseHeight,cornerRadius);const inner=roundedRectPath(baseWidth-2*frameWidth,baseHeight-2*frameWidth,cornerRadius-frameWidth);function extrudePath(path,h){return extrude(path,h);}const outerFrame=extrudePath(outer,baseThickness);const innerCut=extrudePath(inner,baseThickness+0.1);let frame=subtract(outerFrame,innerCut);function strokeCurve(points,radii,depthRatio){return stroke(points,radii,depthRatio);}const topLeft=strokeCurve([[0,0,0],[10,40,4],[15,65,6],[20,90,1]],[3.5,5,3,1],0.7);const bottomLeft=strokeCurve([[0,0,0],[10,-25,3],[20,-55,4],[30,-75,1]],[3,4,2.5,1],0.6);const bottomRight=strokeCurve([[0,0,0],[-8,-20,3],[-18,-45,4],[-25,-70,1]],[3,4,2,1],0.65);const topRight=strokeCurve([[0,0,0],[-10,35,5],[-20,50,2],[-25,70,1]],[3,3.5,2,1],0.7);const offsetTopLeft=move(topLeft,[-baseWidth/2+cornerRadius,baseHeight/2-cornerRadius,baseThickness/2]);const offsetBottomLeft=move(bottomLeft,[-baseWidth/2+cornerRadius,-baseHeight/2+cornerRadius,baseThickness/2]);const offsetBottomRight=move(bottomRight,[baseWidth/2-cornerRadius,-baseHeight/2+cornerRadius,baseThickness/2]);const offsetTopRight=move(topRight,[baseWidth/2-cornerRadius,baseHeight/2-cornerRadius,baseThickness/2]);return union(frame,offsetTopLeft,offsetBottomLeft,offsetBottomRight,offsetTopRight);\"}}]}"
+      }
+    ],
+    "role": "assistant"
+  }
+]

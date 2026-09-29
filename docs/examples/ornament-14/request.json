@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4.1",
+  "message": "続いてYが小さい左下（現コードtopLeft）だけ、細い爪2本を4本の大小の非対称な炎へ変更して。他の部位、枠、寸法、色は保持。幅広い根元と中腹、細い先端、Z方向に薄い扁平な形にして、少なくとも1本は左辺をY=40付近まで伸ばして。枠へ戻る曲線で抜け穴も残す。X方向は0..65、Y方向0..95、Z方向0..12以内。",
+  "imageAttached": false,
+  "input": "docs/examples/ornament-13/frame.oshinest.json",
+  "calls": 1,
+  "repairs": 0,
+  "inputTokens": 4350,
+  "outputTokens": 468,
+  "milliseconds": 4785
+}
