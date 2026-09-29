@@ -15,8 +15,8 @@ function waitForCooldown(ms: number, signal: AbortSignal) {
 // Ignore formatting, comments and AST positions when identifying repeated code.
 function fingerprint(proposal: Proposal): string {
   return JSON.stringify(proposal.changes, (key, value) => {
-    if (key === "source" && typeof value === "string") {
-      try { return JSON.parse(JSON.stringify(parseModelScript(value), (k, v) => ["start", "end", "loc", "raw"].includes(k) ? undefined : v)); }
+    if ((key === "source" || key === "expression") && typeof value === "string") {
+      try { return JSON.parse(JSON.stringify(parseModelScript(key === "expression" ? `return (${value});` : value), (k, v) => ["start", "end", "loc", "raw"].includes(k) ? undefined : v)); }
       catch { return value.trim(); }
     }
     return value;

@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4.1",
+  "message": "今変更した右上、bottomRightだけ、自由端の先端を丸めて太くして。先端の半径が0.6mmより細いものは1.2mmへ、残りはそのまま。曲線の位置、根元の太さ、他の3隅と枠、開口、色、外寸は一切変えないで。",
+  "imageAttached": false,
+  "input": "docs/examples/ornament-10/frame.oshinest.json",
+  "calls": 1,
+  "repairs": 0,
+  "inputTokens": 4158,
+  "outputTokens": 525,
+  "milliseconds": 5105
+}

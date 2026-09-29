@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4.1",
+  "message": "画像のような幅広い炎の装飾へ、Yが大きい左上（現コードbottomLeft）だけを変更して。他の部位と枠は保持。今の細い爪2本を、大小4本の非対称な炎へ増やしたい。根元と中腹は幅広く、先端は細い形。Z方向は薄く扁平にして、丸い針金ではなく膨らんだリボンのように見せたい。1本は左辺をY=50付近まで伸ばし、1本は枠に戻って穴を囲んで。他の部位は変更しない。外寸65×95×12以内。",
+  "imageAttached": true,
+  "input": "docs/examples/ornament-10/frame.oshinest.json",
+  "calls": 1,
+  "repairs": 0,
+  "inputTokens": 4999,
+  "outputTokens": 518,
+  "milliseconds": 5101
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "file": "docs/examples/ai-samples-2026-09-29/ornate-chair.oshinest.json",
+    "passed": true,
+    "browserExportMatches": true,
+    "errors": []
+  },
+  {
+    "file": "docs/examples/ai-samples-2026-09-29/petal-base-edited.oshinest.json",
+    "passed": true,
+    "browserExportMatches": true,
+    "errors": []
+  },
+  {
+    "file": "docs/examples/ai-samples-2026-09-29/petal-base.oshinest.json",
+    "passed": true,
+    "browserExportMatches": true,
+    "errors": []
+  }
+]

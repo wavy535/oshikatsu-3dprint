@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "15cmぬいのおうち",
+  "house": {
+    "width": 190,
+    "depth": 160,
+    "height": 175,
+    "thickness": 3,
+    "roofRise": 40,
+    "leftWall": true,
+    "rightWall": true,
+    "roof": true,
+    "wallColor": "#F5F1E8",
+    "floorColor": "#D7BD99",
+    "roofColor": "#2563EB"
+  },
+  "window": {
+    "shape": "rectangle",
+    "enabled": true,
+    "width": 55,
+    "height": 60
+  },
+  "shelf": {
+    "enabled": false,
+    "width": 55,
+    "depth": 35,
+    "height": 65,
+    "x": 125,
+    "y": 90,
+    "color": "#D7BD99"
+  },
+  "scene": "object",
+  "programs": [
+    {
+      "id": "model-1",
+      "name": "炎と蔓の盛り装飾フレーム",
+      "x": 0,
+      "y": 0,
+      "color": "#888888",
+      "size": [
+        65,
+        95,
+        12
+      ],
+      "source": "const W=65,D=95,H=12; // 外寸\nconst baseT=3; // 枠の厚み=板部分3mm\nconst decoZ0=3.5,decoZ1=11.5; // 装飾のZ範囲\nconst Rmain=4,Rtip=1.3; // 盛り装飾最大・最小半径\nconst outR=7,inR=5; // 外・内輪郭半径\nconst openW=W-18,openD=D-22; // 中央開口\n// 枠ベース\nconst outer=roundedBox([W,D,baseT],outR);\nconst inner=move(roundedBox([openW,openD,baseT+0.6],inR),[(W-openW)/2,(D-openD)/2,-0.3]);\nconst base=subtract(outer,inner);\n// === 盛り装飾定義（上下左右）===\n// 上左（+Y+X小）\nconst topLeft = union(\n stroke([[10,11,decoZ0],[6,19,(decoZ0+decoZ1)/2],[12,27,decoZ1],[21,22,(decoZ0+decoZ1)/2+0.6]],\n   [Rmain,Rmain*0.9,Rtip*1.4,Rtip],0.9),\n stroke([[13,8,decoZ0+0.4],[3,15,(decoZ0+decoZ1)/2+1],[11,25,decoZ1-0.4],[23,17,decoZ0+2.5]],\n   [Rmain*0.7,Rmain*0.8,Rtip*1.1,Rtip*0.9],0.8)\n);\n// 上右（+Y+X大）\nconst topRight=union(\n stroke([[W-13,8,decoZ0],[W-5,12,decoZ0+2],[W-8,27,decoZ1-0.3],[W-22,26,(decoZ0+decoZ1)/2]],\n   [Rmain*0.8,Rmain,Rtip*1.25,Rtip],0.91),\n stroke([[W-17,15,decoZ0+1],[W-2,21,(decoZ0+decoZ1)/2+2],[W-11,26,decoZ1-0.6],[W-23,19,decoZ0+2]],\n   [Rmain*0.7,Rmain*0.7,Rtip*1.1,Rtip*0.9],0.7)\n);\n// 下左（-Y+X小）\nconst bottomLeft=union(\n stroke([[12,D-12,decoZ0],[3,D-11,decoZ0+2],[8,D-27,decoZ1-0.3],[18,D-22,(decoZ0+decoZ1)/2]],\n   [Rmain*0.9,Rmain,Rtip*1.2,Rtip*1],0.93),\n stroke([[11,D-19,decoZ0+1],[4,D-10,(decoZ0+decoZ1)/2+1],[17,D-25,decoZ1-1],[22,D-17,decoZ0+2.6]],\n   [Rmain*0.7,Rmain*0.8,Rtip*1.1,Rtip*0.85],0.74)\n);\n// 下右（-Y+X大）\nconst bottomRight=(union(\n stroke([[W-18,D-10,decoZ0],[W-2,D-15,decoZ0+2.2],[W-7,D-7,decoZ1-1.0],[W-14,D-2,decoZ0+3.1]],\n   [Rmain,Rmain*0.8,Rtip*1.2,Rtip],0.93),\n // 張り出して戻る（最大Z=11.1以下に）\n stroke([[W-15,D-11,decoZ0+0.7],[W-4,D-16,decoZ0+3.6],[W-3,D-22,decoZ1-1.2],[W-14,D-22,decoZ0+2]],\n   [Rmain*0.7,Rmain,Rtip*1.0,Rtip*0.85],0.96),\n // 先細り自由端（最大Z=11.0以下）\n stroke([[W-8,D-10,decoZ1-2.1],[W-2,D-7,decoZ1-1.2],[W-3,D-4,decoZ1-2.6],[W-6,D-2,decoZ0+4]],\n   [Rmain*0.55,Rmain*0.45,Rtip*0.7,Rtip*0.45],0.85),\n // 張り出して戻る2（最大Z=11.0以下）\n stroke([[W-22,D-18,decoZ0+0.5],[W-8,D-13,decoZ1-1.0],[W-9,D-22,decoZ1-1.9],[W-24,D-24,decoZ0+2.5]],\n   [Rmain*0.75,Rmain*0.95,Rtip,Rtip*0.82],0.72)\n ));\nreturn union(base,topLeft,topRight,bottomLeft,bottomRight);"
+    }
+  ],
+  "custom": [],
+  "furniture": [],
+  "nui": {
+    "width": 90,
+    "depth": 80,
+    "height": 150
+  },
+  "bed": {
+    "width": 256,
+    "depth": 256,
+    "height": 256
+  }
+}

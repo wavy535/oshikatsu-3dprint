@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4.1",
+  "message": "1枚目が参考写真、2枚目が現在のプレビュー。今は四隅に細い爪が2本ずつあるだけで、写真の絡み合う炎・蔓の密度や太さ変化が足りない。四隅それぞれ4本程度の非対称な曲線へ増やし、四隅から辺にも装飾を伸ばして。根元は幅広く膨らみ、端は細く尖る。何本かは枠へ戻って穴を囲み、何本かは自由端にする。外寸65×95×12mm以内、中央の大きな開口、3mmの底枠を維持して。topRightはX大かつY大の右上領域として定義し、命名と実座標を一致させて。",
+  "imageAttached": true,
+  "input": "docs/examples/ornament-08/frame.oshinest.json",
+  "calls": 2,
+  "repairs": 1,
+  "inputTokens": 11816,
+  "outputTokens": 3012,
+  "milliseconds": 15889
+}

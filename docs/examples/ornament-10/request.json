@@ -1,0 +1,11 @@
+{
+  "model": "gpt-4.1",
+  "message": "右上の装飾だけを写真のように複雑にして。他の3隅と枠・開口・寸法・色は一切変えないで。右上はXが大きくYが大きい領域で、今のコードではbottomRightという変数になっている部分です。その部位を4本の太さの変わる曲線に増やし、辺にも伸ばして密度を上げて。2本は根元から張り出して枠へ戻って穴を作り、2本は先細りする自由端に。2枚目が現在のプレビューです。",
+  "imageAttached": true,
+  "input": "docs/examples/ornament-08/frame.oshinest.json",
+  "calls": 2,
+  "repairs": 1,
+  "inputTokens": 11185,
+  "outputTokens": 1262,
+  "milliseconds": 10565
+}

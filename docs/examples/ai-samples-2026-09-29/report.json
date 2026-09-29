@@ -1,0 +1,113 @@
+{
+  "date": "2026-09-29T05:33:52.242Z",
+  "model": "gpt-4.1-mini",
+  "maxCalls": 12,
+  "calls": 6,
+  "results": [
+    {
+      "id": "ornate-chair",
+      "prompt": "単体のミニチュア椅子を作って。曲がった4本の脚、波打つ背もたれ、5つの唐草の装飾をつけて。全体は幅65mm、奥行65mm、高さ105mm以内。金色。装飾は本体につながっていて、1つの自由形状部品にして。",
+      "passed": true,
+      "calls": 1,
+      "repairs": 0,
+      "geometryRepaired": false,
+      "milliseconds": 5509,
+      "inputTokens": 5648,
+      "outputTokens": 492,
+      "message": "ご指定のミニチュア椅子を幅65mm、奥行65mm、高さ105mm以内で金色にて作成します。脚は曲がった4本、背もたれは波打ち、5つの唐草装飾が本体に一体化した自由形状1つで表現します。しばらくお待ちください。",
+      "parts": [
+        {
+          "id": "model-1",
+          "size": [
+            52.697059631347656,
+            45,
+            98
+          ],
+          "volume": 31132.411018006336,
+          "triangles": 3440
+        }
+      ],
+      "issues": [
+        {
+          "code": "custom-print",
+          "level": "warning",
+          "message": "自由形状・複合部品の細い箇所・接続強度・サポートの要否は自動判定していません。試し刷りで確認してください。"
+        }
+      ]
+    },
+    {
+      "id": "curved-armor",
+      "prompt": "キャラクター用のミニチュア装甲を単体で作って。先端が細く前後に湾曲する曲面、表面に2本の波状の盛り上がった紋様。幅60mm、奥行40mm、高さ75mm以内。青灰色。紋様は本体につなげ、1つの自由形状部品にして。",
+      "passed": false,
+      "calls": 3,
+      "repairs": 2,
+      "milliseconds": 11591,
+      "inputTokens": 18159,
+      "outputTokens": 1157,
+      "error": "今回は形を完成できませんでした。現在のモデルは変更していません。もう一度試すか、作り方を相談できます。",
+      "diagnostic": "model-1: 形が分離しています。装飾と本体を体積が重なるようにつないでください。"
+    },
+    {
+      "id": "petal-base",
+      "prompt": "花びら形のぬい用台座を単体で作って。上から見て8枚の丸い花びらが連続する波形の輪郭。幅90mm、奥行90mm以内、高さ6mmで平らな天面と底面。ピンク色。1つの自由形状部品にして。",
+      "passed": true,
+      "calls": 1,
+      "repairs": 0,
+      "geometryRepaired": false,
+      "milliseconds": 2889,
+      "inputTokens": 5639,
+      "outputTokens": 293,
+      "message": "花びら形のぬい用台座を作成します。8枚の丸い花びらが連続する波形の輪郭で、幅90mm・奥行90mm以内・高さ6mmの平らな天面と底面の自由形状です。色はピンクにします。",
+      "parts": [
+        {
+          "id": "model-1",
+          "size": [
+            45,
+            45,
+            6
+          ],
+          "volume": 9299.207406321902,
+          "triangles": 60
+        }
+      ],
+      "issues": [
+        {
+          "code": "custom-print",
+          "level": "warning",
+          "message": "自由形状・複合部品の細い箇所・接続強度・サポートの要否は自動判定していません。試し刷りで確認してください。"
+        }
+      ]
+    },
+    {
+      "id": "petal-base-edited",
+      "prompt": "形と寸法を維持して色だけ #9060c0 にして。",
+      "passed": true,
+      "calls": 1,
+      "repairs": 0,
+      "geometryRepaired": false,
+      "milliseconds": 7171,
+      "inputTokens": 5963,
+      "outputTokens": 246,
+      "message": "花びら形の台座の形と寸法を維持し、色を薄紫の#9060c0に変更します。",
+      "parts": [
+        {
+          "id": "model-1",
+          "size": [
+            45,
+            45,
+            6
+          ],
+          "volume": 9299.207406321902,
+          "triangles": 60
+        }
+      ],
+      "issues": [
+        {
+          "code": "custom-print",
+          "level": "warning",
+          "message": "自由形状・複合部品の細い箇所・接続強度・サポートの要否は自動判定していません。試し刷りで確認してください。"
+        }
+      ]
+    }
+  ]
+}

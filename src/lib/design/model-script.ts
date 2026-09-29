@@ -11,6 +11,8 @@ export const modelSignatures: Readonly<Record<string, readonly [number, number, 
   union: [2, 16, "union(a,b,...): 2〜16個の立体をすべて結合"], subtract: [2, 2, "subtract(a,b)"], intersect: [2, 2, "intersect(a,b)"],
   extrude: [2, 2, "extrude([[x,y],...],高さ)"], revolve: [1, 1, "revolve([[半径,高さ],...])"],
   mesh: [2, 2, "mesh(頂点配列,三角形配列)"], loft: [1, 1, "loft(断面配列)"], tube: [2, 2, "tube(点配列,半径)"],
+  stroke: [3, 3, "stroke(ベジェ制御点4個,半径4個,Z方向の厚み倍率)"],
+  roundedBox: [2, 2, "roundedBox([幅,奥行,高さ],XYの角丸半径)"],
 };
 const supported = new Set(["Program", "BlockStatement", "VariableDeclaration", "VariableDeclarator", "Identifier", "Literal", "ArrayExpression", "ExpressionStatement", "ForStatement", "IfStatement", "ReturnStatement", "BinaryExpression", "LogicalExpression", "UnaryExpression", "UpdateExpression", "AssignmentExpression", "MemberExpression", "CallExpression", "ConditionalExpression", "EmptyStatement"]);
 export function parseModelScript(source: string) {

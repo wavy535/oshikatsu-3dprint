@@ -1,0 +1,16 @@
+[
+  {
+    "id": "msg_00bf0232607943d7016abb5467bb3887d0b592ccd00a8333f3",
+    "type": "message",
+    "status": "completed",
+    "content": [
+      {
+        "type": "output_text",
+        "annotations": [],
+        "logprobs": [],
+        "text": "{\"message\":\"四隅の装飾を、参考写真のように4本程度ずつ複雑に増やし、根元を幅広く、先端を尖らせ、曲線の一部は枠へ戻って中央開口を囲みます。さらに何本かは自由端として伸ばし、外寸・中央開口・底枠は維持し、各四隅から辺にも張り出すよう調整します。topRightは右上（X大・Y大）として定義します。他部位・色はそのままです。下記のように装飾を全面的に強化します。\",\"changes\":[{\"path\":\"program.upsert\",\"value\":{\"id\":\"model-1\",\"name\":\"炎と蔓の盛り装飾フレーム\",\"x\":0,\"y\":0,\"color\":\"#888888\",\"size\":[65,95,12],\"source\":\"const W=65,D=95,H=12;\\nconst baseT=3;\\nconst decoZ0=3.5,decoZ1=11.5;\\nconst Rmain=4.2,Rtip=1.2;\\nconst outR=7,inR=5;\\nconst openW=W-18,openD=D-22;\\nconst outer=roundedBox([W,D,baseT],outR);\\nconst inner=move(roundedBox([openW,openD,baseT+0.6],inR),[(W-openW)/2,(D-openD)/2,-0.3]);\\nconst base=subtract(outer,inner);\\n// 四隅盛り装飾 太さや長さ・本数を増強\\nconst topLeft = union(\\n stroke([[8,8,decoZ0],[2,20,(decoZ1+decoZ0)/1.7],[15,34,decoZ1-1],[29,23,decoZ0+2]], [Rmain,3,2.2,Rtip],0.9),\\n stroke([[11,7,decoZ0+1],[7,23,8],[15,32,decoZ1],[24,19,decoZ0+2.5]], [Rmain*0.82,2.6,1.4,Rtip*0.9],0.7),\\n stroke([[13,8,decoZ0+0.5],[18,14,10],[5,20,7],[9,28,11],[18,27,decoZ1],[25,18,7]], [2.4,2,1.7,1.3,1.1,1],0.55),\\n stroke([[8,13,decoZ0+0.9],[0,30,7],[19,34,decoZ1],[30,17,decoZ0+4]], [2,2.2,1.4,Rtip*0.7],0.54)\\n);\\nconst topRight = union(\\n stroke([[W-8,8,decoZ0],[W-2,22,9],[W-15,34,decoZ1-1.1],[W-29,21,decoZ0+2]], [Rmain,3,2.2,Rtip],0.9),\\n stroke([[W-11,7,decoZ0],[W-7,24,8],[W-18,30,decoZ1-0.3],[W-27,17,decoZ0+2.3]], [Rmain*0.82,2.1,1.4,Rtip*0.9],0.68),\\n stroke([[W-18,11,decoZ0+1.5],[W-2,30,9],[W-19,27,decoZ1-0.8],[W-28,13,decoZ0+2.7]], [Rmain*0.9,1.8,1.2,0.9],0.7),\\n stroke([[W-14,14,decoZ0+2],[W-12,19,9],[W-5,28,decoZ1],[W-23,24,7]], [2.2,1.7,1.25,1],0.53)\\n);\\nconst bottomLeft = union(\\n stroke([[8,D-8,decoZ0],[2,D-25,7.5],[13,D-38,decoZ1],[28,D-25,decoZ0+3]], [Rmain,3.0,2.2,Rtip],0.91),\\n stroke([[13,D-7,decoZ0+1],[0,D-19,9],[13,D-29,decoZ1-0.6],[23,D-16,7.3]], [3.4,2.2,1.4,Rtip*0.98],0.7),\\n stroke([[12,D-16,decoZ0+1.3],[8,D-24,7],[25,D-36,decoZ1-0.7],[30,D-18,decoZ0+3.4]], [2.0,2.0,1.15,1],0.61),\\n stroke([[14,D-12,decoZ0+0.6],[0,D-11,8],[9,D-32,decoZ1-1],[24,D-24,7]], [2.1,1.6,1.19,1],0.5)\\n);\\nconst bottomRight = union(\\n stroke([[W-8,D-8,decoZ0],[W-2,D-23,7.8],[W-12,D-37,decoZ1-0.3],[W-29,D-27,decoZ0+2.1]], [Rmain,3,2.2,Rtip],0.91),\\n stroke([[W-14,D-14,decoZ0],[W-3,D-11,9.5],[W-18,D-27,decoZ1-0.8],[W-32,D-12,7]], [2.5,2.1,1.5,1],0.73),\\n stroke([[W-19,D-10,decoZ0+1.6],[W-2,D-20,9],[W-14,D-34,decoZ1-0.7],[W-27,D-19,decoZ0+3.4]], [2.1,1.7,1.15,1],0.62),\\n stroke([[W-10,D-13,decoZ0+1],[W-8,D-28,9],[W-25,D-33,decoZ1-0.5],[W-32,D-16,decoZ0+2.9]], [1.7,1.2,1.19,1],0.52)\\n);\\nreturn union(base,topLeft,topRight,bottomLeft,bottomRight);\"}}]}"
+      }
+    ],
+    "role": "assistant"
+  }
+]

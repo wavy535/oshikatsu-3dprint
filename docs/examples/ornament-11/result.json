@@ -1,0 +1,24 @@
+{
+  "passed": true,
+  "geometryRepaired": false,
+  "message": "右下（bottomRight）のみ、自由端の先端半径が0.6mmより細い（0.45や0.7の部分）strokeについて、その先端半径を1.2mmに修正します。曲線の経路や根元の太さ、他の部位・全体寸法・色は維持します。",
+  "parts": [
+    {
+      "id": "model-1",
+      "size": [
+        65,
+        95,
+        11.579928398132324
+      ],
+      "volume": 11495.96705220912,
+      "triangles": 10476
+    }
+  ],
+  "issues": [
+    {
+      "code": "custom-print",
+      "level": "warning",
+      "message": "自由形状・複合部品の細い箇所・接続強度・サポートの要否は自動判定していません。試し刷りで確認してください。"
+    }
+  ]
+}

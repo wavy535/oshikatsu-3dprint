@@ -1,4 +1,5 @@
 import { programIds, programSchema } from "./program.ts";
+import { editProgramBinding } from "./program-edit.ts";
 import { z } from "zod";
 import { compositeSchema, compositeIds } from "./composite.ts";
 import { referenceImageSchema, MAX_REFERENCE_IMAGES } from "./reference-images.ts";
@@ -13,6 +14,7 @@ export const windowShapeLabels = { rectangle: "四角", ellipse: "丸・楕円" 
 export const changeSchema = z.union([
   z.object({ path: z.literal("scene"), value: z.enum(["house", "object"]) }).strict(),
   z.object({ path: z.literal("program.upsert"), value: programSchema }).strict(),
+  z.object({ path: z.literal("program.edit"), value: z.object({ id: z.enum(programIds), binding: z.string().regex(/^[A-Za-z_$][\w$]*$/).max(80), expression: z.string().min(1).max(12000) }).strict() }).strict(),
   z.object({ path: z.literal("program.remove"), value: z.enum(programIds) }).strict(),
   z.object({ path: z.literal("custom.upsert"), value: compositeSchema }).strict(),
   z.object({ path: z.literal("custom.remove"), value: z.enum(compositeIds) }).strict(),
@@ -58,9 +60,15 @@ export function applyProposal(base: Design, value: unknown): { proposal: Proposa
   const candidate = structuredClone(parseDesign(base));
   const seen = new Set<string>();
   for (const change of proposal.changes) {
-    const identity = (change.path === "furniture.upsert" || change.path === "custom.upsert" || change.path === "program.upsert") ? change.value.id : (change.path === "furniture.remove" || change.path === "custom.remove" || change.path === "program.remove") ? change.value : change.path;
+    const identity = (change.path === "furniture.upsert" || change.path === "custom.upsert" || change.path === "program.upsert" || change.path === "program.edit") ? change.value.id : (change.path === "furniture.remove" || change.path === "custom.remove" || change.path === "program.remove") ? change.value : change.path;
     if (seen.has(identity)) throw new Error("同じ項目への変更を重複させないでください。");
     seen.add(identity);
+    if (change.path === "program.edit") {
+      const p = candidate.programs.find(p => p.id === change.value.id);
+      if (!p) throw new Error("部分編集対象の自由形状がありません。");
+      p.source = editProgramBinding(p.source, change.value.binding, change.value.expression);
+      continue;
+    }
     if (change.path === "program.upsert") {
       const i = candidate.programs.findIndex((p) => p.id === change.value.id);
       if (i < 0) candidate.programs.push(change.value); else candidate.programs[i] = change.value;
@@ -116,6 +124,7 @@ export const pathLabels: Record<string, string> = {
 };
 export function changeSummary(base: Design, changes: Proposal["changes"]): string[] {
   return changes.flatMap(({ path, value }) => {
+    if (path === "program.edit") return [`${base.programs.find(p => p.id === value.id)?.name ?? "自由形状"}：部分更新`];
     if (path === "program.remove") return [`${base.programs.find((p) => p.id === value)?.name ?? "自由形状"}：削除`];
     if (path === "program.upsert") return [`${value.name}：${base.programs.some((p) => p.id === value.id) ? "更新" : "追加"}（自由形状、外寸上限${value.size.join("×")}mm）`];
     if (path === "custom.remove") return [`${base.custom.find((p) => p.id === value)?.name ?? "複合部品"}：削除`];

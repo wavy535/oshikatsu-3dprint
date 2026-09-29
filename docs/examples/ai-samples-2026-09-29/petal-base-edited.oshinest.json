@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "15cmぬいのおうち",
+  "house": {
+    "width": 190,
+    "depth": 160,
+    "height": 175,
+    "thickness": 3,
+    "roofRise": 40,
+    "leftWall": true,
+    "rightWall": true,
+    "roof": true,
+    "wallColor": "#F5F1E8",
+    "floorColor": "#D7BD99",
+    "roofColor": "#2563EB"
+  },
+  "window": {
+    "shape": "rectangle",
+    "enabled": true,
+    "width": 55,
+    "height": 60
+  },
+  "shelf": {
+    "enabled": false,
+    "width": 55,
+    "depth": 35,
+    "height": 65,
+    "x": 125,
+    "y": 90,
+    "color": "#D7BD99"
+  },
+  "scene": "object",
+  "programs": [
+    {
+      "id": "model-1",
+      "name": "花びら形台座",
+      "x": 0,
+      "y": 0,
+      "color": "#9060c0",
+      "size": [
+        90,
+        90,
+        6
+      ],
+      "source": "const petals=8;const w=90;const h=6;const r=w/4;const angleStep=Math.PI*2/petals;let points=[];for(let i=0;i<petals;i++){const angle=i*angleStep;const cx=w/2+r*Math.cos(angle+angleStep/2);const cy=w/2+r*Math.sin(angle+angleStep/2);const px=w/2+Math.cos(angle)*r;const py=w/2+Math.sin(angle)*r;points.push([px,py]);points.push([cx,cy]);}let shape=[];for(let i=0;i<points.length;i++){shape.push(points[i]);}shape.push(points[0]);return extrude(shape,h);"
+    }
+  ],
+  "custom": [],
+  "furniture": [],
+  "nui": {
+    "width": 90,
+    "depth": 80,
+    "height": 150
+  },
+  "bed": {
+    "width": 256,
+    "depth": 256,
+    "height": 256
+  }
+}

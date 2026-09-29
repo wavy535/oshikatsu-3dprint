@@ -6,7 +6,7 @@ type Vec3 = [number, number, number];
 /** Only numeric handles cross the interpreter boundary; WASM objects remain private. */
 export function buildProgram(module: ManifoldToplevel, source: string, envelope: Vec3, own: <T extends Manifold | CrossSection>(v: T) => T): Manifold {
   const handles = new Map<number, Manifold>();
-  let next = 1, totalTriangles = 0;
+  let next = 1, totalTriangles = 0, strokes = 0;
   const error = (s: string): never => { throw new Error(s); };
   const num = (v: ScriptValue | undefined, min = -400, max = 400) => { const n = scriptNumber(v); if (n < min || n > max) return error(`数値は${min}〜${max}です。`); return n; };
   const list = (v: ScriptValue | undefined, min = 1, max = 1024): ScriptValue[] => { if (!Array.isArray(v) || v.length < min || v.length > max) return error(`配列は${min}〜${max}要素です。`); return v; };
@@ -20,6 +20,40 @@ export function buildProgram(module: ManifoldToplevel, source: string, envelope:
     const id = next++; handles.set(id, s); return id;
   };
   const api: ModelApi = {
+    roundedBox: (size, radius) => {
+      const s = vec(size); s.forEach(x => num(x, 0.2, 200));
+      const r = num(radius, 0.1, Math.min(s[0], s[1]) / 2);
+      const polygon: [number, number][] = [];
+      for (let corner = 0; corner < 4; corner++) {
+        const cx = corner === 0 || corner === 3 ? s[0] - r : r;
+        const cy = corner < 2 ? s[1] - r : r;
+        for (let step = 0; step <= 8; step++) {
+          const a = (corner + step / 8) * Math.PI / 2;
+          polygon.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+        }
+      }
+      return keep(own(new module.CrossSection(polygon)).extrude(s[2]));
+    },
+    // A bounded cubic Bezier sweep, with a varying radius and flattened Z.
+    // Ellipsoid hulls stay closed even on tight bends; one batch union avoids
+    // growing sequential booleans. No user callback or host object is exposed.
+    stroke: (controlPoints, radii, depthRatio) => {
+      if (++strokes > 24) return error("曲線装飾は1部品24本までです。");
+      const ps = list(controlPoints, 4, 4).map(vec);
+      const rs = list(radii, 4, 4).map(r => num(r, 0.4, 12));
+      const depth = num(depthRatio, 0.25, 1);
+      const ball = own(module.Manifold.sphere(1, 16));
+      const balls: Manifold[] = [], segments: Manifold[] = [];
+      for (let i = 0; i <= 24; i++) {
+        const t = i / 24, u = 1 - t;
+        const weights = [u*u*u, 3*u*u*t, 3*u*t*t, t*t*t];
+        const center = [0,1,2].map(axis => weights.reduce((sum,w,j) => sum+w*ps[j][axis],0)) as Vec3;
+        const radius = weights.reduce((sum,w,j) => sum+w*rs[j],0);
+        balls.push(own(own(ball.scale([radius,radius,radius*depth])).translate(center)));
+        if (i) segments.push(own(module.Manifold.hull([balls[i-1],balls[i]])));
+      }
+      return keep(module.Manifold.union(segments));
+    },
     box: (size) => { const s = vec(size); s.forEach((x) => num(x, 0.2, 200)); return keep(module.Manifold.cube(s)); },
     sphere: (radius) => keep(module.Manifold.sphere(num(radius, 0.2, 100), 24)),
     cylinder: (height, radius) => keep(module.Manifold.cylinder(num(height, 0.2, 200), num(radius, 0.2, 100), undefined, 32)),
@@ -78,9 +112,16 @@ export function buildProgram(module: ManifoldToplevel, source: string, envelope:
     const result = get(runModelScript(source, api));
     if (result.isEmpty() || result.volume() < 0.001) error("立体が空です。厚みを持たせてください。");
     const pieces = result.decompose(); pieces.forEach(own);
-    if (pieces.length !== 1) error("形が分離しています。装飾と本体を体積が重なるようにつないでください。");
+    if (pieces.length !== 1) {
+      const boxes = pieces.slice(0, 4).map(p => {
+        const b = p.boundingBox();
+        return `${b.min.map(v => v.toFixed(1)).join(",")}〜${b.max.map(v => v.toFixed(1)).join(",")}`;
+      });
+      error(`形が${pieces.length}個に分離しています。装飾と本体を体積が重なるようにつないでください。各形状の範囲[minXYZ〜maxXYZ]mm: ${boxes.join("; ")}`);
+    }
     const bounds = result.boundingBox();
-    if (bounds.max.some((v, i) => v - bounds.min[i] > envelope[i] + 0.01 || v - bounds.min[i] < 0.2)) error("実寸が宣言したsizeを超えるか、厚みがありません。コードとsizeを修正してください。");
+    const actual = bounds.max.map((v, i) => v - bounds.min[i]);
+    if (actual.some((v, i) => v > envelope[i] + 0.01 || v < 0.2)) error(`実寸[${actual.map(v => v.toFixed(2)).join(",")}]mmが宣言したsize[${envelope.join(",")}]mmを超えるか、厚みがありません。半径も外寸に含みます。コードとsizeを修正してください。`);
     return own(result.translate(bounds.min.map((v) => -v) as Vec3));
   } catch (e) { throw new CompositeGeometryError(e instanceof Error ? e.message : "自由形状を生成できませんでした。"); }
 }
