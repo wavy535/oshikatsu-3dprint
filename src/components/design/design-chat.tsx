@@ -148,6 +148,13 @@ export function DesignChat({ snapshot, selected, apply }: {
         </li>)}</ul>}
         <label className="sr-only" htmlFor="design-chat-input">変えたいところ</label>
         <textarea ref={inputRef} id="design-chat-input" value={input} onChange={(e) => setInput(e.target.value)} disabled={busy} maxLength={1000} rows={3}
+          onPaste={(e) => {
+            const files = Array.from(e.clipboardData.files).filter((file) => file.type.startsWith("image/"));
+            if (!files.length) return;
+            // Keep native text insertion for clipboard items containing both.
+            if (!e.clipboardData.getData("text/plain")) e.preventDefault();
+            void attach(files);
+          }}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && e.keyCode !== 229) { e.preventDefault(); void send(); } }}
           placeholder="作りたいものや、変えたいところを送信"
           className="block max-h-40 min-h-20 w-full resize-y border-0 bg-transparent px-2 py-2 text-base leading-6 outline-none disabled:opacity-60" />
@@ -158,7 +165,7 @@ export function DesignChat({ snapshot, selected, apply }: {
             : <Button key="send" type="submit" size="icon" aria-label="送信して編集" disabled={preparing || (!input.trim() && !images.length)}><ArrowUp aria-hidden="true" className="size-5" /></Button>}
         </div>
       </div>
-      <p className="mt-2 text-center text-xs text-muted-foreground">Enterで送信 · Shift + Enterで改行</p>
+      <p className="mt-2 text-center text-xs text-muted-foreground">Enterで送信 · Shift + Enterで改行 · 画像も貼り付けできます</p>
       {!!images.length && <p className="mt-2 text-pretty text-xs text-muted-foreground">添付中の画像は、外すまで次の送信にも使います。</p>}
     </form>
     <details className="px-4 pb-3 text-xs text-muted-foreground"><summary className="min-h-8 cursor-pointer py-2">AIの利用について</summary>
