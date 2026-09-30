@@ -2,7 +2,7 @@
 
 ## 配備先と設定
 
-設定の正本は [wrangler.jsonc](../../wrangler.jsonc) と [Geometry設定](geometry/wrangler.jsonc)。対象アカウントは `yumaboda.official@gmail.com` / `1c93af48e1a5c2e163edc9030cff4647`、公開URLは https://oshinest.yumaboda-official.workers.dev 。
+配備先は [wrangler.jsonc](../../wrangler.jsonc) と [Geometry設定](geometry/wrangler.jsonc) で指定する。対象アカウントは `yumaboda.official@gmail.com` / `1c93af48e1a5c2e163edc9030cff4647`、公開URLは https://oshinest.yumaboda-official.workers.dev 。
 
 | リソース | 名前・設定 |
 | --- | --- |
@@ -12,7 +12,7 @@
 | Geometry | 非公開 `oshinest-geometry` / Containers |
 | 配置 | D1 primaryのSIN近傍へのヒント `aws:ap-southeast-1`。AWSリソースは不要 |
 
-これらは既存の配備先。再配備のためにDB・バケットを再作成しない。現在配信中のバージョン、リモートの適用済みマイグレーション、secretの有無は配備時に確認する。この文書の更新でリモート状態は照会していない。
+これらは既存の配備先。再配備のためにDB・バケットを再作成しない。現在配信中のバージョン、リモートの適用済みマイグレーション、secretの有無は配備時に確認する。
 
 PostgreSQL・Hyperdrive・Neonの新規作成、旧AWSの停止・削除は通常の配備に含めない。既存データの移行と開発fixtureの本番投入も行わない。
 
@@ -57,9 +57,9 @@ npx wrangler whoami
 npx wrangler d1 create oshinest --location apac
 ```
 
-対象アカウントを確認し、返されたUUIDを `wrangler.jsonc` の `DATABASE.database_id` に設定する。`npm run db:migrate:remote` で `db/d1/` を適用する。新規DBにはマスター情報だけが入り、会員・注文・作品は作られない。作成済みのDBを再作成しない。
+対象アカウントを確認し、返されたUUIDを `wrangler.jsonc` の `DATABASE.database_id` に設定する。`npm run db:migrate:remote` で `db/d1/` を適用する。新規DBにはマスター情報だけが入り、会員・注文・作品は作られない。
 
-D1の設計、旧PostgreSQLとの差、検証方法は [移行記録](../../docs/d1-migration.md) を参照。既存の `db/migrations/` と `db/tests/` は比較資料であり、D1には実行しない。
+D1の設計、旧PostgreSQLとの差、検証方法は [D1の設計](../../docs/d1-migration.md) を参照。既存の `db/migrations/` と `db/tests/` は比較資料であり、D1には実行しない。
 
 管理者権限を未確認のメールアドレスだけで自動付与しない。初期管理者が必要になった際は、運営本人の登録済みユーザーIDを確認した上で、管理用のD1経路から別途設定する。
 
@@ -97,7 +97,7 @@ npx wrangler deploy --config dist/server/wrangler.json --dry-run
 npm run deploy
 ```
 
-`deploy` は仮のD1 IDとSITE_URL、および設定した公開条件との不一致を拒否する。secretの存在やリモートDBの初期化までは保証しない。配備後に公開ページ、一般会員登録・セッション維持、申請停止、privateファイル拒否を確認する。初回配備はWranglerの `--secrets-file` でコードとsecretを同時に登録できる。ファイルは0600の一時ファイルとし、成功・失敗にかかわらず削除する。
+`deploy` は仮のD1 IDとSITE_URL、および設定した公開条件との不一致を拒否する。secretの有無とリモートDBへのマイグレーション適用は別途確認する。初回配備はWranglerの `--secrets-file` でコードとsecretを同時に登録できる。ファイルは0600の一時ファイルとし、成功・失敗にかかわらず削除する。
 
 ## 配備前後の検証
 
@@ -109,7 +109,7 @@ npm run test:e2e
 npm run check:compat
 ```
 
-全E2Eを公開URLへ向けない。開発用会員を使いDB・R2を書き換える試験を含む。検証内容と環境分離の課題は [テスト方針](../../docs/testing.md) を参照。
+全E2Eを公開URLへ向けない。開発用会員を使いDB・R2を書き換える試験を含む。実行方法と試験データの問題は [テスト文書](../../docs/testing.md) を参照。
 
 配備後はhealth・公開ページ、一般会員登録とセッション維持、申請停止、未認証の保護画面、privateファイル・不正転送トークンの拒否を確認する。AIを配備した場合はモデル設定・利用枠・API接続も確認し、有料確認には予算を設ける。確認用データは作成したものだけを特定して片付ける。
 
