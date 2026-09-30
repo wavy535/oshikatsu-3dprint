@@ -1,5 +1,6 @@
 # 公開 /create の LCP 調査
 
+> 過去の資料です。現行仕様・手順は [ドキュメント一覧](../README.md) を参照してください。計測値は記載された版・条件だけの結果です。
 対象は https://oshinest.yumaboda-official.workers.dev/create 。報告値は LCP 5.21 秒、要素は `p.mt-3.mb-4.max-w-3xl.text-pretty.leading-7.text-muted-foreground`。`src/app/(shop)/create/page.tsx` の説明文と一致する。
 
 ## 結果と判断
@@ -49,7 +50,7 @@ PERF_BASE_URL=https://oshinest.yumaboda-official.workers.dev \
   PERF_WARMUP=0 PERF_RUNS=3 npm run perf:frontend -- /create
 ```
 
-計測スクリプトは Server-Timing、接続時間、LCP 要素を JSON へ記録する。ログイン済みの場合は private な `PERF_STORAGE_STATE` を渡す。cookie ファイルをコミットしない。今回の匿名サンプルは [JSON](performance-create-samples-2026-09-28.json) に保存した。
+計測スクリプトは Server-Timing、接続時間、LCP 要素を JSON へ記録する。ログイン済みの場合は private な `PERF_STORAGE_STATE` を渡す。cookie ファイルをコミットしない。今回の匿名サンプルは [JSON](../performance-create-samples-2026-09-28.json) に保存した。
 
 ## 検証
 
