@@ -62,4 +62,4 @@ R2・Geometry・ブラウザ試験は起動環境が別途必要です。実行�
 
 ## ドキュメント
 
-[目的別の一覧](docs/README.md) を入口に、仕様・手順・決定事項を管理します。業務上の制約は [実装構成](docs/architecture.md)、技術選定は [設計上の決定](docs/product-architecture.md)、制作機能は [エディタ仕様](docs/house-editor.md) を参照してください。過去の構成・Figma・計測記録は [archive](docs/archive/README.md) に分離しています。
+[目的別の一覧](docs/README.md) を入口に、仕様・手順・決定事項を管理します。業務上の制約は [実装構成](docs/architecture.md)、技術選定は [設計上の決定](docs/product-architecture.md)、制作機能は [エディタ仕様](docs/house-editor.md) を参照してください。過去の経緯はGit履歴で確認します。

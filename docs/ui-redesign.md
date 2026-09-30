@@ -19,4 +19,4 @@
 
 320pxの横はみ出し、キーボード操作、主要ボタンのコントラスト、検索のJavaScript有無をE2Eで確認する。必要CSSと完全CSSの比較も維持する。これらの自動確認やスクリーンショットの自己点検は、ユーザビリティ調査の代わりにはならない。
 
-検証は [テスト方針](testing.md)、性能は [性能設計](performance.md)、旧Figma資料は [archive](archive/README.md) を参照。
+検証は [テスト方針](testing.md)、性能は [性能設計](performance.md) を参照。
