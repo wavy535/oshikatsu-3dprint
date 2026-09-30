@@ -1,15 +1,20 @@
 # Cloudflareへの配備
 
-## 今回の配備先と進捗（2026-09-28）
+## 配備先と設定
 
-2026-09-28更新。対象は `yumaboda.official@gmail.com` のアカウント `1c93af48e1a5c2e163edc9030cff4647`。通常会員向けの新環境を作り、既存データは移行しない。公開URLは https://oshinest.yumaboda-official.workers.dev 。
+配備先は [wrangler.jsonc](../../wrangler.jsonc) と [Geometry設定](geometry/wrangler.jsonc) で指定する。対象アカウントは `yumaboda.official@gmail.com` / `1c93af48e1a5c2e163edc9030cff4647`、公開URLは https://oshinest.yumaboda-official.workers.dev 。
 
-- 非公開R2 `oshinest-files` を作成済み。`ar-cache/` は7日で削除する。
-- 非公開Geometry Worker・Containersは配備済み。バージョン `23555a3f-7f25-4669-be8c-bc013477c4af`、application ID `a03c3435-2afe-4a00-b33f-9431f949aa28`。
-- D1 `oshinest`（`f0c7b9d1-1af4-4553-a2ef-bb42e65036ca`）をAPACに作成済み。`0001`〜`0008`を適用し、外部キーの整合性と会員・作品・注文が空の状態を確認した。
-- Web Worker `oshinest` を配備済み。バージョン `6eb0f51f-28f5-4b53-b010-b7363ce44c52`、100%配信。`AUTH_SECRET` は登録済みで、再配備時には変更していない。
-- D1 primaryのSINへ近づける配置ヒント `placement.region = "aws:ap-southeast-1"` を使用。AWSリソースは不要。Smart Placementは呼び出し数不足で働いていなかったため変更した。静的assetsは入口のエッジで配信する。
-- PostgreSQL・Hyperdrive・Neonの新規作成は行わない。AWSの停止・削除も行わない。
+| リソース | 名前・設定 |
+| --- | --- |
+| Web Worker | `oshinest` |
+| D1 | `oshinest` / `f0c7b9d1-1af4-4553-a2ef-bb42e65036ca` |
+| R2 | 非公開 `oshinest-files`、`ar-cache/` は7日で削除 |
+| Geometry | 非公開 `oshinest-geometry` / Containers |
+| 配置 | D1 primaryのSIN近傍へのヒント `aws:ap-southeast-1`。AWSリソースは不要 |
+
+これらは既存の配備先。再配備のためにDB・バケットを再作成しない。現在配信中のバージョン、リモートの適用済みマイグレーション、secretの有無は配備時に確認する。
+
+PostgreSQL・Hyperdrive・Neonの新規作成、旧AWSの停止・削除は通常の配備に含めない。既存データの移行と開発fixtureの本番投入も行わない。
 
 公開条件は **メール未確認でも一般会員登録を許可し、クリエイター申請は停止する**。`email_verified` を偽装しない。メール・SMSを送らず、メールによるパスワード再設定も提供しない。実決済・送金は未実装。初期DBに開発用会員・作品・管理者を投入しない。
 
@@ -36,15 +41,15 @@ npm run dev
 
 アプリは http://localhost:3000 。D1・R2のローカル状態は `.wrangler/state/v3`。PostgreSQL・Mailpitは通常の開発で不要。ローカル会員は `buyer@example.com` / `creator@example.com` / `creator2@example.com` / `admin@example.com`、パスワードは `password123`。公開先へseedしない。
 
-このWSLではContainersのネイティブなローカル起動が止まったため、同じDockerイメージをComposeで起動し、ローカルservice bindingから転送する。`infra/local/geometry` は配備しない。終了時はdevプロセスを終了し `docker compose stop geometry`。データのボリュームは削除しない。通常のContainers開発環境では `npm run dev:geometry` を利用できる。
+Containersのネイティブなローカル起動が使えない環境では、同じDockerイメージをComposeで起動し、ローカルservice bindingから転送する。`infra/local/geometry` は配備しない。終了時はdevプロセスを終了し `docker compose stop geometry`。データのボリュームは削除しない。通常のContainers開発環境では `npm run dev:geometry` を利用できる。
 
 Viteは `dist/server/.dev.vars` にローカルsecretをコピーする。`dist` 全体を共有・公開しない。配備はWranglerから行い、公開assetsは `dist/client` だけにする。
 
-本番は必ず `npm run build` を使う。Viteの後に必要CSSの抽出プランをWorkerへ組み込む工程がある。`src/worker.ts` は成功した小さいHTMLだけを最適化し、API・RSC・ファイル配信はそのままvinextへ委ねる。詳細は[1秒未満への改善記録](../../docs/performance-subsecond-2026-09-28.md)。
+本番は必ず `npm run build` を使う。Viteの後に必要CSSの抽出プランをWorkerへ組み込む工程がある。`src/worker.ts` は成功した小さいHTMLだけを最適化し、API・RSC・ファイル配信はそのままvinextへ委ねる。詳細は[性能設計](../../docs/performance.md)。
 
 ## D1を用意する
 
-今回のDBは作成済み。以下は別環境を新設する場合の手順であり、同じDBを再作成しない。
+上記のDBは作成済み。以下は別環境を新設する場合の手順であり、同じDBを再作成しない。
 
 ```bash
 npx wrangler login --device --browser=false --scopes user:read account:read workers:write workers_scripts:write workers_tail:read d1:write containers:write cloudchamber:write artifacts:write
@@ -52,9 +57,9 @@ npx wrangler whoami
 npx wrangler d1 create oshinest --location apac
 ```
 
-対象アカウントを確認し、返されたUUIDを `wrangler.jsonc` の `DATABASE.database_id` に設定する。`npm run db:migrate:remote` で `db/d1/` を適用する。新規DBにはマスター情報だけが入り、会員・注文・作品は作られない。作成済みのDBを再作成しない。
+対象アカウントを確認し、返されたUUIDを `wrangler.jsonc` の `DATABASE.database_id` に設定する。`npm run db:migrate:remote` で `db/d1/` を適用する。新規DBにはマスター情報だけが入り、会員・注文・作品は作られない。
 
-D1の設計、旧PostgreSQLとの差、検証方法は [移行記録](../../docs/d1-migration.md) を参照。既存の `db/migrations/` と `db/tests/` は比較資料であり、D1には実行しない。
+D1の設計、旧PostgreSQLとの差、検証方法は [D1の設計](../../docs/d1-migration.md) を参照。既存の `db/migrations/` と `db/tests/` は比較資料であり、D1には実行しない。
 
 管理者権限を未確認のメールアドレスだけで自動付与しない。初期管理者が必要になった際は、運営本人の登録済みユーザーIDを確認した上で、管理用のD1経路から別途設定する。
 
@@ -71,17 +76,18 @@ npm run deploy:geometry
 
 `oshinest-geometry` はservice binding専用で、workers.devとpreview URLは無効。最大2インスタンス、standard-1、各1処理、外向き通信なし。混雑時は503から再試行メッセージへ変換する。待ち行列は未実装。
 
-配備済みイメージは `sha256:bb7a388aefa51f6a33351cfcefe59a0452b97697e6b9c4404c1e69de92121f64`。初回送信では通常の一時認証期限15分を超えたため、公式の `containers registries credentials` で60分の一時認証を取得して同じイメージを再送した。認証情報は専用一時ディレクトリにだけ保存し、送信後に削除した。
-
-NodeがPID 1の場合のSIGTERM終了処理を実装済み。通常停止と処理中の停止をローカルDockerで検証し、exit 0を確認。修正版のCloudflare rollout後、両インスタンスのinactive状態と一致テスト5件の成功を確認済み。
+ContainerはSIGTERMで処理を終了できることを確認する。イメージのバージョンやrollout結果は配備記録で管理し、手順書の固定値として使わない。
 
 ## Webを配備する
 
-`AUTH_SECRET` は32文字以上の乱数。対話入力または標準入力からsecret登録し、Git・チャット・ログへ記録しない。メール/SMSのキーは不要。
+`AUTH_SECRET` は32文字以上の乱数。対話入力または標準入力からsecret登録し、Git・チャット・ログへ記録しない。メール/SMSのキーは不要。既存の `AUTH_SECRET` は再配備のたびに変更しない。AIを有効にする場合は `OPENAI_API_KEY` とD1の `0009_ai_design_usage.sql` を含む未適用マイグレーションが必要。
 
 ```bash
 npm run db:migrate:remote
+# 初回作成または明示的なローテーション時だけ
 npx wrangler secret put AUTH_SECRET
+# AIを有効にする場合（値は対話入力）
+npx wrangler secret put OPENAI_API_KEY
 npm run cf:types
 npm run typecheck
 npm run lint
@@ -91,28 +97,23 @@ npx wrangler deploy --config dist/server/wrangler.json --dry-run
 npm run deploy
 ```
 
-`deploy` は仮のD1 IDとSITE_URL、および今回と異なる公開条件を拒否する。secretの存在やリモートDBの初期化までは保証しない。配備後に公開ページ、一般会員登録・セッション維持、申請停止、privateファイル拒否を確認する。初回配備はWranglerの `--secrets-file` でコードとsecretを同時に登録できる。ファイルは0600の一時ファイルとし、成功・失敗にかかわらず削除する。
+`deploy` は仮のD1 IDとSITE_URL、および設定した公開条件との不一致を拒否する。secretの有無とリモートDBへのマイグレーション適用は別途確認する。初回配備はWranglerの `--secrets-file` でコードとsecretを同時に登録できる。ファイルは0600の一時ファイルとし、成功・失敗にかかわらず削除する。
 
-## 検証範囲
+## 配備前後の検証
 
-移行前はPostgreSQLの境界テスト117件を比較基準として確認済み。D1移行後は料金計算72ケースと注文スナップショットを旧DBから取得し、期待値として固定した。D1版では権限、在庫競合、精算の丸め、ぬい寸法、通知、失敗時の全体巻き戻し、アップロード差し替え、一覧・集計を検査する。旧SQLテスト117件がそのままD1上で動いたという意味ではない。
+ローカルWebとGeometryを起動し、外部サービス依存の試験も実行する。通常の `npm test` ではR2・Geometryの7ケースはskipされる。
 
 ```bash
-# WebとローカルGeometryを起動して実行
 TEST_WORKER=true TEST_GEOMETRY=true npm test
 npm run test:e2e
 npm run check:compat
 ```
 
-D1のマイグレーション・認証情報分離・rollbackは実際のworkerdでも実行する。ブラウザは登録、注文、非公開データの拒否、複数STL/3MF投稿、GLB/USDZ変換、R2保存、スマホ幅での操作を確認する。隔離ゲスト環境の2件は今回対象外。
+全E2Eを公開URLへ向けない。開発用会員を使いDB・R2を書き換える試験を含む。実行方法と試験データの問題は [テスト文書](../../docs/testing.md) を参照。
 
-D1初回公開時に型・lint・Vitest 258件・互換性15項目・ビルド・Wrangler dry runが成功。本番ビルドのローカルブラウザ試験11件が成功し、隔離ゲスト用2件は対象外。npm監査は0件。リモートD1への適用時にCASE式とトリガーのENDを誤認する分割エラーが発生したため、生成時にCASE式を括弧で囲む修正を追加した。D1関連43件を再実行し、新規のSQL互換性テスト2件、型・lintも成功。
+配備後はhealth・公開ページ、一般会員登録とセッション維持、申請停止、未認証の保護画面、privateファイル・不正転送トークンの拒否を確認する。AIを配備した場合はモデル設定・利用枠・API接続も確認し、有料確認には予算を設ける。確認用データは作成したものだけを特定して片付ける。
 
-公開先ではhealth・トップ・登録画面が200、未ログインの会員/制作/管理画面がログインへ誘導され、privateファイルは404、不正な転送トークンは403となることを確認した。実ブラウザでは、一般会員登録、未確認フラグ維持、再読込後のセッション、申請停止、制作/管理の拒否、メール/SMS/パスワード再設定/匿名登録の停止、320px幅、パスワード再ログイン、実行時例外なしの9項目が成功。最初の試験では検索・ログアウト用フォームまで申請フォームとして数えたため検証側の条件を修正し、全項目を再実行した。2回分の確認用会員はそれぞれ完全一致のメールアドレスで削除し、リクエスト権限をguestへ戻した。R2の公開URL無効も再確認済み。
-
-実機ARの寸法誤差、80MiB最大入力時のメモリ、負荷・料金の測定は未実施。肉厚等の検査は近似であり、造形成功を保証しない。`/dev/ar` のホストフォルダ読み取りはWorkersでは利用できず、CLI解析または作品のARファイル投稿を使う。
-
-最新の性能改善ではVitest279件成功（外部サービス7件対象外）、本番ビルドのブラウザ12件、公開先UI3件を確認。会員6画面・未ログイン3画面のLCP中央値は764〜972ms（同じCPU・通信条件、各3回）。[最新の全試行・条件・制約](../../docs/performance-subsecond-2026-09-28.md)を参照。これは全アクセスが1秒未満という保証ではない。以前の検証は[UI再設計](../../docs/ui-redesign.md)、[匿名ページ](../../docs/performance-2026-09-28.md)、[会員の通知設定](../../docs/performance-member-2026-09-28.md)に記録している。DBスキーマ・secretは未変更。
+実機AR、最大入力時のメモリ、負荷・料金は別の検証。`/dev/ar` のホストフォルダ読み取りはWorkersでは利用できないため、CLI解析または作品のARファイル投稿を使う。性能の比較条件は [性能設計](../../docs/performance.md) を参照。
 
 ## 一次資料
 
