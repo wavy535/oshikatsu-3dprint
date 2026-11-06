@@ -6,12 +6,15 @@ export type Shape =
   | { kind: "program"; size: Vector; source: string }
   | { kind: "composite"; size: Vector; steps: SolidStep[] }
   | { kind: "box"; size: Vector }
+  | { kind: "gable"; size: Vector }
   | { kind: "wall"; size: Vector; opening: [number, number]; openingShape: "rectangle" | "ellipse" }
   | { kind: "roof"; width: number; depth: number; rise: number; thickness: number; side: "left" | "right" }
   | { kind: "cylinder"; size: Vector }
   | { kind: "table"; size: Vector; thickness: number }
   | { kind: "shelf"; size: Vector; thickness: number };
-export type PartSpec = { id: string; label: string; color: string; position: Vector; shape: Shape; printRotation: Vector };
+export const builtInPartIds = ["floor", "back", "left", "right", "roof", "roof-left", "roof-right", "gable-front", "gable-back", "shelf"] as const;
+export type PartId = typeof builtInPartIds[number] | Design["furniture"][number]["id"] | Design["custom"][number]["id"] | Design["programs"][number]["id"];
+export type PartSpec = { id: PartId; label: string; color: string; position: Vector; shape: Shape; printRotation: Vector };
 
 /** Z-up, +Y toward the back. Each part remains a separate glue-assembled solid. */
 export function designParts(d: Design): PartSpec[] {
@@ -26,6 +29,11 @@ export function designParts(d: Design): PartSpec[] {
       position: [side === "left" ? 0 : h.width - t, 0, t], shape: { kind: "box", size: [t, h.depth - t, h.height] }, printRotation: [0, 90, 0] });
   }
   if (h.roof) {
+    if (h.gables && h.roofRise > 0) for (const side of ["front", "back"] as const) {
+      parts.push({ id: `gable-${side}`, label: side === "front" ? "屋根下の壁・手前" : "屋根下の壁・奥", color: h.wallColor,
+        position: [0, side === "front" ? 0 : h.depth - t, t + h.height],
+        shape: { kind: "gable", size: [h.width, t, h.roofRise] }, printRotation: [90, 0, 0] });
+    }
     if (h.roofRise === 0) parts.push({ id: "roof", label: "平らな屋根", color: h.roofColor, position: [0, 0, t + h.height], shape: { kind: "box", size: [h.width, h.depth, t] }, printRotation: [0, 0, 0] });
     else for (const side of ["left", "right"] as const) {
       const angle = Math.atan2(h.roofRise, h.width / 2) * 180 / Math.PI;
@@ -47,6 +55,6 @@ export function designParts(d: Design): PartSpec[] {
   for (const p of d.custom) parts.push({ id: p.id, label: p.name, color: p.color,
     position: [p.x, p.y, t], shape: { kind: "composite", size: compositeSize(p.steps), steps: p.steps }, printRotation: [0, 0, 0] });
   for (const p of d.programs) parts.push({ id: p.id, label: p.name, color: p.color, position: [p.x, p.y, t], shape: { kind: "program", size: p.size as Vector, source: p.source }, printRotation: [0, 0, 0] });
-  if (d.scene === "object") return parts.filter((p) => !["floor", "back", "left", "right", "roof", "roof-left", "roof-right"].includes(p.id)).map((p) => ({ ...p, position: [p.position[0], p.position[1], 0] }));
+  if (d.scene === "object") return parts.filter((p) => !["floor", "back", "left", "right", "roof", "roof-left", "roof-right", "gable-front", "gable-back"].includes(p.id)).map((p) => ({ ...p, position: [p.position[0], p.position[1], 0] }));
   return parts;
 }

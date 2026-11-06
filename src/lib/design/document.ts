@@ -23,7 +23,7 @@ export const designSchema = z.object({
   house: z.object({
     width: dimension(80, 400), depth: dimension(80, 400), height: dimension(80, 350),
     thickness: dimension(1, 8), roofRise: dimension(0, 100),
-    leftWall: z.boolean(), rightWall: z.boolean(), roof: z.boolean(),
+    leftWall: z.boolean(), rightWall: z.boolean(), roof: z.boolean(), gables: z.boolean().default(false),
     wallColor: color, floorColor: color, roofColor: color,
   }).strict(),
   window: z.object({ shape: z.enum(["rectangle", "ellipse"]).default("rectangle"), enabled: z.boolean(), width: dimension(10, 200), height: dimension(10, 200) }).strict(),
@@ -44,7 +44,7 @@ export function defaultDesign(): Design {
   return {
     version: 1, name: "15cmぬいのおうち",
     house: { width: 190, depth: 160, height: 175, thickness: 3, roofRise: 40,
-      leftWall: true, rightWall: true, roof: true,
+      leftWall: true, rightWall: true, roof: true, gables: false,
       wallColor: "#F5F1E8", floorColor: "#D7BD99", roofColor: "#2563EB" },
     window: { shape: "rectangle", enabled: true, width: 55, height: 60 },
     shelf: { enabled: false, width: 55, depth: 35, height: 65, x: 125, y: 90, color: "#D7BD99" },
