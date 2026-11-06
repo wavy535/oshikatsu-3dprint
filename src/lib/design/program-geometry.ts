@@ -1,6 +1,7 @@
 import type { CrossSection, Manifold, ManifoldToplevel } from "manifold-3d";
 import { runModelScript, scriptNumber, type ScriptValue, type ModelApi } from "./model-script.ts";
 import { CompositeGeometryError } from "./composite.ts";
+import { sampleBezierContour, type CubicSegment, type Point2 } from "./bezier-contour.ts";
 type Vec3 = [number, number, number];
 
 /** Only numeric handles cross the interpreter boundary; WASM objects remain private. */
@@ -20,6 +21,13 @@ export function buildProgram(module: ManifoldToplevel, source: string, envelope:
     const id = next++; handles.set(id, s); return id;
   };
   const api: ModelApi = {
+    bezierExtrude: (curves, height) => {
+      const segments = list(curves, 2, 16).map((curve) =>
+        list(curve, 4, 4).map((point) => list(point, 2, 2).map((value) => num(value)) as Point2) as CubicSegment,
+      );
+      const section = own(new module.CrossSection(sampleBezierContour(segments)));
+      return keep(section.extrude(num(height, 0.2, 200)));
+    },
     roundedBox: (size, radius) => {
       const s = vec(size); s.forEach(x => num(x, 0.2, 200));
       const r = num(radius, 0.1, Math.min(s[0], s[1]) / 2);

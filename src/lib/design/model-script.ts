@@ -13,6 +13,7 @@ export const modelSignatures: Readonly<Record<string, readonly [number, number, 
   mesh: [2, 2, "mesh(頂点配列,三角形配列)"], loft: [1, 1, "loft(断面配列)"], tube: [2, 2, "tube(点配列,半径)"],
   stroke: [3, 3, "stroke(ベジェ制御点4個,半径4個,Z方向の厚み倍率)"],
   roundedBox: [2, 2, "roundedBox([幅,奥行,高さ],XYの角丸半径)"],
+  bezierExtrude: [2, 2, "bezierExtrude([[[始点x,y],[制御点1x,y],[制御点2x,y],[終点x,y]],...],高さ)"],
 };
 const supported = new Set(["Program", "BlockStatement", "VariableDeclaration", "VariableDeclarator", "Identifier", "Literal", "ArrayExpression", "ExpressionStatement", "ForStatement", "IfStatement", "ReturnStatement", "BinaryExpression", "LogicalExpression", "UnaryExpression", "UpdateExpression", "AssignmentExpression", "MemberExpression", "CallExpression", "ConditionalExpression", "EmptyStatement"]);
 export function parseModelScript(source: string) {
