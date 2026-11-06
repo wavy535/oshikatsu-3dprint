@@ -6,6 +6,7 @@ import {
   Smile,
   ShieldCheck,
   Store,
+  ShoppingBag,
 } from "lucide-react";
 import { queryResult } from "@/lib/db/result";
 import { requireUser } from "@/lib/auth/guards";
@@ -68,6 +69,14 @@ export default async function MyPage() {
         className="divide-y divide-line border-b border-line"
       >
         {[
+          {
+            href: "/cart",
+            label: "カート",
+            detail: shell.cartCount
+              ? `${shell.cartCount}点の作品`
+              : "購入前の作品を確認",
+            icon: ShoppingBag,
+          },
           {
             href: "/mypage/nuis",
             label: "マイぬい",
