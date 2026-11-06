@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   // 各ページの metadata.title は「ページ名｜OshiNest」になる。無いページはブランド名だけ
   title: { default: "OshiNest", template: "%s｜OshiNest" },
-  description: "推し活のための、3Dプリント作品マーケット",
+  description: "AIとぬいのおうちや家具をモデリング。プレビューで調整し、ARで飾る場所に置いて確認。",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

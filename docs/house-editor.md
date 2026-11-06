@@ -1,10 +1,10 @@
 # ブラウザ制作機能
 
-`/create` で寸法と部品を編集し、同じ設計から印刷用・AR用ファイルを作る。手動編集は匿名で利用でき、AI送信には一般会員ログインが必要。
+`/` から直接 `/create` を開き、AI・手動調整・完成後の操作を一つの制作画面で使う。プレビューを常に表示し、寸法と部品を編集して同じ設計から印刷用・AR用ファイルを作る。手動編集は匿名で利用でき、AI送信には一般会員ログインが必要。
 
 ## 操作と保存
 
-- おうちの幅・奥行・高さ・板厚、壁・屋根・窓・棚、部品の色と位置を編集する。AIまたは設計JSONの`house.gables`で前後の三角壁を追加でき、寸法は屋根に追従する。旧ファイルではfalseを補い、従来の形を維持する。窓・追加家具は [部品仕様](ai-design-parts.md) を参照。
+- おうちの幅・奥行・高さ・板厚、壁・屋根・窓・棚、部品の色と位置を編集する。有効な数値は入力時に反映する。壁と屋根の隙間は前後の三角壁で埋められる（`house.gables`）。旧ファイルではfalseを補い、形を維持する。窓・追加家具は [部品仕様](ai-design-parts.md) を参照。
 - 単体モードは床・壁・屋根を出力せず、元のおうち設定を保持する。複合部品・コードによる自由形状は [自由形状](freeform-modelling.md) を参照。
 - 取り消し・やり直しは50件。保存ボタンで端末内に1件保存できる。JSON読込は128KiBまでで、形式・版・値の範囲を検証する。クラウド保存ではない。
 - 部品別3MFと設計JSONをまとめたZIP、組立状態のGLB/USDZを書き出す。印刷用の部品は回転して接地する。
@@ -19,9 +19,11 @@
 | `src/lib/design/parts.ts` / `geometry.ts` | 部品定義とManifold形状生成 |
 | `src/lib/design/worker-client.ts` | 処理の集約・書き出し優先・タイムアウト |
 | `src/lib/design/export.ts` | 3MF ZIP・GLB・USDZ |
-| `src/components/design/` | 編集・チャット・Three.js表示 |
+| `src/components/design/use-design-session.ts` | 履歴・Worker・revisionと形状の検査 |
+| `src/components/design/use-design-files.ts` | 端末保存・読込・書き出し・AR用URL |
+| `src/components/design/` の表示部品 | 編集・チャット・Three.js表示・完成後の操作 |
 
-コアはReact・DOMに依存せず、CLIからも同じ処理を使う。Three.jsは操作時に描画し、Manifold WASMは専用Web Workerで動く。トップページで制作エンジンを読み込まない。
+コアはReact・DOMに依存せず、CLIからも同じ処理を使う。Three.jsは操作時に描画し、Manifold WASMは専用Web Workerで動く。作品一覧では制作エンジンを読み込まず、制作画面でのみ読み込む。
 
 形状キャッシュは32件。色・表示位置だけの変更では形状を再生成しない。Workerは実行中1件と最新プレビュー1件に集約し、書き出しを優先する。20秒で応答しなければ停止し、設計を保持して再試行できる。古い結果を反映せず、WASM・Three.jsの資源とBlob URLを解放する。
 

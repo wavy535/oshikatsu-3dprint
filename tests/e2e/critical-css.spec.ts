@@ -60,7 +60,7 @@ test("HTML remains readable when Brotli is explicitly disabled", async ({ reques
     const response = await request.get("/", { headers: { "Accept-Encoding": encoding } });
     expect(response.ok()).toBe(true);
     expect(response.headers()["content-encoding"]).not.toBe("br");
-    expect(await response.text()).toContain("おうちと家具。");
+    expect(await response.text()).toContain("AIでつくる");
   }
 });
 
@@ -72,6 +72,6 @@ test("create reports render stages while preserving compressed and uncompressed 
     for (const name of ["ssr", "html", "css", "rewrite", "encode", "worker"])
       expect(timing).toMatch(new RegExp(`(?:^|, )${name};dur=\\d+\\.\\d`));
     expect(response.headers()["content-encoding"] ?? "identity").toBe(encoding);
-    expect(await response.text()).toContain("壁・屋根・窓・棚を組み合わせて");
+    expect(await response.text()).toContain("完成・ARへ");
   }
 });

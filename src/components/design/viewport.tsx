@@ -6,8 +6,9 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { designFrame } from "@/lib/design/framing";
 import type { Design } from "@/lib/design/document";
 import type { DesignBuild } from "@/lib/design/geometry";
+import type { PartId } from "@/lib/design/parts";
 
-type Props = { build: DesignBuild; design: Design; selected: string; view: number; onSelect: (id: string) => void };
+type Props = { build: DesignBuild; design: Design; selected: PartId; view: number; onSelect: (id: PartId) => void };
 
 export default function Viewport({ build, design, selected, view, onSelect }: Props) {
   const host = useRef<HTMLDivElement>(null);
@@ -80,7 +81,7 @@ export default function Viewport({ build, design, selected, view, onSelect }: Pr
       controls.update(); render();
     }
     const resize = new ResizeObserver(() => {
-      const width = element.clientWidth, height = element.clientHeight;
+      const { width, height } = element.getBoundingClientRect();
       renderer.setSize(width, height); camera.aspect = width / Math.max(1, height); camera.updateProjectionMatrix(); render();
     });
     resize.observe(element);
@@ -91,8 +92,9 @@ export default function Viewport({ build, design, selected, view, onSelect }: Pr
       if (Math.hypot(event.clientX - down[0], event.clientY - down[1]) > 5) return;
       const rect = renderer.domElement.getBoundingClientRect();
       ray.setFromCamera(new THREE.Vector2((event.clientX - rect.left) / rect.width * 2 - 1, 1 - (event.clientY - rect.top) / rect.height * 2), camera);
-      const part = ray.intersectObjects(group.children).find((hit) => hit.object.userData.partId)?.object.userData.partId;
-      if (part) current.current.onSelect(part);
+      const hitId = ray.intersectObjects(group.children).find((hit) => hit.object.userData.partId)?.object.userData.partId;
+      const part = current.current.build.parts.find((part) => part.id === hitId);
+      if (part) current.current.onSelect(part.id);
     };
     const lost = (event: Event) => { event.preventDefault(); setError("3D表示が中断しました。設計を保存してからページを開き直してください。"); };
     renderer.domElement.addEventListener("pointerdown", pointerDown);
@@ -110,8 +112,8 @@ export default function Viewport({ build, design, selected, view, onSelect }: Pr
   }, []);
   const empty = build.parts.length === 0;
   useEffect(() => { runtime.current?.reset(); }, [view, design.scene, empty]);
-  return <div className="relative">
-    <div ref={host} className="h-80 w-full overflow-hidden sm:h-96 lg:h-[480px]" />
+  return <div className="relative h-full min-h-0">
+    <div ref={host} className="h-full w-full overflow-hidden" />
     {error && <p role="alert" className="absolute inset-x-0 top-0 bg-white p-4 text-sm text-danger">{error}</p>}
   </div>;
 }
