@@ -2,6 +2,7 @@ import type { CrossSection, Manifold, ManifoldToplevel } from "manifold-3d";
 import { runModelScript, scriptNumber, type ScriptValue, type ModelApi } from "./model-script.ts";
 import { CompositeGeometryError } from "./composite.ts";
 import { sampleBezierContour, type CubicSegment, type Point2 } from "./bezier-contour.ts";
+import { sampleRadialLoft, type RadialSection } from "./radial-loft.ts";
 type Vec3 = [number, number, number];
 
 /** Only numeric handles cross the interpreter boundary; WASM objects remain private. */
@@ -21,6 +22,12 @@ export function buildProgram(module: ManifoldToplevel, source: string, envelope:
     const id = next++; handles.set(id, s); return id;
   };
   const api: ModelApi = {
+    radialLoft: (sections, ridges) => {
+      const profiles = list(sections, 2, 16).map((section) =>
+        list(section, 7, 7).map((value) => num(value)) as RadialSection,
+      );
+      return api.loft(sampleRadialLoft(profiles, num(ridges, 0, 12)));
+    },
     bezierExtrude: (curves, height) => {
       const segments = list(curves, 2, 16).map((curve) =>
         list(curve, 4, 4).map((point) => list(point, 2, 2).map((value) => num(value)) as Point2) as CubicSegment,
@@ -68,6 +75,17 @@ export function buildProgram(module: ManifoldToplevel, source: string, envelope:
     move: (id, offset) => keep(get(id).translate(vec(offset))),
     rotate: (id, angles) => keep(get(id).rotate(vec(angles))),
     scale: (id, factors) => { const f = vec(factors); f.forEach((x) => num(x, 0.01, 100)); return keep(get(id).scale(f)); },
+    resize: (id, size) => {
+      const solid = get(id);
+      const target = vec(size);
+      target.forEach((value) => num(value, 0.2, 200));
+      if (solid.isEmpty()) return error("空の立体は寸法を合わせられません。");
+      const bounds = solid.boundingBox();
+      const factors = target.map((value, axis) =>
+        num(value / (bounds.max[axis] - bounds.min[axis]), 0.01, 100),
+      ) as Vec3;
+      return keep(solid.scale(factors));
+    },
     union: (...ids) => { let result = get(ids[0]); for (const id of ids.slice(1)) result = get(keep(result.add(get(id)))); return keep(result); },
     subtract: (a, b) => keep(get(a).subtract(get(b))),
     intersect: (a, b) => keep(get(a).intersect(get(b))),
