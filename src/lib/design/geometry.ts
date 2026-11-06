@@ -57,6 +57,10 @@ function makeShape(module: ManifoldToplevel, shape: Shape) {
       if (pieces.length !== 1) throw new CompositeGeometryError("複合部品が分離しています。加える形を重ねて、1つにつながるよう修正してください。");
       const { min } = result.boundingBox();
       solid = own(result.translate(min.map((v) => -v) as Vector));
+    } else if (shape.kind === "gable") {
+      const [w, d, h] = shape.size;
+      const section = own(new module.CrossSection([[0, 0], [w, 0], [w / 2, h]]));
+      solid = own(own(own(section.extrude(d)).rotate([90, 0, 0])).translate([0, d, 0]));
     } else if (shape.kind === "roof") {
       const { width: w, depth: d, rise: r, thickness: t, side } = shape;
       const dz = t * Math.hypot(w, r) / w;

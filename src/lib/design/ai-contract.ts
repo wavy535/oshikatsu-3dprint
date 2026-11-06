@@ -4,11 +4,11 @@ import { z } from "zod";
 import { compositeSchema, compositeIds } from "./composite.ts";
 import { referenceImageSchema, MAX_REFERENCE_IMAGES } from "./reference-images.ts";
 import { checkDesign, designSchema, parseDesign, type Design, furnitureSchema, furnitureIds, furnitureLabels } from "./document.ts";
-import { designParts, type Vector } from "./parts.ts";
+import { builtInPartIds, designParts, type Vector } from "./parts.ts";
 import { rotatePoint } from "./geometry.ts";
 
 export const numericPaths = ["house.width", "house.depth", "house.height", "house.thickness", "house.roofRise", "window.width", "window.height", "shelf.width", "shelf.depth", "shelf.height", "shelf.x", "shelf.y", "nui.width", "nui.depth", "nui.height"] as const;
-export const booleanPaths = ["house.leftWall", "house.rightWall", "house.roof", "window.enabled", "shelf.enabled"] as const;
+export const booleanPaths = ["house.leftWall", "house.rightWall", "house.roof", "house.gables", "window.enabled", "shelf.enabled"] as const;
 export const stringPaths = ["name", "house.wallColor", "house.floorColor", "house.roofColor", "shelf.color"] as const;
 export const windowShapeLabels = { rectangle: "四角", ellipse: "丸・楕円" } as const;
 export const changeSchema = z.union([
@@ -32,7 +32,7 @@ export const chatRequestSchema = z.object({
   images: z.array(referenceImageSchema).max(MAX_REFERENCE_IMAGES).optional(),
   geometryFeedback: z.object({ proposal: proposalSchema, error: z.string().min(1).max(1000) }).strict().optional(),
   message: z.string().trim().min(1).max(1000),
-  selected: z.enum(["floor", "back", "left", "right", "roof", "roof-left", "roof-right", "shelf", ...furnitureIds, ...compositeIds, ...programIds]),
+  selected: z.enum([...builtInPartIds, ...furnitureIds, ...compositeIds, ...programIds]),
   history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().max(2000) }).strict()).max(8),
 }).strict();
 export type ChatRequest = z.infer<typeof chatRequestSchema>;
@@ -119,7 +119,7 @@ export function applyProposal(base: Design, value: unknown): { proposal: Proposa
 
 export const pathLabels: Record<string, string> = {
   name: "設計名", "house.width": "幅", "house.depth": "奥行き", "house.height": "壁の高さ", "house.thickness": "板厚", "house.roofRise": "屋根の立ち上がり",
-  "house.leftWall": "左の壁", "house.rightWall": "右の壁", "house.roof": "屋根", "house.wallColor": "壁の色", "house.floorColor": "床の色", "house.roofColor": "屋根の色",
+  "house.leftWall": "左の壁", "house.rightWall": "右の壁", "house.roof": "屋根", "house.gables": "屋根下の壁", "house.wallColor": "壁の色", "house.floorColor": "床の色", "house.roofColor": "屋根の色",
   "window.shape": "窓の形", "window.enabled": "窓", "window.width": "窓の幅", "window.height": "窓の高さ", "shelf.enabled": "棚", "shelf.width": "棚の幅", "shelf.depth": "棚の奥行き", "shelf.height": "棚の高さ", "shelf.x": "棚の左右位置", "shelf.y": "棚の前後位置", "shelf.color": "棚の色", "nui.width": "ぬいの幅", "nui.depth": "ぬいの奥行き", "nui.height": "ぬいの高さ",
 };
 export function changeSummary(base: Design, changes: Proposal["changes"]): string[] {
