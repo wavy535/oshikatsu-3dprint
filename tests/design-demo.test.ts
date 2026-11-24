@@ -50,7 +50,7 @@ test("demo preparation creates a private signed browser cookie without creating 
   expect(id).toBeTruthy();
   const again = await GET(status(cookie));
   expect(again.headers.get("set-cookie")).toBeNull();
-  expect(await again.json()).toEqual({ remaining: 10, globalRemaining: 100, resetAt: day + 86_400_000 });
+  expect(await again.json()).toEqual({ remaining: 30, globalRemaining: 100, resetAt: day + 86_400_000 });
   expect(local.sqlite.prepare("SELECT count(*) AS n FROM app_users").get()!.n).toBe(0);
 });
 
@@ -73,14 +73,14 @@ test("invalid input and missing provider configuration do not consume demo reser
   expect((await POST(request(cookie, { ...payload(), message: "x".repeat(CHAT_BODY_LIMIT + 1) }))).status).toBe(400);
   mocks.platform.mockReturnValueOnce({ DATABASE: local.binding });
   expect((await POST(request(cookie))).status).toBe(503);
-  expect((await demoQuota(local.binding, id)).remaining).toBe(10);
+  expect((await demoQuota(local.binding, id)).remaining).toBe(30);
   expect(mocks.run).not.toHaveBeenCalled();
 });
 
 test("anonymous requests retain quota across reloads and provider failures, with an 8s cooldown", async () => {
   const { cookie } = await createDemoBrowser(status());
   const first = await POST(request(cookie));
-  expect(first.status).toBe(200); expect(first.headers.get("x-demo-remaining")).toBe("9");
+  expect(first.status).toBe(200); expect(first.headers.get("x-demo-remaining")).toBe("29");
   expect(mocks.run).toHaveBeenCalledTimes(1);
   const cooldown = await POST(request(cookie));
   expect(cooldown.status).toBe(429); expect(cooldown.headers.get("retry-after")).toBe("8");
@@ -89,13 +89,13 @@ test("anonymous requests retain quota across reloads and provider failures, with
   mocks.run.mockRejectedValueOnce(new Error("internal secret test-secret-not-real"));
   const failure = await POST(request(cookie));
   expect(failure.status).toBe(502); expect(await failure.text()).not.toContain("test-secret-not-real");
-  expect(failure.headers.get("x-demo-remaining")).toBe("8");
-  expect(await (await GET(status(cookie))).json()).toMatchObject({ remaining: 8 });
+  expect(failure.headers.get("x-demo-remaining")).toBe("28");
+  expect(await (await GET(status(cookie))).json()).toMatchObject({ remaining: 28 });
 });
 
-test("ten browser requests exhaust the daily demo and UTC midnight resets its allowance", async () => {
+test("thirty browser requests exhaust the daily demo and UTC midnight resets its allowance", async () => {
   const { cookie } = await createDemoBrowser(status());
-  for (let index = 0; index < 10; index++) {
+  for (let index = 0; index < 30; index++) {
     expect((await POST(request(cookie))).status).toBe(200);
     now += 8000;
   }
@@ -103,9 +103,9 @@ test("ten browser requests exhaust the daily demo and UTC midnight resets its al
   expect(exhausted.status).toBe(429);
   expect(exhausted.headers.get("x-demo-remaining")).toBe("0");
   expect(await exhausted.text()).toContain("本日のデモ利用上限");
-  expect(mocks.run).toHaveBeenCalledTimes(10);
+  expect(mocks.run).toHaveBeenCalledTimes(30);
   now = day + 86_400_000;
-  expect(await (await GET(status(cookie))).json()).toMatchObject({ remaining: 10 });
+  expect(await (await GET(status(cookie))).json()).toMatchObject({ remaining: 30 });
   expect((await POST(request(cookie))).status).toBe(200);
 });
 

@@ -80,7 +80,7 @@ ContainerはSIGTERMで処理を終了できることを確認する。イメー�
 
 ## Webを配備する
 
-`AUTH_SECRET` は32文字以上の乱数。対話入力または標準入力からsecret登録し、Git・チャット・ログへ記録しない。メール/SMSのキーは不要。既存の `AUTH_SECRET` は再配備のたびに変更しない。AIを有効にする場合は `OPENAI_API_KEY` とD1の `0009_ai_design_usage.sql` を含む未適用マイグレーションが必要。ログイン不要の `/demo` には `0010_ai_demo_usage.sql` も適用する。デモは同じブラウザから1日10要求・全体100要求で、会員向けの枠とは別。
+`AUTH_SECRET` は32文字以上の乱数。対話入力または標準入力からsecret登録し、Git・チャット・ログへ記録しない。メール/SMSのキーは不要。既存の `AUTH_SECRET` は再配備のたびに変更しない。AIを有効にする場合は `OPENAI_API_KEY` とD1の `0009_ai_design_usage.sql` を含む未適用マイグレーションが必要。ログイン不要の `/demo` には `0010_ai_demo_usage.sql` も適用する。デモは同じブラウザから1日30要求・全体100要求で、会員向けの枠とは別。
 
 ```bash
 npm run db:migrate:remote

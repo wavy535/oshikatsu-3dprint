@@ -11,14 +11,14 @@ test("anonymous demo uses its own AI route, shows remaining uses and shares edit
     const body = route.request().postDataJSON();
     const proposal = { message: "屋根を青くしました。", changes: [{ path: "house.roofColor", value: "#2244cc" }] };
     await route.fulfill({
-      headers: { "X-Demo-Remaining": "9" },
+      headers: { "X-Demo-Remaining": "29" },
       json: { ...proposal, design: applyProposal(body.design, proposal).design, attempts: 1 },
     });
   });
   await page.goto("/demo");
   await previewReady(page);
   await expect(page.getByText(/ログイン不要のAIデモ/)).toBeVisible();
-  await expect(page.getByLabel("デモのAI利用枠")).toContainText("あと10回");
+  await expect(page.getByLabel("デモのAI利用枠")).toContainText("あと30回");
   await expectPreviewInViewport(page);
   const cookies = await page.context().cookies();
   expect(cookies.some((cookie) => cookie.name.includes("session_token"))).toBe(false);
@@ -26,7 +26,7 @@ test("anonymous demo uses its own AI route, shows remaining uses and shares edit
   await page.getByLabel("変えたいところ", { exact: true }).fill("屋根を青くして");
   await page.getByRole("button", { name: "送信して編集" }).click();
   await expect(page.getByRole("log")).toContainText("変更を反映しました");
-  await expect(page.getByLabel("デモのAI利用枠")).toContainText("あと9回");
+  await expect(page.getByLabel("デモのAI利用枠")).toContainText("あと29回");
   await expect(page.getByRole("link", { name: "ログインしてAIを使う" })).toHaveCount(0);
   await showManual(page);
   await expect(page.getByLabel("屋根の色", { exact: true })).toHaveValue("#2244cc");
@@ -50,7 +50,7 @@ test("exhausted demo requests retain the prompt and leave manual editing availab
   }));
   await page.goto("/demo");
   await previewReady(page);
-  await expect(page.getByLabel("デモのAI利用枠")).toContainText("あと10回");
+  await expect(page.getByLabel("デモのAI利用枠")).toContainText("あと30回");
   await page.getByLabel("変えたいところ", { exact: true }).fill("幅を210mmにして");
   await page.getByRole("button", { name: "送信して編集" }).click();
   await expect(page.getByRole("alert")).toContainText("本日のデモ利用上限");
