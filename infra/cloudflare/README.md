@@ -80,7 +80,7 @@ ContainerはSIGTERMで処理を終了できることを確認する。イメー�
 
 ## Webを配備する
 
-`AUTH_SECRET` は32文字以上の乱数。対話入力または標準入力からsecret登録し、Git・チャット・ログへ記録しない。メール/SMSのキーは不要。既存の `AUTH_SECRET` は再配備のたびに変更しない。AIを有効にする場合は `OPENAI_API_KEY` とD1の `0009_ai_design_usage.sql` を含む未適用マイグレーションが必要。
+`AUTH_SECRET` は32文字以上の乱数。対話入力または標準入力からsecret登録し、Git・チャット・ログへ記録しない。メール/SMSのキーは不要。既存の `AUTH_SECRET` は再配備のたびに変更しない。AIを有効にする場合は `OPENAI_API_KEY` とD1の `0009_ai_design_usage.sql` を含む未適用マイグレーションが必要。ログイン不要の `/demo` には `0010_ai_demo_usage.sql` も適用する。デモは同じブラウザから1日10要求・全体100要求で、会員向けの枠とは別。
 
 ```bash
 npm run db:migrate:remote
@@ -110,6 +110,8 @@ npm run check:compat
 ```
 
 全E2Eを公開URLへ向けない。開発用会員を使いDB・R2を書き換える試験を含む。実行方法と試験データの問題は [テスト文書](../../docs/testing.md) を参照。
+
+本番ビルドをローカルで確認するときは、マイグレーションと同じD1保存先を明示する。生成された設定から起動するWranglerの既定保存先は `dist/server/.wrangler/state` になるため、`npm run preview -- --port 3000 --persist-to "$PWD/.wrangler/state"` でルートのローカルDBを利用する。
 
 配備後はhealth・公開ページ、一般会員登録とセッション維持、申請停止、未認証の保護画面、privateファイル・不正転送トークンの拒否を確認する。AIを配備した場合はモデル設定・利用枠・API接続も確認し、有料確認には予算を設ける。確認用データは作成したものだけを特定して片付ける。
 

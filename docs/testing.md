@@ -31,6 +31,7 @@ E2Eは会員・注文・作品をD1/R2へ書き込む。試験専用のローカ
 | 金額の丸めと注文時のファイル参照を保持する | `d1-business`、`d1-contracts`、`operations.integration` |
 | 非公開ファイルへのアクセスと署名URLの操作・期限・サイズを制限する | `file-capability`、`asset-authorization`、`worker-files.integration` |
 | AI失敗・取消・手動編集後に古い案を適用しない | `design-composite`、`design-recovery`、`e2e/design-chat` |
+| ログイン不要デモの署名Cookie、個別・全体の日次枠、同時送信、残り回数と上限時の操作 | `design-demo`、`worker-database.integration`、`e2e/design-demo` |
 | 生成コードを制限し、形状の体積・連結・寸法と部分編集・出力を検査する | `design-freeform`、`design-program-edit`、`design-cli` |
 | CSS抽出前後の表示を比較し、検索・通知設定の操作を確認する | `e2e/critical-css`、`e2e/home`、`e2e/notification-settings` |
 

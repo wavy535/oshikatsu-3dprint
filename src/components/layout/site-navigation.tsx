@@ -2,18 +2,19 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, UserRound, House } from "lucide-react";
+import { Search, UserRound, House, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { href: "/create", label: "つくる", icon: House },
+  { href: "/demo", label: "AIデモ", icon: Sparkles },
   { href: "/works", label: "さがす", icon: Search },
   { href: "/mypage", label: "マイページ", icon: UserRound },
 ];
 
 export function SiteNavigation() {
   const pathname = usePathname();
-  const workspace = pathname === "/create";
+  const workspace = pathname === "/create" || pathname === "/demo";
   const activeHref = ITEMS.filter(
     ({ href }) => pathname === href || pathname.startsWith(`${href}/`),
   ).sort((a, b) => b.href.length - a.href.length)[0]?.href;
@@ -25,7 +26,7 @@ export function SiteNavigation() {
         "lg:static lg:ml-auto lg:flex lg:shrink-0 lg:gap-1 lg:border-0 lg:p-0",
         workspace
           ? "ml-auto flex shrink-0 gap-1"
-          : "fixed inset-x-0 bottom-0 z-50 grid grid-cols-3 border-t border-line bg-white px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
+          : "fixed inset-x-0 bottom-0 z-50 grid grid-cols-4 border-t border-line bg-white px-1 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]",
       )}
     >
       {ITEMS.map(({ href, label, icon: Icon }) => (

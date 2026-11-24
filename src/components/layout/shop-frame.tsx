@@ -12,7 +12,8 @@ export function ShopFrame({
   footer: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const workspace = usePathname() === "/create";
+  const pathname = usePathname();
+  const workspace = pathname === "/create" || pathname === "/demo";
   return (
     <div
       className={cn(

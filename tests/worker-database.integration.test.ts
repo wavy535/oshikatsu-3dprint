@@ -11,6 +11,7 @@ import { afterAll, beforeAll, expect, test, vi } from "vitest";
 import { getPlatformProxy, unstable_splitSqlQuery } from "wrangler";
 vi.mock("server-only", () => ({}));
 import { d1Database, atomicBatch, type Binding } from "@/lib/db/d1/runtime";
+import { reserveDemoChat } from "@/lib/design/ai/demo-quota";
 let binding: Binding;
 let dispose: (() => Promise<void>) | undefined;
 const directory = mkdtempSync(join(tmpdir(), "oshinest-worker-test-"));
@@ -120,4 +121,13 @@ test("workerd D1 executes migrations, isolates concurrent identities and rolls b
   expect(context[0].results).toEqual([
     { role: "app_guest", user_id: null, internal_depth: 0 },
   ]);
+}, 30000);
+
+test("workerd D1 keeps demo browser and global caps under concurrent reservations", async () => {
+  const now = Date.UTC(2026, 10, 24, 12);
+  const duplicates = await Promise.all(Array.from({ length: 12 }, () => reserveDemoChat(binding, "same-browser", now)));
+  expect(duplicates.filter((result) => result.allowed)).toHaveLength(1);
+  const unique = await Promise.all(Array.from({ length: 110 }, (_, i) => reserveDemoChat(binding, `new-browser-${i}`, now)));
+  expect(unique.filter((result) => result.allowed)).toHaveLength(99);
+  expect((await reserveDemoChat(binding, "fresh-browser", now)).allowed).toBe(false);
 }, 30000);

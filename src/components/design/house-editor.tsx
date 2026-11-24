@@ -21,7 +21,7 @@ const PANELS = [
 ] as const;
 type Panel = (typeof PANELS)[number]["id"];
 
-export function HouseEditor() {
+export function HouseEditor({ demo = false }: { demo?: boolean }) {
   const hydrated = useHydrated();
   const session = useDesignSession();
   const files = useDesignFiles(session);
@@ -40,6 +40,11 @@ export function HouseEditor() {
       className="flex h-full min-h-0 flex-col bg-ground"
       data-testid="design-workspace"
     >
+      {demo && (
+        <p className="shrink-0 border-b border-line bg-brand-soft px-4 py-2 text-pretty text-sm text-ink">
+          ログイン不要のAIデモ · 作ったモデルはこの端末に保存・出力できます
+        </p>
+      )}
       <EditorToolbar
         name={session.design.name}
         canUndo={session.canUndo}
@@ -96,6 +101,7 @@ export function HouseEditor() {
           {/* Keep the conversation mounted while editing manually or reviewing the result. */}
           <div className={cn("min-h-0 flex-1", panel !== "ai" && "hidden")}>
             <DesignChat
+              demo={demo}
               snapshot={session.snapshot}
               selected={selectedPart?.id ?? "back"}
               selectedLabel={selectedPart?.label}

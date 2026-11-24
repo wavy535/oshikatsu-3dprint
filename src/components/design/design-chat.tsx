@@ -19,6 +19,11 @@ import {
   type ReferenceImage,
 } from "@/lib/design/reference-images";
 import type { Design } from "@/lib/design/document";
+import {
+  DEMO_BROWSER_DAILY_LIMIT,
+  DEMO_GLOBAL_DAILY_LIMIT,
+  type DemoQuota,
+} from "@/lib/design/demo-policy";
 
 type Entry = {
   id: number;
@@ -43,11 +48,13 @@ const SUGGESTIONS = [
 ] as const;
 
 export function DesignChat({
+  demo = false,
   snapshot,
   selected,
   selectedLabel,
   apply,
 }: {
+  demo?: boolean;
   snapshot: () => { design: Design; revision: number };
   selected: ChatRequest["selected"];
   selectedLabel?: string;
@@ -76,6 +83,34 @@ export function DesignChat({
   const nextId = useRef(0),
     follow = useRef(true);
   const [cleared, setCleared] = useState<Entry[] | null>(null);
+  const [demoQuota, setDemoQuota] = useState<DemoQuota | null>(null);
+  useEffect(() => {
+    if (!demo) return;
+    const abort = new AbortController();
+    let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+    async function prepareDemo() {
+      try {
+        const response = await fetch("/api/design/demo", {
+          cache: "no-store",
+          signal: abort.signal,
+        });
+        if (!response.ok) throw new Error("demo unavailable");
+        const quota: DemoQuota = await response.json();
+        if (!abort.signal.aborted) {
+          setDemoQuota(quota);
+          refreshTimer = setTimeout(() => void prepareDemo(), Math.max(1000, quota.resetAt - Date.now() + 100));
+        }
+      } catch {
+        if (!abort.signal.aborted)
+          setError("デモを準備できませんでした。ページを再読み込みしてください。");
+      }
+    }
+    void prepareDemo();
+    return () => {
+      abort.abort();
+      clearTimeout(refreshTimer);
+    };
+  }, [demo]);
   useEffect(() => {
     if (log.current && follow.current)
       log.current.scrollTop = log.current.scrollHeight;
@@ -121,6 +156,7 @@ export function DesignChat({
     if (
       controller.current ||
       preparingRef.current ||
+      (demo && (!demoQuota || demoQuota.remaining === 0)) ||
       (!input.trim() && !images.length)
     )
       return;
@@ -185,17 +221,25 @@ export function DesignChat({
               );
           },
           send: async (body, requestSignal) => {
-            const response = await fetch("/api/design/chat", {
+            const response = await fetch(demo ? "/api/design/demo/chat" : "/api/design/chat", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(body),
               signal: requestSignal,
             });
+            const remaining = response.headers.get("X-Demo-Remaining");
+            if (demo && remaining !== null)
+              setDemoQuota((quota) => quota ? { ...quota, remaining: Number(remaining) } : quota);
             const data = await response.json();
             if (response.status === 401) setLogin(true);
             if (!response.ok) {
               if (response.status === 401)
                 throw new Error("ログインしてから送信してください。");
+              if (demo && (response.status === 429 || response.status === 403))
+                throw new Error(
+                  data && typeof data === "object" && "error" in data && typeof data.error === "string"
+                    ? data.error : "利用上限に達したか、送信間隔が短すぎます。少し待って再送してください。",
+                );
               if (response.status === 429)
                 throw new Error(
                   "利用上限に達したか、送信間隔が短すぎます。少し待って再送してください。",
@@ -244,7 +288,7 @@ export function DesignChat({
           e.message.startsWith("AIの応答中に設計が変わりました");
         const access =
           e instanceof Error &&
-          /^(ログインしてから|利用上限に達した)/.test(e.message);
+          /^(ログインしてから|利用上限に達した|本日のデモ利用上限|デモ画面を開き直し)/.test(e.message);
         setRetryable(!cancelled && !changed && !access);
         setError(
           cancelled
@@ -288,6 +332,18 @@ export function DesignChat({
           </Button>
         )}
       </header>
+      {demo && (
+        <p
+          role="status"
+          aria-label="デモのAI利用枠"
+          className="shrink-0 border-b border-line px-4 pb-2 text-pretty text-sm text-muted-foreground"
+        >
+          {demoQuota
+            ? `今日のAI：あと${demoQuota.remaining}回 / ${DEMO_BROWSER_DAILY_LIMIT}回`
+            : error ? "AIデモに接続できません" : "ログイン不要 · AIデモを準備しています"}
+          {demoQuota?.remaining === 0 && "。翌日9時（日本時間）に再開します。手動編集・保存は使えます。"}
+        </p>
+      )}
       <div
         ref={log}
         role="log"
@@ -427,7 +483,7 @@ export function DesignChat({
             {error}
           </p>
         )}
-        {error && retryable && !busy && (
+        {error && retryable && !busy && (!demo || demoQuota?.remaining !== 0) && (
           <div className="mb-3 flex flex-wrap gap-2">
             <Button
               type="button"
@@ -594,7 +650,8 @@ export function DesignChat({
                 size="icon"
                 aria-label="送信して編集"
                 disabled={
-                  !hydrated || preparing || (!input.trim() && !images.length)
+                  !hydrated || preparing || (!input.trim() && !images.length) ||
+                  (demo && (!demoQuota || demoQuota.remaining === 0))
                 }
               >
                 <ArrowUp aria-hidden="true" className="size-5" />
@@ -613,7 +670,10 @@ export function DesignChat({
           AIの利用について
         </summary>
         <p className="text-pretty leading-5">
-          ログイン後に1日30回まで。自動修正の追加送信も1回分を使います。指示・直近の会話・設計情報・添付画像をOpenAIに送ります。画像は縮小して送り、このサービスには保存しません。会話は再読み込みで消えます。相談だけなら設計を変えず、編集を頼むと検査後に反映します。
+          {demo
+            ? `ログイン不要で同じブラウザから1日${DEMO_BROWSER_DAILY_LIMIT}回、デモ全体で1日${DEMO_GLOBAL_DAILY_LIMIT}回まで。日本時間の毎日9時に回数をリセットします。`
+            : "ログイン後に1日30回まで。"}
+          自動修正の追加送信や失敗・中止した送信も1回分を使います。指示・直近の会話・設計情報・添付画像をOpenAIに送ります。画像は縮小して送り、このサービスには保存しません。会話は再読み込みで消えます。相談だけなら設計を変えず、編集を頼むと検査後に反映します。
         </p>
       </details>
     </section>
