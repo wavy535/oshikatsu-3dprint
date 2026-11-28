@@ -311,10 +311,27 @@ export function DesignChat({
       aria-label="AIと相談して編集"
       className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-white"
     >
-      <header className="flex shrink-0 items-center justify-between gap-2 px-4 py-2">
-        <h2 className="truncate text-sm font-semibold">
-          {selectedLabel ? `選択中：${selectedLabel}` : "AIとモデリング"}
-        </h2>
+      <header className={cn(
+        "flex shrink-0 items-center justify-between gap-2 px-4 py-2",
+        !!entries.length && "py-0 sm:py-2",
+      )}>
+        <div className="min-w-0 flex-1">
+          <h2 className={cn("truncate text-sm font-semibold", demo && "sr-only sm:not-sr-only")}>
+            {selectedLabel ? `選択中：${selectedLabel}` : "AIとモデリング"}
+          </h2>
+          {demo && (
+            <p
+              role="status"
+              aria-label="デモのAI利用枠"
+              className="text-pretty text-sm text-muted-foreground"
+            >
+              {demoQuota
+                ? `今日のAI：あと${demoQuota.remaining}回 / ${DEMO_BROWSER_DAILY_LIMIT}回`
+                : error ? "AIデモに接続できません" : "AIデモを準備しています"}
+              {demoQuota?.remaining === 0 && "。翌日9時（日本時間）に再開します。手動編集・保存は使えます。"}
+            </p>
+          )}
+        </div>
         {!!entries.length && (
           <Button
             type="button"
@@ -332,18 +349,6 @@ export function DesignChat({
           </Button>
         )}
       </header>
-      {demo && (
-        <p
-          role="status"
-          aria-label="デモのAI利用枠"
-          className="shrink-0 border-b border-line px-4 pb-2 text-pretty text-sm text-muted-foreground"
-        >
-          {demoQuota
-            ? `今日のAI：あと${demoQuota.remaining}回 / ${DEMO_BROWSER_DAILY_LIMIT}回`
-            : error ? "AIデモに接続できません" : "ログイン不要 · AIデモを準備しています"}
-          {demoQuota?.remaining === 0 && "。翌日9時（日本時間）に再開します。手動編集・保存は使えます。"}
-        </p>
-      )}
       <div
         ref={log}
         role="log"
@@ -472,7 +477,7 @@ export function DesignChat({
         </div>
       )}
       <form
-        className="shrink-0 border-t border-line bg-white px-3 pt-2"
+        className="max-h-[60%] shrink-0 overflow-y-auto overscroll-contain border-t border-line bg-white px-3 pt-2"
         onSubmit={(e) => {
           e.preventDefault();
           void send();
@@ -576,38 +581,7 @@ export function DesignChat({
           <label className="sr-only" htmlFor="design-chat-input">
             変えたいところ
           </label>
-          <textarea
-            ref={inputRef}
-            id="design-chat-input"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={busy || !hydrated}
-            maxLength={1000}
-            rows={2}
-            onPaste={(e) => {
-              const files = Array.from(e.clipboardData.files).filter((file) =>
-                file.type.startsWith("image/"),
-              );
-              if (!files.length) return;
-              // Keep native text insertion for clipboard items containing both.
-              if (!e.clipboardData.getData("text/plain")) e.preventDefault();
-              void attach(files);
-            }}
-            onKeyDown={(e) => {
-              if (
-                e.key === "Enter" &&
-                !e.shiftKey &&
-                !e.nativeEvent.isComposing &&
-                e.keyCode !== 229
-              ) {
-                e.preventDefault();
-                void send();
-              }
-            }}
-            placeholder="「屋根の隙間を埋めて」など"
-            className="block min-h-12 w-full resize-none border-0 bg-transparent px-2 py-1 text-base leading-6 outline-none disabled:opacity-60"
-          />
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-end gap-1">
             <Button
               type="button"
               variant="ghost"
@@ -624,11 +598,37 @@ export function DesignChat({
             >
               <Paperclip aria-hidden="true" className="size-5" />
             </Button>
-            {preparing && (
-              <span role="status" className="text-xs text-muted-foreground">
-                画像を準備中…
-              </span>
-            )}
+            <textarea
+              ref={inputRef}
+              id="design-chat-input"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={busy || !hydrated}
+              maxLength={1000}
+              rows={1}
+              onPaste={(e) => {
+                const files = Array.from(e.clipboardData.files).filter((file) =>
+                  file.type.startsWith("image/"),
+                );
+                if (!files.length) return;
+                // Keep native text insertion for clipboard items containing both.
+                if (!e.clipboardData.getData("text/plain")) e.preventDefault();
+                void attach(files);
+              }}
+              onKeyDown={(e) => {
+                if (
+                  e.key === "Enter" &&
+                  !e.shiftKey &&
+                  !e.nativeEvent.isComposing &&
+                  e.keyCode !== 229
+                ) {
+                  e.preventDefault();
+                  void send();
+                }
+              }}
+              placeholder="変えたいところを入力"
+              className="block max-h-28 min-h-11 min-w-0 flex-1 resize-none border-0 bg-transparent px-2 py-2.5 text-base leading-6 outline-none [field-sizing:content] disabled:opacity-60"
+            />
             {busy ? (
               <Button
                 key="stop"
@@ -659,13 +659,18 @@ export function DesignChat({
             )}
           </div>
         </div>
+        {preparing && (
+          <p role="status" className="text-xs text-muted-foreground">
+            画像を準備中…
+          </p>
+        )}
         {!!images.length && (
           <p className="mt-2 text-pretty text-xs text-muted-foreground">
             添付中の画像は、外すまで次の送信にも使います。
           </p>
         )}
       </form>
-      <details className="shrink-0 overflow-y-auto px-4 text-sm text-muted-foreground">
+      <details className="max-h-[25%] shrink-0 overflow-y-auto overscroll-contain px-4 text-sm text-muted-foreground">
         <summary className="min-h-11 cursor-pointer py-2">
           AIの利用について
         </summary>

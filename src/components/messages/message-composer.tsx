@@ -25,12 +25,13 @@ export function MessageComposer({ recipientId, orderId, latestHref }: { recipien
   }, [state.sentAt, latestHref, router]);
 
   return (
-    <form ref={formRef} action={action} className="flex flex-col gap-1.5 border-t border-line px-4 py-3">
+    <form ref={formRef} action={action} className="flex shrink-0 scroll-mb-24 flex-col gap-1.5 border-t border-line px-3 py-3 sm:px-4">
       <input type="hidden" name="recipientId" value={recipientId} />
       {orderId && <input type="hidden" name="orderId" value={orderId} />}
       <div className="flex items-end gap-2">
         <textarea
           name="body"
+          aria-label="メッセージを入力"
           rows={2}
           required
           maxLength={2000}
@@ -41,14 +42,14 @@ export function MessageComposer({ recipientId, orderId, latestHref }: { recipien
               formRef.current?.requestSubmit();
             }
           }}
-          className="flex-1 resize-none rounded-2xl border border-line bg-ground px-3.5 py-2.5 text-sm text-ink outline-none focus:border-brand"
+          className="min-w-0 flex-1 resize-none rounded-2xl border border-line bg-ground px-3.5 py-2.5 text-base text-ink outline-none focus:border-brand sm:text-sm"
         />
-        <Button type="submit" disabled={pending} className="rounded-full px-4">
+        <Button type="submit" disabled={pending} className="shrink-0 rounded-full px-3 sm:px-4">
           <Send className="size-3.5" aria-hidden />
           送信
         </Button>
       </div>
-      {state.error && <p className="text-sm text-danger">{state.error}</p>}
+      {state.error && <p role="alert" className="text-sm text-danger">{state.error}</p>}
     </form>
   );
 }

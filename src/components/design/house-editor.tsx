@@ -37,12 +37,13 @@ export function HouseEditor({ demo = false }: { demo?: boolean }) {
 
   return (
     <div
-      className="flex h-full min-h-0 flex-col bg-ground"
+      className="design-editor flex h-full min-h-0 flex-col bg-ground"
       data-testid="design-workspace"
     >
       {demo && (
-        <p className="shrink-0 border-b border-line bg-brand-soft px-4 py-2 text-pretty text-sm text-ink">
-          ログイン不要のAIデモ · 作ったモデルはこの端末に保存・出力できます
+        <p className="design-demo-banner shrink-0 border-b border-line bg-brand-soft px-4 py-1 text-pretty text-sm text-ink sm:py-2">
+          ログイン不要のAIデモ
+          <span className="hidden sm:inline"> · 作ったモデルはこの端末に保存・出力できます</span>
         </p>
       )}
       <EditorToolbar
@@ -62,7 +63,7 @@ export function HouseEditor({ demo = false }: { demo?: boolean }) {
           {files.error}
         </p>
       )}
-      <div className="grid min-h-0 flex-1 grid-rows-[minmax(180px,40%)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-1">
+      <div className="design-panels grid min-h-0 flex-1 grid-rows-[minmax(96px,28%)_minmax(0,1fr)] sm:grid-rows-[minmax(140px,35%)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_400px] lg:grid-rows-1">
         <DesignPreview
           session={session}
           ar={panel === "finish" ? files.ar : null}
