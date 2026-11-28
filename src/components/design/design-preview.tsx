@@ -97,7 +97,7 @@ export function DesignPreview({
           {status}
         </p>
         {design.scene === "house" && (
-          <p className="tabular-nums text-muted-foreground">
+          <p className="design-preview-dimensions tabular-nums text-muted-foreground">
             {design.house.width} × {design.house.depth} × {design.house.height}{" "}
             mm
             <span className="sr-only">（幅・奥行き・壁の高さ）</span>

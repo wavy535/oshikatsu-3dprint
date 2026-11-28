@@ -194,6 +194,42 @@ main {
   }
 }
 
+.design-frame {
+  container: design-frame / size;
+}
+
+.design-editor {
+  container: design-editor / size;
+}
+
+/* Leave space for the conversation on small phones and with a keyboard open. */
+@container design-editor (height < 560px) and (width < 1024px) {
+  .design-panels {
+    grid-template-rows: minmax(96px, 20%) minmax(0, 1fr);
+  }
+  .design-demo-banner,
+  .design-preview-dimensions,
+  .design-frame[data-keyboard-open] .design-toolbar {
+    display: none;
+  }
+}
+
+@container design-frame (height < 560px) and (width < 1024px) {
+  .design-frame[data-keyboard-open] .design-site-header {
+    display: none;
+  }
+}
+
+@container design-editor (height < 560px) and (640px <= width < 1024px) {
+  .design-panels {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .design-toolbar p {
+    display: none;
+  }
+}
+
 @layer components {
   .page-title {
     font-size: clamp(1.5rem, 2.2vw, 2rem);

@@ -26,7 +26,7 @@ export function EditorToolbar({
   const hydrated = useHydrated();
   return (
     <div
-      className="flex shrink-0 items-center justify-between gap-2 border-b border-line bg-white px-3 py-2 sm:px-5"
+      className="design-toolbar flex shrink-0 items-center justify-between gap-2 border-b border-line bg-white px-3 py-2 sm:px-5"
       aria-label="設計の保存と履歴"
     >
       <div className="min-w-0">
